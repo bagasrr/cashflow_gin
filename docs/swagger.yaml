@@ -1,0 +1,647 @@
+definitions:
+  request.CreateGroupRequest:
+    properties:
+      description:
+        example: Kelompok untuk berbagi pengeluaran keluarga
+        type: string
+      member_ids:
+        description: List user ID lain yg mau diajak (opsional)
+        items:
+          type: string
+        type: array
+      name:
+        example: Kelompok Keluarga
+        type: string
+    required:
+    - name
+    type: object
+  request.CreateTransactionRequest:
+    properties:
+      amount:
+        description: Amount harus > 0
+        type: number
+      category_name:
+        maxLength: 100
+        type: string
+      date:
+        description: 'Format: RFC3339 (e.g., "2026-02-02T15:04:05Z")'
+        type: string
+      description:
+        type: string
+      title:
+        maxLength: 255
+        type: string
+      wallet_id:
+        type: string
+    required:
+    - amount
+    - category_name
+    - date
+    - title
+    - wallet_id
+    type: object
+  request.CreateUserRequest:
+    properties:
+      email:
+        example: john.doe@example.com
+        maxLength: 100
+        type: string
+      password:
+        example: password123
+        maxLength: 255
+        type: string
+      username:
+        example: john_doe
+        maxLength: 100
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  request.LoginRequest:
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      password:
+        example: johndoeganteng
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  request.UpdateTransactionRequest:
+    properties:
+      amount:
+        type: number
+      category_id:
+        type: string
+      date:
+        type: string
+      description:
+        type: string
+      title:
+        maxLength: 255
+        type: string
+    type: object
+  response.BaseResponse:
+    properties:
+      data:
+        description: 'omitempty: sembunyikan jika nil'
+      errors: {}
+      message:
+        example: success
+        type: string
+      status:
+        example: true
+        type: boolean
+    type: object
+  response.CategoryResponse:
+    properties:
+      name:
+        example: Makanan
+        type: string
+      type:
+        example: EXPENSE
+        type: string
+    type: object
+  response.GroupMemberResponse:
+    properties:
+      id:
+        example: 123e4567-e89b-12d3-a456-426655440000
+        type: string
+      role:
+        example: ADMIN
+        type: string
+      user_id:
+        description: ID User aslinya
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
+  response.GroupResponse:
+    properties:
+      description:
+        example: Kelompok untuk berbagi pengeluaran keluarga
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426655440000
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/response.GroupMemberResponse'
+        type: array
+      name:
+        example: Kelompok Keluarga
+        type: string
+      wallet:
+        allOf:
+        - $ref: '#/definitions/response.WalletResponse'
+        description: Group pasti punya wallet
+    type: object
+  response.TransactionResponse:
+    properties:
+      amount:
+        example: 5000000
+        type: number
+      category:
+        $ref: '#/definitions/response.CategoryResponse'
+      date:
+        example: "2026-01-31T00:00:00Z"
+        format: date-time
+        type: string
+      description:
+        example: Gaji bulan Januari 2026
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426655440000
+        type: string
+      title:
+        example: Gaji Bulanan
+        type: string
+    type: object
+  response.UserResponse:
+    properties:
+      email:
+        example: john.doe@example.com
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426655440000
+        type: string
+      user_role:
+        example: USER
+        type: string
+      username:
+        example: john_doe
+        type: string
+      wallets:
+        items:
+          $ref: '#/definitions/response.WalletResponse'
+        type: array
+    type: object
+  response.WalletResponse:
+    properties:
+      balance:
+        example: 1000000
+        type: number
+      id:
+        example: 123e4567-e89b-12d3-a456-426655440000
+        type: string
+      name:
+        example: Tabungan
+        type: string
+      transactions:
+        items:
+          $ref: '#/definitions/response.TransactionResponse'
+        type: array
+    type: object
+info:
+  contact:
+    name: Bagas Rr
+    url: http://bagasrr.my.id
+  description: API untuk manajemen keuangan pribadi (Cashflow).
+  termsOfService: http://swagger.io/terms/
+  title: Cashflow API Gin
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentikasi user dan mendapatkan token JWT.
+      parameters:
+      - description: request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      summary: User Login
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Membuat user baru sekaligus wallet default.
+      parameters:
+      - description: request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UserResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Register User
+      tags:
+      - Auth
+  /categories:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan semua kategori yang tersedia.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.CategoryResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Get All Categories
+      tags:
+      - Categories
+  /categories/default:
+    post:
+      consumes:
+      - application/json
+      description: Membuat kategori default untuk pengguna baru.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.CategoryResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Default Categories
+      tags:
+      - Categories
+  /groups:
+    post:
+      consumes:
+      - application/json
+      description: Membuat grup baru dengan anggota yang ditentukan.
+      parameters:
+      - description: request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.GroupResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Group
+      tags:
+      - Groups
+  /groups/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan detail grup berdasarkan ID, termasuk anggota dan informasi
+        dompet.
+      parameters:
+      - description: ID Grup
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.GroupResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Group By ID
+      tags:
+      - Groups
+  /groups/{id}/remove-user:
+    patch:
+      consumes:
+      - application/json
+      description: Menghapus pengguna dari grup.
+      parameters:
+      - description: ID Grup
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove User From Group
+      tags:
+      - Groups
+  /transactions:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan semua transaksi.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.TransactionResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Find All Transactions
+      tags:
+      - Transactions
+    post:
+      consumes:
+      - application/json
+      description: Membuat transaksi baru.
+      parameters:
+      - description: request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TransactionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Transaction
+      tags:
+      - Transactions
+  /transactions/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan transaksi berdasarkan ID.
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TransactionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Transaction By ID
+      tags:
+      - Transactions
+  /transactions/{id}/update:
+    patch:
+      consumes:
+      - application/json
+      description: Memperbarui transaksi berdasarkan ID.
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TransactionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Transaction
+      tags:
+      - Transactions
+  /transactions/{id}/wallet/{walletid}/soft-delete:
+    patch:
+      consumes:
+      - application/json
+      description: Melakukan soft delete pada transaksi berdasarkan ID.
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Wallet ID
+        in: path
+        name: walletid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Soft Delete Transaction
+      tags:
+      - Transactions
+  /users/:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan daftar semua user. Admin Only can access this endpoint.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UserResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Find All User
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

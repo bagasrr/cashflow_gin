@@ -79,11 +79,6 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Membuat user baru sekaligus wallet default.",
                 "consumes": [
                     "application/json"
@@ -747,6 +742,123 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/wallets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mendapatkan semua dompet yang dimiliki pengguna, termasuk dompet pribadi dan grup.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "summary": "Get All Wallets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/response.WalletResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.BaseResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/wallets/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mendapatkan detail dompet berdasarkan ID, termasuk transaksi terkait.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallets"
+                ],
+                "summary": "Get Wallet By ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Wallet ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "groupid",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.BaseResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/response.WalletResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.BaseResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.BaseResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -942,6 +1054,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Kelompok Keluarga"
                 },
+                "total_members": {
+                    "type": "integer",
+                    "example": 5
+                },
                 "wallet": {
                     "description": "Group pasti punya wallet",
                     "allOf": [
@@ -957,7 +1073,7 @@ const docTemplate = `{
             "properties": {
                 "amount": {
                     "type": "number",
-                    "example": 5000000
+                    "example": 500
                 },
                 "category": {
                     "$ref": "#/definitions/response.CategoryResponse"
@@ -978,6 +1094,9 @@ const docTemplate = `{
                 "title": {
                     "type": "string",
                     "example": "Gaji Bulanan"
+                },
+                "user": {
+                    "$ref": "#/definitions/response.UserResponse"
                 }
             }
         },
@@ -1013,7 +1132,10 @@ const docTemplate = `{
             "properties": {
                 "balance": {
                     "type": "number",
-                    "example": 1000000
+                    "example": 1000
+                },
+                "group_id": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string",

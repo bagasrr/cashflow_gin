@@ -11,6 +11,7 @@ import (
 
 type GroupService interface {
 	CreateGroup(ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error)
+	GetAllGroups() (*[]response.GroupResponse, error)
 
 	GetGroupByID(groupID string) (*response.GroupResponse, error)
 	UpdateGroup(groupID string, name string) (*response.GroupResponse, error)
@@ -122,6 +123,44 @@ func (s *groupService) CreateGroup(ownerID uuid.UUID, input request.CreateGroupR
 	return &res, nil
 }
 
+func (s *groupService) GetAllGroups() (*[]response.GroupResponse, error) {
+	// Implementasi logika untuk mendapatkan semua grup
+	groups, err := s.repo.GetAllGroups()
+	if err != nil {
+		return nil, err
+	}
+
+	var groupResponses []response.GroupResponse
+	for _, group := range *groups {
+
+		var walletRes response.WalletResponse
+		// if len(group.Wallet) > 0 {
+		// 	walletRes = response.WalletResponse{
+		// 		ID:      group.Wallet[0].ID,
+		// 		Name:    group.Wallet[0].Name,
+		// 		Balance: group.Wallet[0].Balance,
+		// 	}
+		// }
+		for _, w := range group.Wallet {
+			walletRes = response.WalletResponse{
+				ID:      w.ID,
+				Name:    w.Name,
+				Balance: w.Balance,
+			}
+			break // Asumsi cuma 1 wallet per group, keluar setelah dapat yang pertama
+		}
+		groupResponses = append(groupResponses, response.GroupResponse{
+			ID:           group.ID.String(),
+			Name:         group.Name,
+			Description:  group.Description,
+			Wallet:       walletRes,
+			TotalMembers: group.MemberCount,
+		})
+	}
+
+	return &groupResponses, nil
+}
+
 func (s *groupService) GetGroupByID(groupID string) (*response.GroupResponse, error) {
 	// Implementasi logika untuk mendapatkan grup berdasarkan ID
 	groupIDParsed, err := uuid.Parse(groupID)
@@ -140,17 +179,19 @@ func (s *groupService) GetGroupByID(groupID string) (*response.GroupResponse, er
 			ID:       m.ID.String(),
 			UserID:   m.UserID.String(),
 			Role:     m.MembersRole.String(),
-			Username: "", // Idealnya di-preload di repo atau fetch ulang
+			Username: m.User.Username, // Idealnya di-preload di repo atau fetch ulang
 		})
 	}
 
 	var walletRes response.WalletResponse
-	if len(group.Wallet) > 0 {
+	for _, w := range group.Wallet {
 		walletRes = response.WalletResponse{
-			ID:      group.Wallet[0].ID,
-			Name:    group.Wallet[0].Name,
-			Balance: group.Wallet[0].Balance,
+			ID:      w.ID,
+			Name:    w.Name,
+			Balance: w.Balance,
+			// GroupID: w.GroupID,
 		}
+		break // Asumsi cuma 1 wallet per group, keluar setelah dapat yang pertama
 	}
 
 	res := response.GroupResponse{

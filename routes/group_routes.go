@@ -11,6 +11,7 @@ func GroupRoutes(r *gin.RouterGroup, controller *controllers.GroupController) {
 	groups := r.Group("/groups")
 	groups.Use(middlewares.AuthMiddleware()) // Middleware dipasang di sini
 	{
+		groups.GET("/", controller.GetAllGroups)
 		groups.POST("/", controller.CreateGroup)
 		groups.GET("/:id", controller.GetGroupByID)
 		// groups.PATCH("/:id/update", controller.UpdateGroup)

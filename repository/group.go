@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -9,7 +10,10 @@ import (
 
 type GroupRepository interface {
 	CreateGroupWithWalletAndMembers(group *models.Group, wallet *models.Wallet, members *[]models.GroupMember) error
+	GetAllGroups() (*[]models.Group, error)
 
+	IsGroupWallet(walletID uuid.UUID) (bool, error)
+	IsGroupMember(groupID, userID uuid.UUID) (bool, error)
 	GetGroupByID(groupID uuid.UUID) (*models.Group, error)
 	UpdateGroup(group *models.Group) error
 	DeleteGroup(groupID uuid.UUID) error
@@ -53,9 +57,28 @@ func (r *groupRepository) CreateGroupWithWalletAndMembers(group *models.Group, w
 	})
 }
 
+func (r *groupRepository) GetAllGroups() (*[]models.Group, error) {
+	var groups []models.Group
+
+	err := r.db.
+		Table("groups").
+		Select(`
+			groups.*,(
+				SELECT COUNT(*)
+				FROM group_members
+				WHERE group_members.group_id = groups.id
+			) AS member_count
+		`).Preload("Wallet").Find(&groups).Error
+
+	return &groups, err
+}
+
 func (r *groupRepository) GetGroupByID(groupID uuid.UUID) (*models.Group, error) {
 	var group models.Group
-	err := r.db.Preload("Members").First(&group, "id = ?", groupID).Error
+	err := r.db.Preload("Members").Preload(
+		"Members.User", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC").Limit(5)
+		}).Preload("Wallet").First(&group, "id = ?", groupID).Error
 	return &group, err
 }
 
@@ -81,4 +104,17 @@ func (r *groupRepository) AddUserToGroup(groupID, userID uuid.UUID) error {
 
 func (r *groupRepository) RemoveUserFromGroup(groupID, userID uuid.UUID) error {
 	return r.db.Where("group_id = ? AND user_id = ?", groupID, userID).Delete(&models.GroupMember{}).Error
+}
+
+func (r *groupRepository) IsGroupWallet(walletID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Wallet{}).Where("id = ? AND group_id IS NOT NULL", walletID).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *groupRepository) IsGroupMember(groupID, userID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.GroupMember{}).Where("group_id = ? AND user_id = ?", groupID, userID).Count(&count).Error
+	fmt.Println("Count : ", count)
+	return count > 0, err
 }

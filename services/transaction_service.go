@@ -24,6 +24,8 @@ type transactionService struct {
 	transactionRepo repository.TransactionRepository
 	categoryRepo    repository.CategoryRepository
 	userRepo        repository.UserRepository
+	groupRepo       repository.GroupRepository
+	walletRepo      repository.WalletRepository
 }
 
 // Constructor minta 2 Repository sekarang
@@ -31,25 +33,51 @@ func NewTransactionService(
 	tRepo repository.TransactionRepository,
 	cRepo repository.CategoryRepository,
 	uRepo repository.UserRepository,
+	gRepo repository.GroupRepository,
+	wRepo repository.WalletRepository,
 ) TransactionService {
 	return &transactionService{
 		transactionRepo: tRepo,
 		categoryRepo:    cRepo,
 		userRepo:        uRepo,
+		groupRepo:       gRepo,
+		walletRepo:      wRepo,
 	}
 }
 
 func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransactionRequest) (response.TransactionResponse, error) {
-	// Personal Wallet
-	// Cek Apakah user id yang mengirim = user id yang punya wallet
-	reqUser := s.transactionRepo.IsOwner(userID, input.WalletID)
-	if !reqUser {
-		return response.TransactionResponse{}, errors.New("unauthorized: wallet does not belong to user")
-	}
 	// 1. Parsing UUID
 	walletUUID, err := uuid.Parse(input.WalletID)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("invalid wallet id")
+	}
+
+	wallet, err := s.walletRepo.FindByID(walletUUID)
+	if err != nil {
+		return response.TransactionResponse{}, errors.New("wallet not found")
+	}
+
+	// Personal Wallet
+	// Cek Apakah user id yang mengirim = user id yang punya wallet
+	isGroupWallet, err := s.groupRepo.IsGroupWallet(walletUUID)
+	fmt.Println("Is Group Wallet?", isGroupWallet)
+	if err != nil {
+		return response.TransactionResponse{}, errors.New("failed to check wallet type")
+	}
+	if isGroupWallet {
+		isGroupMember, err := s.groupRepo.IsGroupMember(*wallet.GroupID, userID)
+		fmt.Println("Is Group Member?", isGroupMember)
+		if err != nil {
+			return response.TransactionResponse{}, errors.New("failed to check group membership")
+		}
+		if !isGroupMember {
+			return response.TransactionResponse{}, errors.New("unauthorized: user is not a member of the group wallet, cannot create personal transaction")
+		}
+	} else {
+		reqUser := s.transactionRepo.IsOwner(userID, input.WalletID)
+		if !reqUser {
+			return response.TransactionResponse{}, errors.New("unauthorized: wallet does not belong to user")
+		}
 	}
 
 	// 2. BUSSINESS LOGIC: Cek Category Type (Income/Expense)
@@ -98,7 +126,6 @@ func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransa
 			Type: category.Type,
 		},
 	}
-
 	return res, nil
 }
 

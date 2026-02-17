@@ -3,7 +3,6 @@ package controllers
 import (
 	"cashflow_gin/dto/response"
 	"cashflow_gin/services"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -72,7 +71,7 @@ func (c *CategoryController) GetAllCategories(ctx *gin.Context) {
 			http.StatusUnauthorized,
 			response.BaseResponse{
 				Status:  false,
-				Message: fmt.Sprintf("Tidak berhak mengakses endpoint ini sebagai %s", roleClaim),
+				Message: "Unauthorized access",
 				Errors:  "Insufficient permissions",
 				Data:    nil,
 			},
@@ -80,16 +79,14 @@ func (c *CategoryController) GetAllCategories(ctx *gin.Context) {
 		return
 	}
 
-	userRole := int(roleClaim.(float64))
-
-	cat, err := c.services.GetAllCategories(userRole)
+	cat, err := c.services.GetAllCategories(roleClaim.(float64))
 	if err != nil {
 		ctx.JSON(
 			http.StatusInternalServerError,
 			response.BaseResponse{
 				Status:  false,
-				Message: err.Error(),
-				Errors:  err,
+				Message: "Failed to retrieve categories",
+				Errors:  err.Error(),
 				Data:    nil,
 			},
 		)

@@ -136,6 +136,9 @@ definitions:
       name:
         example: Kelompok Keluarga
         type: string
+      total_members:
+        example: 5
+        type: integer
       wallet:
         allOf:
         - $ref: '#/definitions/response.WalletResponse'
@@ -144,7 +147,7 @@ definitions:
   response.TransactionResponse:
     properties:
       amount:
-        example: 5000000
+        example: 500
         type: number
       category:
         $ref: '#/definitions/response.CategoryResponse'
@@ -161,6 +164,8 @@ definitions:
       title:
         example: Gaji Bulanan
         type: string
+      user:
+        $ref: '#/definitions/response.UserResponse'
     type: object
   response.UserResponse:
     properties:
@@ -184,8 +189,10 @@ definitions:
   response.WalletResponse:
     properties:
       balance:
-        example: 1000000
+        example: 1000
         type: number
+      group_id:
+        type: string
       id:
         example: 123e4567-e89b-12d3-a456-426655440000
         type: string
@@ -269,8 +276,6 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/response.BaseResponse'
-      security:
-      - BearerAuth: []
       summary: Register User
       tags:
       - Auth
@@ -639,6 +644,76 @@ paths:
       summary: Find All User
       tags:
       - Users
+  /wallets:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan semua dompet yang dimiliki pengguna, termasuk dompet
+        pribadi dan grup.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/response.WalletResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Get All Wallets
+      tags:
+      - Wallets
+  /wallets/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan detail dompet berdasarkan ID, termasuk transaksi terkait.
+      parameters:
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Group ID
+        in: query
+        name: groupid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.WalletResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Wallet By ID
+      tags:
+      - Wallets
 securityDefinitions:
   BearerAuth:
     in: header

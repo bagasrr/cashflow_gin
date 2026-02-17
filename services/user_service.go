@@ -31,7 +31,7 @@ func (s *userService) FindAllUser() ([]response.UserResponse, error) {
 		var WalletRes []response.WalletResponse
 		for _, w := range u.Wallets {
 			var txRes []response.TransactionResponse
-			for _, t := range w.Transaction {
+			for _, t := range w.Transactions {
 				txRes = append(txRes, response.TransactionResponse{
 					ID:          t.ID.String(),
 					Title:       t.Title,

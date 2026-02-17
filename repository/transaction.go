@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -39,7 +40,10 @@ func (r *transactionRepository) CreateWithWalletUpdate(transaction *models.Trans
 		// Kita pakai gorm.Expr biar aman dari race condition
 		if err := tx.Model(&models.Wallet{}).
 			Where("id = ?", transaction.WalletID).
-			Update("balance", gorm.Expr("balance + ?", transaction.Amount)).Error; err != nil {
+			Updates(map[string]interface{}{
+				"balance":    gorm.Expr("balance + ?", transaction.Amount), // Aman
+				"updated_at": time.Now(),
+			}).Error; err != nil {
 			return err // Rollback otomatis
 		}
 

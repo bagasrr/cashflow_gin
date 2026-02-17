@@ -30,7 +30,8 @@ type Group struct {
 	Name        string `gorm:"type:varchar(200); not null" json:"group_name"`
 	Description string `gorm:"type:text" json:"group_description"`
 
-	OwnerID uuid.UUID `gorm:"type:uuid;not null" json:"group_owner_id"`
+	OwnerID     uuid.UUID `gorm:"type:uuid;not null" json:"group_owner_id"`
+	MemberCount int64     `gorm:"-:migration;->" json:"member_count"`
 	// WalletID uuid.UUID `gorm:"type:uuid;not null" json:"group_wallet_id"`
 
 	Members []GroupMember `gorm:"foreignKey:GroupID" json:"members"`

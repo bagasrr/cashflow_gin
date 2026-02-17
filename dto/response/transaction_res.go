@@ -21,4 +21,5 @@ type TransactionResponse struct {
 	Description string           `json:"description" example:"Gaji bulan Januari 2026"`
 	Date        time.Time        `json:"date" example:"2026-01-31T00:00:00Z" format:"date-time"`
 	Category    CategoryResponse `json:"category"`
+	User        UserResponse     `json:"user"`
 }

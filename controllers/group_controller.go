@@ -66,6 +66,25 @@ func (c *GroupController) GetGroupByID(ctx *gin.Context) {
 	})
 }
 
+func (c *GroupController) GetAllGroups(ctx *gin.Context) {
+	groups, err := c.services.GetAllGroups()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
+			Status:  false,
+			Message: "Failed to retrieve groups",
+			Errors:  err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.BaseResponse{
+		Status:  true,
+		Message: "Groups retrieved successfully",
+		Data:    groups,
+	})
+}
+
 // CreateGroup godoc
 // @Summary      Create Group
 // @Description  Membuat grup baru dengan anggota yang ditentukan.

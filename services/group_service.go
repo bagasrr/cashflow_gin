@@ -13,12 +13,12 @@ type GroupService interface {
 	CreateGroup(ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error)
 	GetAllGroups() (*[]response.GroupResponse, error)
 
-	GetGroupByID(groupID string) (*response.GroupResponse, error)
-	UpdateGroup(groupID string, name string) (*response.GroupResponse, error)
-	DeleteGroup(groupID string) error
+	GetGroupByID(groupID uuid.UUID) (*response.GroupResponse, error)
+	UpdateGroup(groupID uuid.UUID, name string) (*response.GroupResponse, error)
+	DeleteGroup(groupID uuid.UUID) error
 
-	AddUserToGroup(groupID string, userID string) error
-	RemoveUserFromGroup(groupID string, userID string) error
+	AddUserToGroup(groupID uuid.UUID, userIDs []uuid.UUID) error
+	RemoveUserFromGroup(groupID, userID uuid.UUID) error
 }
 
 type groupService struct {
@@ -104,7 +104,7 @@ func (s *groupService) CreateGroup(ownerID uuid.UUID, input request.CreateGroupR
 			Role:   m.MembersRole.String(),
 			// Username idealnya di-preload di repo atau fetch ulang,
 			// disini kita skip dulu atau set kosong
-			Username: "",
+			Username: m.User.Username,
 		})
 	}
 
@@ -134,20 +134,14 @@ func (s *groupService) GetAllGroups() (*[]response.GroupResponse, error) {
 	for _, group := range *groups {
 
 		var walletRes response.WalletResponse
-		// if len(group.Wallet) > 0 {
-		// 	walletRes = response.WalletResponse{
-		// 		ID:      group.Wallet[0].ID,
-		// 		Name:    group.Wallet[0].Name,
-		// 		Balance: group.Wallet[0].Balance,
-		// 	}
-		// }
+
 		for _, w := range group.Wallet {
 			walletRes = response.WalletResponse{
 				ID:      w.ID,
 				Name:    w.Name,
 				Balance: w.Balance,
 			}
-			break // Asumsi cuma 1 wallet per group, keluar setelah dapat yang pertama
+			break
 		}
 		groupResponses = append(groupResponses, response.GroupResponse{
 			ID:           group.ID.String(),
@@ -161,13 +155,10 @@ func (s *groupService) GetAllGroups() (*[]response.GroupResponse, error) {
 	return &groupResponses, nil
 }
 
-func (s *groupService) GetGroupByID(groupID string) (*response.GroupResponse, error) {
+func (s *groupService) GetGroupByID(groupID uuid.UUID) (*response.GroupResponse, error) {
 	// Implementasi logika untuk mendapatkan grup berdasarkan ID
-	groupIDParsed, err := uuid.Parse(groupID)
-	if err != nil {
-		return nil, err
-	}
-	group, err := s.repo.GetGroupByID(groupIDParsed)
+
+	group, err := s.repo.GetGroupByID(groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -206,25 +197,36 @@ func (s *groupService) GetGroupByID(groupID string) (*response.GroupResponse, er
 	return &res, nil
 }
 
-func (s *groupService) UpdateGroup(groupID string, name string) (*response.GroupResponse, error) {
+func (s *groupService) UpdateGroup(groupID uuid.UUID, name string) (*response.GroupResponse, error) {
 	// Implementasi logika untuk memperbarui nama grup
 	return &response.GroupResponse{}, nil
 }
 
-func (s *groupService) DeleteGroup(groupID string) error {
-	// Implementasi logika untuk menghapus grup
-	return nil
+func (s *groupService) DeleteGroup(groupID uuid.UUID) error {
+	return s.repo.DeleteGroup(groupID)
 }
 
-func (s *groupService) AddUserToGroup(groupID string, userID string) error {
-	// Implementasi logika untuk menambahkan user ke grup
-	return nil
-}
+// services/group_service.go
+func (s *groupService) AddUserToGroup(groupID uuid.UUID, userIDs []uuid.UUID) error {
+	// 1. (Opsional) Cek dulu Group-nya ada gak?
+	// _, err := s.repo.GetGroupByID(groupID)
+	// if err != nil { return errors.New("group not found") }
 
-func (s *groupService) RemoveUserFromGroup(groupID string, userID string) error {
-	err := s.repo.RemoveUserFromGroup(uuid.MustParse(groupID), uuid.MustParse(userID))
-	if err != nil {
-		return err
+	// 2. Mapping Logic (Business Logic)
+	var members []models.GroupMember
+	for _, uid := range userIDs {
+		members = append(members, models.GroupMember{
+			GroupID:     groupID,
+			UserID:      uid,
+			MembersRole: models.GroupParticipant, // Enaknya di Service: Bisa atur default role disini
+			// JoinedAt:    time.Now(),              // Atau set waktu join custom
+		})
 	}
-	return nil
+
+	// 3. Panggil Repo buat nyimpen
+	return s.repo.CreateMembers(members)
+}
+
+func (s *groupService) RemoveUserFromGroup(groupID, userID uuid.UUID) error {
+	return s.repo.RemoveUserFromGroup(groupID, userID)
 }

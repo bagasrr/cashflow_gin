@@ -9,7 +9,7 @@ type GroupResponse struct {
 	Description  string                `json:"description" example:"Kelompok untuk berbagi pengeluaran keluarga"`
 	Wallet       WalletResponse        `json:"wallet"` // Group pasti punya wallet
 	Members      []GroupMemberResponse `json:"members,omitempty"`
-	TotalMembers int64                 `json:"total_members" example:"5"`
+	TotalMembers int64                 `json:"total_members,omitempty" example:"5"`
 }
 
 type GroupMemberResponse struct {

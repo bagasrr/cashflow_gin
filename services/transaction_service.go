@@ -17,7 +17,7 @@ type TransactionService interface {
 	GetAll() (*[]response.TransactionResponse, error)
 	GetTransactionByID(userID uuid.UUID, transactionID uuid.UUID) (response.TransactionResponse, error)
 	UpdateTransaction(userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error)
-	SoftDeleteTransaction(userID uuid.UUID, transactionID uuid.UUID, walletID uuid.UUID) error
+	SoftDeleteTransaction(userID, transactionID, walletID uuid.UUID) error
 }
 
 type transactionService struct {
@@ -131,6 +131,7 @@ func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransa
 
 func (s *transactionService) GetAll() (*[]response.TransactionResponse, error) {
 	// 1. Panggil Repository (Filter by UserID biar gak bocor data orang lain)
+
 	transactions, err := s.transactionRepo.FindAll()
 	if err != nil {
 		return nil, err

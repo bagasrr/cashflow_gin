@@ -18,7 +18,7 @@ type GroupRepository interface {
 	UpdateGroup(group *models.Group) error
 	DeleteGroup(groupID uuid.UUID) error
 
-	AddUserToGroup(groupID, userID uuid.UUID) error
+	CreateMembers(members []models.GroupMember) error
 	RemoveUserFromGroup(groupID, userID uuid.UUID) error
 }
 
@@ -75,15 +75,7 @@ func (r *groupRepository) GetAllGroups() (*[]models.Group, error) {
 
 func (r *groupRepository) GetGroupByID(groupID uuid.UUID) (*models.Group, error) {
 	var group models.Group
-	err := r.db.
-		Table("groups").
-		Select(`
-			groups.*, (
-				SELECT COUNT(*) 
-				FROM group_members 
-				WHERE group_members.group_id = groups.id
-			) AS member_count
-	`).Preload("Wallet").First(&group, "id = ?", groupID).Error
+	err := r.db.Preload("Wallet").Preload("Members").Preload("Members.User").First(&group, "id = ?", groupID).Error
 	return &group, err
 }
 
@@ -95,16 +87,11 @@ func (r *groupRepository) DeleteGroup(groupID uuid.UUID) error {
 	return r.db.Delete(&models.Group{}, "id = ?", groupID).Error
 }
 
-func (r *groupRepository) AddUserToGroup(groupID, userID uuid.UUID) error {
-	var group models.Group
-	if err := r.db.First(&group, "id = ?", groupID).Error; err != nil {
-		return err
-	}
-	group.Members = append(group.Members, models.GroupMember{
-		GroupID: groupID,
-		UserID:  userID,
-	})
-	return r.db.Save(&group).Error
+// repository/group.go
+func (r *groupRepository) CreateMembers(members []models.GroupMember) error {
+	// Langsung gas simpan.
+	// Gak perlu cek GroupID ada atau gak, karena Foreign Key Database bakal nolak otomatis kalau gak ada.
+	return r.db.Create(&members).Error
 }
 
 func (r *groupRepository) RemoveUserFromGroup(groupID, userID uuid.UUID) error {

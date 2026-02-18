@@ -48,7 +48,18 @@ func (c *GroupController) GetGroupByID(ctx *gin.Context) {
 		return
 	}
 
-	group, err := c.services.GetGroupByID(groupID)
+	groupIDParsed, err := uuid.Parse(groupID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
+			Status:  false,
+			Message: "Invalid group ID format",
+			Errors:  err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	group, err := c.services.GetGroupByID(groupIDParsed)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
 			Status:  false,
@@ -185,17 +196,28 @@ func (c *GroupController) RemoveUserFromGroup(ctx *gin.Context) {
 		return
 	}
 
-	if groupID == "" || input.UserID == "" {
+	groupUUID, err := uuid.Parse(groupID)
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
 			Status:  false,
-			Message: "Group ID and User ID are required",
-			Errors:  nil,
+			Message: "Invalid group ID format",
+			Errors:  err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+	userUUID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
+			Status:  false,
+			Message: "Invalid User ID format",
+			Errors:  err.Error(),
 			Data:    nil,
 		})
 		return
 	}
 
-	err := c.services.RemoveUserFromGroup(groupID, input.UserID)
+	err = c.services.RemoveUserFromGroup(groupUUID, userUUID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
 			Status:  false,

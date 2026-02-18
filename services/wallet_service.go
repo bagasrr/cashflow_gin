@@ -63,17 +63,22 @@ func (s *walletService) GetAll() ([]response.WalletResponse, error) {
 }
 
 func (s *walletService) GetWalletByID(userID, walletID, groupID uuid.UUID) (response.WalletResponse, error) {
-	// Implementasi untuk mendapatkan detail wallet berdasarkan ID
-	isMember, err := s.groupRepo.IsGroupMember(groupID, userID)
-	if err != nil {
-		return response.WalletResponse{}, err
+	// Cek Apakah Group id nya Nil atau bukan
+	if groupID != uuid.Nil {
+		isMember, err := s.groupRepo.IsGroupMember(groupID, userID)
+		if err != nil || !isMember {
+			return response.WalletResponse{}, err
+		}
 	}
-	if !isMember {
-		return response.WalletResponse{}, errors.New("unauthorized")
-	}
+
 	wallet, err := s.walletRepo.FindByID(walletID)
 	if err != nil {
 		return response.WalletResponse{}, err
+	}
+
+	// cek apakah si wallet itu milik user atau grup yang dia ikuti
+	if wallet.UserID != &userID || (groupID != uuid.Nil && wallet.GroupID != &groupID) {
+		return response.WalletResponse{}, errors.New("unauthorized: wallet does not belong to user")
 	}
 
 	var transactions []response.TransactionResponse

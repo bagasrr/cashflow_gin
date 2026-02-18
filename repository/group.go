@@ -75,10 +75,15 @@ func (r *groupRepository) GetAllGroups() (*[]models.Group, error) {
 
 func (r *groupRepository) GetGroupByID(groupID uuid.UUID) (*models.Group, error) {
 	var group models.Group
-	err := r.db.Preload("Members").Preload(
-		"Members.User", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at DESC").Limit(5)
-		}).Preload("Wallet").First(&group, "id = ?", groupID).Error
+	err := r.db.
+		Table("groups").
+		Select(`
+			groups.*, (
+				SELECT COUNT(*) 
+				FROM group_members 
+				WHERE group_members.group_id = groups.id
+			) AS member_count
+	`).Preload("Wallet").First(&group, "id = ?", groupID).Error
 	return &group, err
 }
 

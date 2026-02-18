@@ -2,15 +2,14 @@ package services
 
 import (
 	"cashflow_gin/dto/response"
-	"cashflow_gin/models"
 	"cashflow_gin/repository"
 
 	"github.com/google/uuid"
 )
 
 type UserService interface {
-	FindAllUser() ([]response.UserResponse, error)
-	GetMyProfile(id uuid.UUID) (*models.User, error)
+	FindAllUser() (*[]response.UserResponse, error)
+	GetMyProfile(id uuid.UUID) (*response.UserResponse, error)
 }
 
 type userService struct {
@@ -21,7 +20,7 @@ func NewUserService(r repository.UserRepository) UserService {
 	return &userService{repo: r}
 }
 
-func (s *userService) FindAllUser() ([]response.UserResponse, error) {
+func (s *userService) FindAllUser() (*[]response.UserResponse, error) {
 	users, err := s.repo.FindAllUser()
 	if err != nil {
 		return nil, err
@@ -30,25 +29,11 @@ func (s *userService) FindAllUser() ([]response.UserResponse, error) {
 	for _, u := range users {
 		var WalletRes []response.WalletResponse
 		for _, w := range u.Wallets {
-			var txRes []response.TransactionResponse
-			for _, t := range w.Transactions {
-				txRes = append(txRes, response.TransactionResponse{
-					ID:          t.ID.String(),
-					Title:       t.Title,
-					Amount:      t.Amount,
-					Date:        t.Date,
-					Description: t.Description,
-					Category: response.CategoryResponse{
-						Name: t.Category.Name,
-						Type: t.Category.Type,
-					},
-				})
-			}
 			WalletRes = append(WalletRes, response.WalletResponse{
-				ID:           w.ID,
-				Name:         w.Name,
-				Balance:      w.Balance,
-				Transactions: txRes,
+				ID:               w.ID,
+				Name:             w.Name,
+				Balance:          w.Balance,
+				TransactionCount: w.TransactionCount,
 			})
 		}
 		userRes = append(userRes, response.UserResponse{
@@ -59,13 +44,32 @@ func (s *userService) FindAllUser() ([]response.UserResponse, error) {
 			Wallets:  WalletRes,
 		})
 	}
-	return userRes, nil
+	return &userRes, nil
 }
 
-func (s *userService) GetMyProfile(id uuid.UUID) (*models.User, error) {
+func (s *userService) GetMyProfile(id uuid.UUID) (*response.UserResponse, error) {
 	user, err := s.repo.FindMyProfile(id)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	var UserRes *response.UserResponse
+	var WalletRes []response.WalletResponse
+
+	for _, w := range user.Wallets {
+		WalletRes = append(WalletRes, response.WalletResponse{
+			ID:               w.ID,
+			Name:             w.Name,
+			Balance:          w.Balance,
+			TransactionCount: w.TransactionCount,
+		})
+	}
+
+	UserRes = &response.UserResponse{
+		ID:       user.ID.String(),
+		Username: user.Username,
+		Email:    user.Email,
+		UserRole: user.UserRole.String(),
+		Wallets:  WalletRes,
+	}
+	return UserRes, nil
 }

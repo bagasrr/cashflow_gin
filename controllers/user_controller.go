@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type UserController struct {
@@ -33,7 +34,7 @@ func (c *UserController) FindAllUser(ctx *gin.Context) {
 			response.BaseResponse{
 				Status:  false,
 				Message: "error",
-				Errors:  err,
+				Errors:  err.Error(),
 			})
 		return
 	}
@@ -42,6 +43,38 @@ func (c *UserController) FindAllUser(ctx *gin.Context) {
 		Status:  true,
 		Message: "success",
 		Data:    users,
+		Errors:  nil,
+	})
+}
+
+func (c *UserController) GetMyProfile(ctx *gin.Context) {
+	// 1 baris untuk ambil UserID
+	userID, err := uuid.Parse(ctx.GetString("user_id"))
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
+			Status:  false,
+			Message: "Unauthorized",
+			Errors:  err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	user, err := c.service.GetMyProfile(userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
+			Status:  false,
+			Message: "Failed to retrieve profile",
+			Errors:  err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.BaseResponse{
+		Status:  true,
+		Message: "Profile retrieved successfully",
+		Data:    user,
 		Errors:  nil,
 	})
 }

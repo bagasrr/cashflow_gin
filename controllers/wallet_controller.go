@@ -94,17 +94,18 @@ func (c *WalletController) GetWalletByID(ctx *gin.Context) {
 		return
 	}
 	groupIDParams, ok := ctx.GetQuery("groupid")
-
+	var groupID uuid.UUID
 	if !ok {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Cannot find groupid in query params",
-			Errors:  nil,
-			Data:    nil,
-		})
-		return
+		// ctx.JSON(http.StatusBadRequest, response.BaseResponse{
+		// 	Status:  false,
+		// 	Message: "Cannot find groupid in query params",
+		// 	Errors:  nil,
+		// 	Data:    nil,
+		// })
+		// return
+		groupID = uuid.Nil
 	} else {
-		groupID, err := uuid.Parse(groupIDParams)
+		groupID, err = uuid.Parse(groupIDParams)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, response.BaseResponse{
 				Status:  false,
@@ -114,22 +115,23 @@ func (c *WalletController) GetWalletByID(ctx *gin.Context) {
 			})
 			return
 		}
-		wallet, err := c.services.GetWalletByID(userID, walletID, groupID)
-		if err != nil {
-			// Handle the error
-			ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-				Status:  false,
-				Message: "Failed to get wallet",
-				Errors:  err.Error(),
-				Data:    nil,
-			})
-			return
-		}
-		ctx.JSON(http.StatusOK, response.BaseResponse{
-			Status:  true,
-			Message: "Wallet retrieved successfully",
-			Errors:  nil,
-			Data:    wallet,
-		})
 	}
+
+	wallet, err := c.services.GetWalletByID(userID, walletID, groupID)
+	if err != nil {
+		// Handle the error
+		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
+			Status:  false,
+			Message: "Failed to get wallet",
+			Errors:  err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, response.BaseResponse{
+		Status:  true,
+		Message: "Wallet retrieved successfully",
+		Errors:  nil,
+		Data:    wallet,
+	})
 }

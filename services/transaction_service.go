@@ -16,7 +16,7 @@ type TransactionService interface {
 	Create(userID uuid.UUID, input request.CreateTransactionRequest) (response.TransactionResponse, error)
 	GetAll() (*[]response.TransactionResponse, error)
 	GetTransactionByID(userID uuid.UUID, transactionID uuid.UUID) (response.TransactionResponse, error)
-	UpdateTransaction(userID uuid.UUID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error)
+	UpdateTransaction(userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error)
 	SoftDeleteTransaction(userID uuid.UUID, transactionID uuid.UUID, walletID uuid.UUID) error
 }
 
@@ -147,7 +147,7 @@ func (s *transactionService) GetAll() (*[]response.TransactionResponse, error) {
 			Amount:      t.Amount,
 			Description: t.Description,
 			Date:        t.Date,
-			Category: response.CategoryResponse{ // Nested DTO
+			Category: response.CategoryResponse{
 				Name: t.Category.Name,
 				Type: t.Category.Type,
 			},
@@ -190,7 +190,7 @@ func (s *transactionService) GetTransactionByID(userID uuid.UUID, transactionID 
 	return res, nil
 }
 
-func (s *transactionService) UpdateTransaction(userID uuid.UUID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error) {
+func (s *transactionService) UpdateTransaction(userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error) {
 	reqUser, err := s.userRepo.FindMyProfile(userID)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("unauthorized: user not found")
@@ -263,7 +263,7 @@ func (s *transactionService) UpdateTransaction(userID uuid.UUID, transactionID u
 	return res, nil
 }
 
-func (s *transactionService) SoftDeleteTransaction(userID uuid.UUID, transactionID uuid.UUID, walletID uuid.UUID) error {
+func (s *transactionService) SoftDeleteTransaction(userID, transactionID, walletID uuid.UUID) error {
 	reqUser, err := s.userRepo.FindMyProfile(userID)
 	if err != nil {
 		return errors.New("unauthorized: user not found")

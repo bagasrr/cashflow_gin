@@ -195,11 +195,12 @@ func (s *groupService) GetGroupByID(groupID string) (*response.GroupResponse, er
 	}
 
 	res := response.GroupResponse{
-		ID:          group.ID.String(),
-		Name:        group.Name,
-		Description: group.Description,
-		Wallet:      walletRes,
-		Members:     memberResponses,
+		ID:           group.ID.String(),
+		Name:         group.Name,
+		Description:  group.Description,
+		Wallet:       walletRes,
+		Members:      memberResponses,
+		TotalMembers: group.MemberCount,
 	}
 
 	return &res, nil

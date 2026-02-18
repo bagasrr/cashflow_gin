@@ -11,4 +11,6 @@ type Wallet struct {
 	Currency     string        `gorm:"type:varchar(10);default:'IDR'" json:"currency"`
 	Transactions []Transaction `gorm:"foreignKey:WalletID" json:"transactions,omitempty"`
 	Groups       *Group        `gorm:"foreignKey:GroupID" json:"groups,omitempty"`
+
+	TransactionCount int64 `gorm:"-:migration;->" json:"transaction_count"`
 }

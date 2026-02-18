@@ -19,8 +19,3 @@ type WalletResponse struct {
 	GroupID      *uuid.UUID            `json:"group_id,omitempty"`
 	Transactions []TransactionResponse `json:"transactions,omitempty"`
 }
-
-type CategoryResponse struct {
-	Name string `json:"name" example:"Makanan"`
-	Type string `json:"type" example:"EXPENSE"`
-}

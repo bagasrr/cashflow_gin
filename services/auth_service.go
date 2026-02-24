@@ -5,6 +5,7 @@ import (
 	"cashflow_gin/dto/response"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -15,8 +16,8 @@ import (
 )
 
 type AuthService interface {
-	Login(input *request.LoginRequest) (string, error)
-	Register(input request.CreateUserRequest) (*response.UserResponse, error)
+	Login(ctx context.Context, input *request.LoginRequest) (string, error)
+	Register(ctx context.Context, input request.CreateUserRequest) (*response.UserResponse, error)
 }
 
 type authService struct {
@@ -27,9 +28,9 @@ func NewAuthService(r repository.AuthRepository) AuthService {
 	return &authService{repo: r}
 }
 
-func (s *authService) Login(input *request.LoginRequest) (string, error) {
+func (s *authService) Login(ctx context.Context, input *request.LoginRequest) (string, error) {
 	// 1. Cari user berdasarkan email (panggil Repo)
-	user, err := s.repo.Login(input)
+	user, err := s.repo.Login(ctx, input)
 	if err != nil {
 		return "", errors.New("email atau password salah") // Jangan kasih tau email gak ada (security)
 	}
@@ -51,9 +52,9 @@ func (s *authService) Login(input *request.LoginRequest) (string, error) {
 	return tokenString, err
 }
 
-func (s *authService) Register(input request.CreateUserRequest) (*response.UserResponse, error) {
+func (s *authService) Register(ctx context.Context, input request.CreateUserRequest) (*response.UserResponse, error) {
 	// cek apakah email atau username udah ada di db?
-	_, err := s.repo.FindByEmail(input.Email)
+	_, err := s.repo.FindByEmail(ctx, input.Email)
 	// kalo udah ada kan err = nil, kembalikan error
 	if err == nil {
 		return nil, errors.New("email atau username sudah terdaftar")
@@ -82,7 +83,7 @@ func (s *authService) Register(input request.CreateUserRequest) (*response.UserR
 		Currency: "IDR",
 	}
 
-	err = s.repo.CreateUserWithWallet(&user, wallet)
+	err = s.repo.CreateUserWithWallet(ctx, &user, wallet)
 	if err != nil {
 		return nil, err
 	}

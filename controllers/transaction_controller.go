@@ -31,24 +31,24 @@ func NewTransactionController(service services.TransactionService) *TransactionC
 func (c *TransactionController) Create(ctx *gin.Context) {
 	var input request.CreateTransactionRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.sendError(ctx, http.StatusBadRequest, "Invalid input data", err)
+		SendError(ctx, http.StatusBadRequest, "Invalid input data", err)
 		return
 	}
 
 	// 1 baris untuk ambil UserID
-	userID, err := c.getUserID(ctx)
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		c.sendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	newTransaction, err := c.service.Create(userID, input)
+	newTransaction, err := c.service.Create(ctx.Request.Context(), userID, input)
 	if err != nil {
-		c.sendError(ctx, http.StatusInternalServerError, "Failed to create transaction", err)
+		SendError(ctx, http.StatusInternalServerError, "Failed to create transaction", err)
 		return
 	}
 
-	c.sendSuccess(ctx, "Transaction created successfully", newTransaction)
+	SendSuccess(ctx, http.StatusCreated, "Transaction created successfully", newTransaction)
 }
 
 // FindAll godoc
@@ -62,15 +62,25 @@ func (c *TransactionController) Create(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /transactions [get]
 func (c *TransactionController) FindAll(ctx *gin.Context) {
-	// Note: Harusnya FindAll juga butuh userID kan? Transaction itu private per user.
-	// Tapi aku ikutin logic code aslimu dulu.
-	transactions, err := c.service.GetAll()
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		c.sendError(ctx, http.StatusInternalServerError, "Failed to retrieve transactions", err)
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	c.sendSuccess(ctx, "Transactions retrieved successfully", transactions)
+	role, err := GetUserRole(ctx)
+	if err != nil {
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
+		return
+	}
+
+	transactions, err := c.service.GetAll(ctx.Request.Context(), userID, role)
+	if err != nil {
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve transactions", err)
+		return
+	}
+
+	SendSuccess(ctx, http.StatusOK, "Transactions retrieved successfully", transactions)
 }
 
 // GetTransactionByID godoc
@@ -87,25 +97,25 @@ func (c *TransactionController) FindAll(ctx *gin.Context) {
 // @Router       /transactions/{id} [get]
 func (c *TransactionController) GetTransactionByID(ctx *gin.Context) {
 	// Reuse helper getParamID
-	transactionID, err := c.getParamID(ctx, "id")
+	transactionID, err := GetParamID(ctx, "id")
 	if err != nil {
-		c.sendError(ctx, http.StatusBadRequest, "Invalid transaction ID", err)
+		SendError(ctx, http.StatusBadRequest, "Invalid transaction ID", err)
 		return
 	}
 
-	userID, err := c.getUserID(ctx)
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		c.sendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	transaction, err := c.service.GetTransactionByID(userID, transactionID)
+	transaction, err := c.service.GetTransactionByID(ctx.Request.Context(), userID, transactionID)
 	if err != nil {
-		c.sendError(ctx, http.StatusInternalServerError, "Failed to retrieve transaction", err)
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve transaction", err)
 		return
 	}
 
-	c.sendSuccess(ctx, "Transaction retrieved successfully", transaction)
+	SendSuccess(ctx, http.StatusOK, "Transaction retrieved successfully", transaction)
 }
 
 // UpdateTransaction godoc
@@ -122,31 +132,31 @@ func (c *TransactionController) GetTransactionByID(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /transactions/{id}/update [patch]
 func (c *TransactionController) UpdateTransaction(ctx *gin.Context) {
-	transactionID, err := c.getParamID(ctx, "id")
+	transactionID, err := GetParamID(ctx, "id")
 	if err != nil {
-		c.sendError(ctx, http.StatusBadRequest, "Invalid transaction ID", err)
+		SendError(ctx, http.StatusBadRequest, "Invalid transaction ID", err)
 		return
 	}
 
 	var input request.UpdateTransactionRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.sendError(ctx, http.StatusBadRequest, "Invalid input format", err)
+		SendError(ctx, http.StatusBadRequest, "Invalid input format", err)
 		return
 	}
 
-	userID, err := c.getUserID(ctx)
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		c.sendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	updatedTransaction, err := c.service.UpdateTransaction(userID, transactionID, input)
+	updatedTransaction, err := c.service.UpdateTransaction(ctx.Request.Context(), userID, transactionID, input)
 	if err != nil {
-		c.sendError(ctx, http.StatusInternalServerError, "Failed to update transaction", err)
+		SendError(ctx, http.StatusInternalServerError, "Failed to update transaction", err)
 		return
 	}
 
-	c.sendSuccess(ctx, "Transaction updated successfully", updatedTransaction)
+	SendSuccess(ctx, http.StatusOK, "Transaction updated successfully", updatedTransaction)
 }
 
 // SoftDeleteTransaction godoc
@@ -163,29 +173,29 @@ func (c *TransactionController) UpdateTransaction(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /transactions/{id}/wallet/{walletid}/soft-delete [patch]
 func (c *TransactionController) SoftDeleteTransaction(ctx *gin.Context) {
-	transactionID, err := c.getParamID(ctx, "id")
+	transactionID, err := GetParamID(ctx, "id")
 	if err != nil {
-		c.sendError(ctx, http.StatusBadRequest, "Invalid transaction ID", err)
+		SendError(ctx, http.StatusBadRequest, "Invalid transaction ID", err)
 		return
 	}
 
-	walletID, err := c.getParamID(ctx, "walletid")
+	walletID, err := GetParamID(ctx, "walletid")
 	if err != nil {
-		c.sendError(ctx, http.StatusBadRequest, "Invalid wallet ID", err)
+		SendError(ctx, http.StatusBadRequest, "Invalid wallet ID", err)
 		return
 	}
 
-	userID, err := c.getUserID(ctx)
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		c.sendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	err = c.service.SoftDeleteTransaction(userID, transactionID, walletID)
+	err = c.service.SoftDeleteTransaction(ctx.Request.Context(), userID, transactionID, walletID)
 	if err != nil {
-		c.sendError(ctx, http.StatusInternalServerError, "Failed to soft delete transaction", err)
+		SendError(ctx, http.StatusInternalServerError, "Failed to soft delete transaction", err)
 		return
 	}
 
-	c.sendSuccess(ctx, "Transaction soft deleted successfully", nil)
+	SendSuccess(ctx, http.StatusOK, "Transaction soft deleted successfully", nil)
 }

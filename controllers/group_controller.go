@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"cashflow_gin/dto/request"
-	"cashflow_gin/dto/response"
 	"cashflow_gin/services"
 	"net/http"
 
@@ -37,63 +36,29 @@ func NewGroupController(service services.GroupService) *GroupController {
 // @Security 	 BearerAuth
 // @Router       /groups/{id} [get]
 func (c *GroupController) GetGroupByID(ctx *gin.Context) {
-	groupID := ctx.Param("id")
-	if groupID == "" {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Group ID is required",
-			Errors:  nil,
-			Data:    nil,
-		})
-		return
-	}
-
-	groupIDParsed, err := uuid.Parse(groupID)
+	groupID, err := GetParamID(ctx, "id")
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid group ID format",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid group ID", err)
 		return
 	}
 
-	group, err := c.services.GetGroupByID(groupIDParsed)
+	group, err := c.services.GetGroupByID(ctx.Request.Context(), groupID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to retrieve group",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve group", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Group retrieved successfully",
-		Data:    group,
-	})
+	SendSuccess(ctx, http.StatusOK, "Group retrieved successfully", group)
 }
 
 func (c *GroupController) GetAllGroups(ctx *gin.Context) {
-	groups, err := c.services.GetAllGroups()
+	groups, err := c.services.GetAllGroups(ctx.Request.Context())
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to retrieve groups",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve groups", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Groups retrieved successfully",
-		Data:    groups,
-	})
+	SendSuccess(ctx, http.StatusOK, "Groups retrieved successfully", groups)
 }
 
 // CreateGroup godoc
@@ -111,64 +76,23 @@ func (c *GroupController) GetAllGroups(ctx *gin.Context) {
 func (c *GroupController) CreateGroup(ctx *gin.Context) {
 	var req request.CreateGroupRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid request body",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
-	userIDClaim, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
-			Status:  false,
-			Message: "Unauthorized",
-			Errors:  "User ID not found in token",
-			Data:    nil,
-		})
-		return
-	}
-
-	userIDStr, ok := userIDClaim.(string)
-	if !ok {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Internal Server Error",
-			Errors:  "User ID claim is not a string",
-			Data:    nil,
-		})
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr)
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Internal Server Error",
-			Errors:  "Invalid User ID format",
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	newGroup, err := c.services.CreateGroup(userID, req)
+	newGroup, err := c.services.CreateGroup(ctx.Request.Context(), userID, req)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to create group",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to create group", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Group created successfully",
-		Data:    newGroup,
-	})
+	SendSuccess(ctx, http.StatusOK, "Group created successfully", newGroup)
 }
 
 // RemoveUserFromGroup godoc
@@ -184,53 +108,57 @@ func (c *GroupController) CreateGroup(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /groups/{id}/remove-user [patch]
 func (c *GroupController) RemoveUserFromGroup(ctx *gin.Context) {
-	groupID := ctx.Param("id")
+	groupID, err := GetParamID(ctx, "id")
+	if err != nil {
+		SendError(ctx, http.StatusBadRequest, "Invalid group ID", err)
+		return
+	}
+
 	var input removeUser
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid request body",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
-	groupUUID, err := uuid.Parse(groupID)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid group ID format",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
-		return
-	}
 	userUUID, err := uuid.Parse(input.UserID)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid User ID format",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid User ID format", err)
 		return
 	}
 
-	err = c.services.RemoveUserFromGroup(groupUUID, userUUID)
+	err = c.services.RemoveUserFromGroup(ctx.Request.Context(), groupID, userUUID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to remove user from group",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to remove user from group", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "User removed from group successfully",
-		Data:    nil,
-	})
+	SendSuccess(ctx, http.StatusOK, "User removed from group successfully", nil)
+}
+
+// DeleteGroup godoc
+// @Summary      Delete Group
+// @Description  Menghapus grup berdasarkan ID.
+// @Tags         Groups
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "ID Grup"
+// @Success      200 {object} response.BaseResponse
+// @Failure      400 {object} response.BaseResponse
+// @Failure      500 {object} response.BaseResponse
+// @Security 	 BearerAuth
+// @Router       /groups/{id} [delete]
+func (c *GroupController) DeleteGroup(ctx *gin.Context) {
+	groupID, err := GetParamID(ctx, "id")
+	if err != nil {
+		SendError(ctx, http.StatusBadRequest, "Invalid group ID", err)
+		return
+	}
+
+	err = c.services.DeleteGroup(ctx.Request.Context(), groupID)
+	if err != nil {
+		SendError(ctx, http.StatusInternalServerError, "Failed to delete group", err)
+		return
+	}
+
+	SendSuccess(ctx, http.StatusOK, "Group deleted successfully", nil)
 }

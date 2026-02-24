@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,13 +10,14 @@ import (
 )
 
 type TransactionRepository interface {
-	CreateWithWalletUpdate(transaction *models.Transaction) error
-	FindAll() ([]models.Transaction, error)
-	IsOwner(userID uuid.UUID, walletID string) bool
-	FindByID(transactionID uuid.UUID) (*models.Transaction, error)
-	UpdateTransaction(transaction *models.Transaction) error
-	UpdateTransactionWithWalletBallance(transaction *models.Transaction, delta float64) error
-	SoftDeleteTransaction(transactionID uuid.UUID, delta float64, walletID uuid.UUID) error
+	CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction) error
+	FindAll(ctx context.Context) ([]models.Transaction, error)
+	FindAllByUserID(ctx context.Context, userID uuid.UUID) ([]models.Transaction, error)
+	IsOwner(ctx context.Context, userID uuid.UUID, walletID string) bool
+	FindByID(ctx context.Context, transactionID uuid.UUID) (*models.Transaction, error)
+	UpdateTransaction(ctx context.Context, transaction *models.Transaction) error
+	UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta float64) error
+	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta float64, walletID uuid.UUID) error
 }
 
 type transactionRepository struct {
@@ -27,9 +29,9 @@ func NewTransactionRepository(db *gorm.DB) TransactionRepository {
 }
 
 // INI LOGIC PENTING: Transaction Database (ACID)
-func (r *transactionRepository) CreateWithWalletUpdate(transaction *models.Transaction) error {
+func (r *transactionRepository) CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction) error {
 	// Mulai DB Transaction
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	return r.db.WithContext(ctx).Exec("SELECT pg_sleep(5)").Transaction(func(tx *gorm.DB) error {
 		// 1. Create Transaction Record
 		if err := tx.Create(transaction).Error; err != nil {
 			return err // Rollback otomatis kalau error
@@ -51,30 +53,36 @@ func (r *transactionRepository) CreateWithWalletUpdate(transaction *models.Trans
 	})
 }
 
-func (r *transactionRepository) FindAll() ([]models.Transaction, error) {
+func (r *transactionRepository) FindAll(ctx context.Context) ([]models.Transaction, error) {
 	var transactions []models.Transaction
-	err := r.db.Preload("Category").Preload("Wallet").Find(&transactions).Error
+	err := r.db.WithContext(ctx).Preload("Category").Preload("Wallet").Find(&transactions).Error
 	return transactions, err
 }
 
-func (r *transactionRepository) IsOwner(userID uuid.UUID, walletID string) bool {
+func (r *transactionRepository) FindAllByUserID(ctx context.Context, userID uuid.UUID) ([]models.Transaction, error) {
+	var transactions []models.Transaction
+	err := r.db.WithContext(ctx).Preload("Category").Preload("Wallet").Where("user_id = ?", userID).Find(&transactions).Error
+	return transactions, err
+}
+
+func (r *transactionRepository) IsOwner(ctx context.Context, userID uuid.UUID, walletID string) bool {
 	var wallet models.Wallet
-	err := r.db.Where("id = ? AND user_id = ?", walletID, userID).First(&wallet).Error
+	err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", walletID, userID).First(&wallet).Error
 	return err == nil
 }
 
-func (r *transactionRepository) FindByID(transactionID uuid.UUID) (*models.Transaction, error) {
+func (r *transactionRepository) FindByID(ctx context.Context, transactionID uuid.UUID) (*models.Transaction, error) {
 	var transaction models.Transaction
-	err := r.db.Preload("Category").Preload("Wallet").First(&transaction, "id = ?", transactionID).Error
+	err := r.db.WithContext(ctx).Preload("Category").Preload("Wallet").First(&transaction, "id = ?", transactionID).Error
 	return &transaction, err
 }
 
-func (r *transactionRepository) UpdateTransaction(transaction *models.Transaction) error {
-	return r.db.Save(transaction).Error
+func (r *transactionRepository) UpdateTransaction(ctx context.Context, transaction *models.Transaction) error {
+	return r.db.WithContext(ctx).Save(transaction).Error
 }
 
-func (r *transactionRepository) UpdateTransactionWithWalletBallance(transaction *models.Transaction, delta float64) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *transactionRepository) UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta float64) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Update Transaction Record
 		if err := tx.Save(transaction).Error; err != nil {
 			return err // Rollback otomatis kalau error
@@ -93,8 +101,8 @@ func (r *transactionRepository) UpdateTransactionWithWalletBallance(transaction 
 	})
 }
 
-func (r *transactionRepository) SoftDeleteTransaction(transactionId uuid.UUID, delta float64, walletID uuid.UUID) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *transactionRepository) SoftDeleteTransaction(ctx context.Context, transactionId uuid.UUID, delta float64, walletID uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Soft Delete Transaction Record
 		if err := tx.Where("id = ?", transactionId).Delete(&models.Transaction{}).Error; err != nil {
 			return err // Rollback otomatis kalau error

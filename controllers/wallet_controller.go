@@ -1,12 +1,11 @@
 package controllers
 
 import (
-	"cashflow_gin/dto/response"
 	"cashflow_gin/services"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type WalletController struct {
@@ -29,23 +28,13 @@ func NewWalletController(s services.WalletService) *WalletController {
 // @Router       /wallets [get]
 func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 	// Implementasi untuk mendapatkan semua wallet
-	wallets, err := c.services.GetAll()
+	wallets, err := c.services.GetAll(ctx.Request.Context())
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to get wallets",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to get wallets", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Wallets retrieved successfully",
-		Errors:  nil,
-		Data:    wallets,
-	})
+	SendSuccess(ctx, http.StatusOK, "Wallets retrieved successfully", wallets)
 }
 
 // GetWalletByID godoc
@@ -62,76 +51,42 @@ func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /wallets/{id} [get]
 func (c *WalletController) GetWalletByID(ctx *gin.Context) {
-	reqId, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid user ID",
-			Errors:  "User ID not found in context",
-			Data:    nil,
-		})
+	userID, err := GetUserID(ctx)
+	if err != nil {
+		SendError(ctx, http.StatusUnauthorized, "Invalid user ID", err)
 		return
 	}
 
-	userID, err := uuid.Parse(reqId.(string))
+	walletID, err := GetParamID(ctx, "id")
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid user ID format",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid wallet ID format", err)
 		return
-	}
-	walletID, err := uuid.Parse(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid wallet ID format",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
-		return
-	}
-	groupIDParams, ok := ctx.GetQuery("groupid")
-	var groupID uuid.UUID
-	if !ok {
-		// ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-		// 	Status:  false,
-		// 	Message: "Cannot find groupid in query params",
-		// 	Errors:  nil,
-		// 	Data:    nil,
-		// })
-		// return
-		groupID = uuid.Nil
-	} else {
-		groupID, err = uuid.Parse(groupIDParams)
-		if err != nil {
-			ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-				Status:  false,
-				Message: "Invalid group ID format",
-				Errors:  err.Error(),
-				Data:    nil,
-			})
-			return
-		}
 	}
 
-	wallet, err := c.services.GetWalletByID(userID, walletID, groupID)
+	wallet, err := c.services.GetWalletByID(ctx.Request.Context(), userID, walletID)
 	if err != nil {
-		// Handle the error
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to get wallet",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to get wallet", err)
 		return
 	}
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Wallet retrieved successfully",
-		Errors:  nil,
-		Data:    wallet,
-	})
+
+	SendSuccess(ctx, http.StatusOK, "Wallet retrieved successfully", wallet)
+}
+
+func (c *WalletController) GetMine(ctx *gin.Context) {
+	userID, err := GetUserID(ctx)
+	if err != nil {
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
+		return
+	}
+
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
+
+	wallets, err := c.services.GetMine(ctx.Request.Context(), userID, page, limit)
+	if err != nil {
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve wallets", err)
+		return
+	}
+
+	SendSuccess(ctx, http.StatusOK, "Wallets retrieved successfully", wallets)
 }

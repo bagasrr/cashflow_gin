@@ -3,16 +3,17 @@ package repository
 import (
 	"cashflow_gin/dto/request"
 	"cashflow_gin/models"
+	"context"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
-	FindByEmailOrUsername(email, username string) (*models.User, error)
-	FindAllUser() ([]models.User, error)
-	FindMyProfile(id uuid.UUID) (*models.User, error)
-	Login(input *request.LoginRequest) (*models.User, error)
+	FindByEmailOrUsername(ctx context.Context, email, username string) (*models.User, error)
+	FindAllUser(ctx context.Context) ([]models.User, error)
+	FindMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error)
+	Login(ctx context.Context, input *request.LoginRequest) (*models.User, error)
 }
 
 type userRepository struct {
@@ -23,13 +24,13 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }
 
-func (r *userRepository) FindByEmailOrUsername(email, username string) (*models.User, error) {
+func (r *userRepository) FindByEmailOrUsername(ctx context.Context, email, username string) (*models.User, error) {
 	var user models.User
-	err := r.db.Where("email = ? OR username = ?", email, username).First(&user).Error
+	err := r.db.WithContext(ctx).Where("email = ? OR username = ?", email, username).First(&user).Error
 	return &user, err
 }
 
-func (r *userRepository) FindAllUser() ([]models.User, error) {
+func (r *userRepository) FindAllUser(ctx context.Context) ([]models.User, error) {
 	var users []models.User
 	subQuery := `(
         SELECT COUNT(*) 
@@ -37,11 +38,11 @@ func (r *userRepository) FindAllUser() ([]models.User, error) {
         JOIN wallets w ON t.wallet_id = w.id
         WHERE w.user_id = users.id
     )`
-	err := r.db.Select("users.*, " + subQuery + " as transaction_count").Preload("Wallets").Find(&users).Error
+	err := r.db.WithContext(ctx).Select("users.*, " + subQuery + " as transaction_count").Preload("Wallets").Find(&users).Error
 	return users, err
 }
 
-func (r *userRepository) FindMyProfile(id uuid.UUID) (*models.User, error) {
+func (r *userRepository) FindMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	var user *models.User
 	walletSelectQuery := `
         wallets.*, 
@@ -51,7 +52,7 @@ func (r *userRepository) FindMyProfile(id uuid.UUID) (*models.User, error) {
             WHERE transactions.wallet_id = wallets.id
         ) as transaction_count
     `
-	err := r.db.
+	err := r.db.WithContext(ctx).
 		// 1. Preload dengan Custom Query
 		Preload("Wallets", func(db *gorm.DB) *gorm.DB {
 			return db.Select(walletSelectQuery)
@@ -61,9 +62,9 @@ func (r *userRepository) FindMyProfile(id uuid.UUID) (*models.User, error) {
 	return user, err
 }
 
-func (r *userRepository) Login(input *request.LoginRequest) (*models.User, error) {
+func (r *userRepository) Login(ctx context.Context, input *request.LoginRequest) (*models.User, error) {
 	var user models.User
-	err := r.db.First(&user, "email = ?", input.Email).Error
+	err := r.db.WithContext(ctx).First(&user, "email = ?", input.Email).Error
 
 	return &user, err
 }

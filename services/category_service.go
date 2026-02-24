@@ -5,20 +5,21 @@ import (
 	"cashflow_gin/dto/response"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
 )
 
 type CategoryService interface {
-	CreateDefaultCategories() (*[]models.Category, error)
-	GetAllCategories(userRole float64) (*[]models.Category, error)
+	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
+	GetAllCategories(ctx context.Context, userRole models.UserRole) (*[]response.CategoryResponse, error)
 
-	CreateMy(userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
-	GetMine(userID uuid.UUID) (*[]response.CategoryResponse, error)
+	CreateMy(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
+	GetMine(ctx context.Context, userID uuid.UUID) (*[]response.CategoryResponse, error)
 
-	UpdateById(userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
-	DeleteById(userID, categoryID uuid.UUID) error
+	UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
+	DeleteById(ctx context.Context, userID, categoryID uuid.UUID) error
 }
 
 type categoryService struct {
@@ -29,20 +30,37 @@ func NewCategoryService(r repository.CategoryRepository) CategoryService {
 	return &categoryService{repo: r}
 }
 
-func (s *categoryService) CreateDefaultCategories() (*[]models.Category, error) {
-	newCategory, err := s.repo.CreateDefaultCategories()
+func (s *categoryService) CreateDefaultCategories(ctx context.Context) (*[]models.Category, error) {
+	newCategory, err := s.repo.CreateDefaultCategories(ctx)
 	return newCategory, err
 }
 
-func (s *categoryService) GetAllCategories(userRole float64) (*[]models.Category, error) {
-	if userRole > 2 {
+func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole) (*[]response.CategoryResponse, error) {
+	if userRole > models.RoleModerator {
 		return nil, errors.New("forbidden: access is denied")
 	}
 
-	return s.repo.FindAll()
+	cat, err := s.repo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var res []response.CategoryResponse
+	for _, category := range *cat {
+		r := response.CategoryResponse{
+			UserID: category.UserID.String(),
+			Name:   category.Name,
+			Type:   category.Type,
+		}
+		if category.GroupID != nil {
+			r.GroupID = category.GroupID.String()
+		}
+		res = append(res, r)
+	}
+
+	return &res, err
 }
 
-func (s *categoryService) CreateMy(userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
 	category := models.Category{
 		UserID: userID,
 		Name:   input.Name,
@@ -57,13 +75,12 @@ func (s *categoryService) CreateMy(userID uuid.UUID, input request.CreateCategor
 		category.GroupID = &id
 	}
 
-	createdCategory, err := s.repo.Create(&category)
+	createdCategory, err := s.repo.Create(ctx, &category)
 	if err != nil {
 		return nil, err
 	}
 
 	res := response.CategoryResponse{
-		ID:     createdCategory.ID.String(),
 		UserID: createdCategory.UserID.String(),
 		Name:   createdCategory.Name,
 		Type:   createdCategory.Type,
@@ -75,8 +92,8 @@ func (s *categoryService) CreateMy(userID uuid.UUID, input request.CreateCategor
 	return &res, nil
 }
 
-func (s *categoryService) GetMine(userID uuid.UUID) (*[]response.CategoryResponse, error) {
-	categories, err := s.repo.FindByUserID(userID)
+func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID) (*[]response.CategoryResponse, error) {
+	categories, err := s.repo.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -84,10 +101,8 @@ func (s *categoryService) GetMine(userID uuid.UUID) (*[]response.CategoryRespons
 	var res []response.CategoryResponse
 	for _, category := range *categories {
 		r := response.CategoryResponse{
-			ID:     category.ID.String(),
-			UserID: category.UserID.String(),
-			Name:   category.Name,
-			Type:   category.Type,
+			Name: category.Name,
+			Type: category.Type,
 		}
 		if category.GroupID != nil {
 			r.GroupID = category.GroupID.String()
@@ -98,8 +113,8 @@ func (s *categoryService) GetMine(userID uuid.UUID) (*[]response.CategoryRespons
 	return &res, nil
 }
 
-func (s *categoryService) UpdateById(userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
-	category, err := s.repo.FindByIDAndUserID(categoryID, userID)
+func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+	category, err := s.repo.FindByIDAndUserID(ctx, categoryID, userID)
 	if err != nil {
 		return nil, errors.New("category not found or unauthorized")
 	}
@@ -117,13 +132,12 @@ func (s *categoryService) UpdateById(userID, categoryID uuid.UUID, input request
 		category.GroupID = nil
 	}
 
-	updatedCategory, err := s.repo.Update(category)
+	updatedCategory, err := s.repo.Update(ctx, category)
 	if err != nil {
 		return nil, err
 	}
 
 	res := response.CategoryResponse{
-		ID:     updatedCategory.ID.String(),
 		UserID: updatedCategory.UserID.String(),
 		Name:   updatedCategory.Name,
 		Type:   updatedCategory.Type,
@@ -135,11 +149,11 @@ func (s *categoryService) UpdateById(userID, categoryID uuid.UUID, input request
 	return &res, nil
 }
 
-func (s *categoryService) DeleteById(userID, categoryID uuid.UUID) error {
-	category, err := s.repo.FindByIDAndUserID(categoryID, userID)
+func (s *categoryService) DeleteById(ctx context.Context, userID, categoryID uuid.UUID) error {
+	category, err := s.repo.FindByIDAndUserID(ctx, categoryID, userID)
 	if err != nil {
 		return errors.New("category not found or unauthorized")
 	}
 
-	return s.repo.Delete(category)
+	return s.repo.Delete(ctx, category)
 }

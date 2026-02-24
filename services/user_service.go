@@ -3,13 +3,14 @@ package services
 import (
 	"cashflow_gin/dto/response"
 	"cashflow_gin/repository"
+	"context"
 
 	"github.com/google/uuid"
 )
 
 type UserService interface {
-	FindAllUser() (*[]response.UserResponse, error)
-	GetMyProfile(id uuid.UUID) (*response.UserResponse, error)
+	FindAllUser(ctx context.Context) (*[]response.UserResponse, error)
+	GetMyProfile(ctx context.Context, id uuid.UUID) (*response.UserResponse, error)
 }
 
 type userService struct {
@@ -20,8 +21,8 @@ func NewUserService(r repository.UserRepository) UserService {
 	return &userService{repo: r}
 }
 
-func (s *userService) FindAllUser() (*[]response.UserResponse, error) {
-	users, err := s.repo.FindAllUser()
+func (s *userService) FindAllUser(ctx context.Context) (*[]response.UserResponse, error) {
+	users, err := s.repo.FindAllUser(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,8 +48,8 @@ func (s *userService) FindAllUser() (*[]response.UserResponse, error) {
 	return &userRes, nil
 }
 
-func (s *userService) GetMyProfile(id uuid.UUID) (*response.UserResponse, error) {
-	user, err := s.repo.FindMyProfile(id)
+func (s *userService) GetMyProfile(ctx context.Context, id uuid.UUID) (*response.UserResponse, error) {
+	user, err := s.repo.FindMyProfile(ctx, id)
 	if err != nil {
 		return nil, err
 	}

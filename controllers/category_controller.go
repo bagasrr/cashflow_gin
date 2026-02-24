@@ -2,12 +2,10 @@ package controllers
 
 import (
 	"cashflow_gin/dto/request"
-	"cashflow_gin/dto/response"
 	"cashflow_gin/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type CategoryController struct {
@@ -31,29 +29,13 @@ func NewCategoryController(s services.CategoryService) *CategoryController {
 // @Security 	 BearerAuth
 // @Router       /categories/default [post]
 func (c *CategoryController) CreateDefaultCategories(ctx *gin.Context) {
-	category, err := c.services.CreateDefaultCategories()
+	category, err := c.services.CreateDefaultCategories(ctx.Request.Context())
 	if err != nil {
-		ctx.JSON(
-			http.StatusInternalServerError,
-			response.BaseResponse{
-				Status:  false,
-				Message: "Failed to create default categories",
-				Errors:  err,
-				Data:    nil,
-			},
-		)
+		SendError(ctx, http.StatusInternalServerError, "Failed to create default categories", err)
 		return
 	}
 
-	ctx.JSON(
-		http.StatusOK,
-		response.BaseResponse{
-			Status:  err == nil,
-			Message: "Default categories created successfully",
-			Errors:  err,
-			Data:    category,
-		},
-	)
+	SendSuccess(ctx, http.StatusOK, "Default categories created successfully", category)
 }
 
 // Get All Categories godoc
@@ -67,42 +49,18 @@ func (c *CategoryController) CreateDefaultCategories(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /categories [get]
 func (c *CategoryController) GetAllCategories(ctx *gin.Context) {
-	roleClaim, exists := ctx.Get("user_role")
-	if !exists {
-		ctx.JSON(
-			http.StatusUnauthorized,
-			response.BaseResponse{
-				Status:  false,
-				Message: "Unauthorized access",
-				Errors:  "Insufficient permissions",
-				Data:    nil,
-			},
-		)
+	role, err := GetUserRole(ctx)
+	if err != nil {
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized access", err)
 		return
 	}
 
-	cat, err := c.services.GetAllCategories(roleClaim.(float64))
+	cat, err := c.services.GetAllCategories(ctx.Request.Context(), role)
 	if err != nil {
-		ctx.JSON(
-			http.StatusInternalServerError,
-			response.BaseResponse{
-				Status:  false,
-				Message: "Failed to retrieve categories",
-				Errors:  err.Error(),
-				Data:    nil,
-			},
-		)
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve categories", err)
 		return
 	}
-	ctx.JSON(
-		http.StatusOK,
-		response.BaseResponse{
-			Status:  true,
-			Message: "Success retrieve all categories",
-			Errors:  nil,
-			Data:    cat,
-		},
-	)
+	SendSuccess(ctx, http.StatusOK, "Success retrieve all categories", cat)
 }
 
 // CreateMy godoc
@@ -118,49 +76,25 @@ func (c *CategoryController) GetAllCategories(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /categories/mine [post]
 func (c *CategoryController) CreateMy(ctx *gin.Context) {
-	userIDStr, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
-			Status:  false,
-			Message: "Unauthorized",
-		})
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr.(string))
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid user ID",
-		})
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
 	var input request.CreateCategoryRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid input",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid input", err)
 		return
 	}
 
-	category, err := c.services.CreateMy(userID, input)
+	category, err := c.services.CreateMy(ctx.Request.Context(), userID, input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to create category",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to create category", err)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, response.BaseResponse{
-		Status:  true,
-		Message: "Category created successfully",
-		Data:    category,
-	})
+	SendSuccess(ctx, http.StatusCreated, "Category created successfully", category)
 }
 
 // GetMine godoc
@@ -174,39 +108,19 @@ func (c *CategoryController) CreateMy(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /categories/mine [get]
 func (c *CategoryController) GetMine(ctx *gin.Context) {
-	userIDStr, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
-			Status:  false,
-			Message: "Unauthorized",
-		})
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr.(string))
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid user ID",
-		})
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	categories, err := c.services.GetMine(userID)
+	categories, err := c.services.GetMine(ctx.Request.Context(), userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to retrieve categories",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve categories", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Success retrieve my categories",
-		Data:    categories,
-	})
+	SendSuccess(ctx, http.StatusOK, "Success retrieve my categories", categories)
 }
 
 // UpdateById godoc
@@ -223,59 +137,31 @@ func (c *CategoryController) GetMine(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /categories/{id} [put]
 func (c *CategoryController) UpdateById(ctx *gin.Context) {
-	userIDStr, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
-			Status:  false,
-			Message: "Unauthorized",
-		})
+	userID, err := GetUserID(ctx)
+	if err != nil {
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	userID, err := uuid.Parse(userIDStr.(string))
+	categoryID, err := GetParamID(ctx, "id")
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid user ID",
-		})
-		return
-	}
-
-	categoryIDStr := ctx.Param("id")
-	categoryID, err := uuid.Parse(categoryIDStr)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid category ID",
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid category ID", err)
 		return
 	}
 
 	var input request.CreateCategoryRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid input",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid input", err)
 		return
 	}
 
-	category, err := c.services.UpdateById(userID, categoryID, input)
+	category, err := c.services.UpdateById(ctx.Request.Context(), userID, categoryID, input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to update category",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to update category", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Category updated successfully",
-		Data:    category,
-	})
+	SendSuccess(ctx, http.StatusOK, "Category updated successfully", category)
 }
 
 // DeleteById godoc
@@ -291,46 +177,23 @@ func (c *CategoryController) UpdateById(ctx *gin.Context) {
 // @Security 	 BearerAuth
 // @Router       /categories/{id} [patch]
 func (c *CategoryController) DeleteById(ctx *gin.Context) {
-	userIDStr, exists := ctx.Get("user_id")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
-			Status:  false,
-			Message: "Unauthorized",
-		})
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr.(string))
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid user ID",
-		})
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	categoryIDStr := ctx.Param("id")
-	categoryID, err := uuid.Parse(categoryIDStr)
+	categoryID, err := GetParamID(ctx, "id")
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Invalid category ID",
-		})
+		SendError(ctx, http.StatusBadRequest, "Invalid category ID", err)
 		return
 	}
 
-	err = c.services.DeleteById(userID, categoryID)
+	err = c.services.DeleteById(ctx.Request.Context(), userID, categoryID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to delete category",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to delete category", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Category deleted successfully",
-	})
+	SendSuccess(ctx, http.StatusOK, "Category deleted successfully", nil)
 }

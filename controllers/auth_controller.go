@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"cashflow_gin/dto/request"
-	"cashflow_gin/dto/response"
 	"cashflow_gin/services"
 	"net/http"
 
@@ -32,34 +31,19 @@ func (c *AuthController) Register(ctx *gin.Context) {
 
 	// 1. Validasi Input JSON
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(
-			http.StatusBadRequest,
-			response.BaseResponse{
-				Status:  false,
-				Message: "Input Tidak Valid",
-				Errors:  err.Error(),
-			},
-		)
+		SendError(ctx, http.StatusBadRequest, "Input Tidak Valid", err)
 		return
 	}
 
 	// 2. Panggil Service
-	user, err := c.service.Register(input)
+	user, err := c.service.Register(ctx.Request.Context(), input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Internal Server Error",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusInternalServerError, "Internal Server Error", err)
 		return
 	}
 
 	// 3. Kirim Response
-	ctx.JSON(http.StatusCreated, response.BaseResponse{
-		Status:  true,
-		Message: "success",
-		Data:    user,
-	})
+	SendSuccess(ctx, http.StatusCreated, "success", user)
 }
 
 // Login godoc
@@ -76,31 +60,19 @@ func (c *AuthController) Register(ctx *gin.Context) {
 func (c *AuthController) Login(ctx *gin.Context) {
 	var input request.LoginRequest
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.BaseResponse{
-			Status:  false,
-			Message: "Input tidak Valid",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusBadRequest, "Input tidak Valid", err)
 		return
 	}
 
-	token, err := c.service.Login(&input)
+	token, err := c.service.Login(ctx.Request.Context(), &input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Error",
-			Errors:  err.Error(),
-		})
+		SendError(ctx, http.StatusInternalServerError, "Error", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Login Success",
-		Data: struct {
-			Token string `json:"token"`
-		}{
-			Token: token,
-		},
+	SendSuccess(ctx, http.StatusOK, "Login Success", struct {
+		Token string `json:"token"`
+	}{
+		Token: token,
 	})
 }

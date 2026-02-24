@@ -2,14 +2,16 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"context"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type WalletRepository interface {
-	FindAll() (*[]models.Wallet, error)
-	FindByID(walletID uuid.UUID) (models.Wallet, error)
+	FindAll(ctx context.Context) (*[]models.Wallet, error)
+	FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
+	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
 }
 
 type walletRepository struct {
@@ -20,16 +22,48 @@ func NewWalletRepository(db *gorm.DB) WalletRepository {
 	return &walletRepository{db: db}
 }
 
-func (r *walletRepository) FindByID(walletID uuid.UUID) (models.Wallet, error) {
+const countQuery = "(SELECT COUNT(*) FROM transactions WHERE transactions.wallet_id = wallets.id AND transactions.deleted_at IS NULL)"
+
+// Ubah return type menjadi pointer (*models.Wallet)
+func (r *walletRepository) FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error) {
 	var wallet models.Wallet
-	err := r.db.Where("id = ?", walletID).Preload("Transactions").Preload("Transactions.Category").Preload("Transactions.User").First(&wallet).Error
-	return wallet, err
+
+	err := r.db.WithContext(ctx).
+		Select("wallets.*, "+countQuery+" as transaction_count").
+		// Cukup tulis anak-anaknya, GORM otomatis ambil bapaknya (Transactions)
+		Preload("Transactions.Category").
+		Preload("Transactions.User").
+		// Pindahkan kondisi Where langsung ke dalam First biar lebih rapi
+		First(&wallet, "id = ?", walletID).Error
+	if err != nil {
+		return nil, err // Return nil kalau error/tidak ketemu, bukan struct kosong
+	}
+
+	return &wallet, nil // Return alamat memorinya
 }
 
-func (r *walletRepository) FindAll() (*[]models.Wallet, error) {
+func (r *walletRepository) FindAll(ctx context.Context) (*[]models.Wallet, error) {
 	var wallets []models.Wallet
-	err := r.db.Find(&wallets, func(db *gorm.DB) *gorm.DB {
-		return db.Limit(10)
-	}).Error
+
+	// Susun logic-nya: Panggil DB -> Set Limit -> Eksekusi (Find)
+	err := r.db.WithContext(ctx).
+		Select("wallets.*, " + countQuery + " as transaction_count").
+		Limit(10).
+		Find(&wallets).Error
+
+	return &wallets, err
+}
+
+// repository/wallet.go
+func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) (*[]models.Wallet, error) {
+	var wallets []models.Wallet
+
+	err := r.db.WithContext(ctx).
+		Select("wallets.*, "+countQuery+" as transaction_count").
+		Where("user_id = ?", userID).
+		Limit(limit).
+		Offset(offset).
+		Find(&wallets).Error
+
 	return &wallets, err
 }

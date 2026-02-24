@@ -5,20 +5,21 @@ import (
 	"cashflow_gin/dto/response"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
+	"context"
 
 	"github.com/google/uuid"
 )
 
 type GroupService interface {
-	CreateGroup(ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error)
-	GetAllGroups() (*[]response.GroupResponse, error)
+	CreateGroup(ctx context.Context, ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error)
+	GetAllGroups(ctx context.Context) (*[]response.GroupResponse, error)
 
-	GetGroupByID(groupID uuid.UUID) (*response.GroupResponse, error)
-	UpdateGroup(groupID uuid.UUID, name string) (*response.GroupResponse, error)
-	DeleteGroup(groupID uuid.UUID) error
+	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*response.GroupResponse, error)
+	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*response.GroupResponse, error)
+	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
 
-	AddUserToGroup(groupID uuid.UUID, userIDs []uuid.UUID) error
-	RemoveUserFromGroup(groupID, userID uuid.UUID) error
+	AddUserToGroup(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) error
+	RemoveUserFromGroup(ctx context.Context, groupID, userID uuid.UUID) error
 }
 
 type groupService struct {
@@ -29,7 +30,7 @@ func NewGroupService(r repository.GroupRepository) GroupService {
 	return &groupService{repo: r}
 }
 
-func (s *groupService) CreateGroup(ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error) {
+func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error) {
 	uniqMemberID := make(map[uuid.UUID]bool)
 	uniqMemberID[ownerID] = true
 
@@ -89,7 +90,7 @@ func (s *groupService) CreateGroup(ownerID uuid.UUID, input request.CreateGroupR
 
 	// 4. SAVE KE DB (Panggil Repo yang Transactional)
 	// Kita kirim pointer biar ID-nya ke-generate dan balik ke variable ini
-	err := s.repo.CreateGroupWithWalletAndMembers(&newGroup, &newWallet, &members)
+	err := s.repo.CreateGroupWithWalletAndMembers(ctx, &newGroup, &newWallet, &members)
 	if err != nil {
 		return &response.GroupResponse{}, err
 	}
@@ -123,9 +124,9 @@ func (s *groupService) CreateGroup(ownerID uuid.UUID, input request.CreateGroupR
 	return &res, nil
 }
 
-func (s *groupService) GetAllGroups() (*[]response.GroupResponse, error) {
+func (s *groupService) GetAllGroups(ctx context.Context) (*[]response.GroupResponse, error) {
 	// Implementasi logika untuk mendapatkan semua grup
-	groups, err := s.repo.GetAllGroups()
+	groups, err := s.repo.GetAllGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +156,10 @@ func (s *groupService) GetAllGroups() (*[]response.GroupResponse, error) {
 	return &groupResponses, nil
 }
 
-func (s *groupService) GetGroupByID(groupID uuid.UUID) (*response.GroupResponse, error) {
+func (s *groupService) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*response.GroupResponse, error) {
 	// Implementasi logika untuk mendapatkan grup berdasarkan ID
 
-	group, err := s.repo.GetGroupByID(groupID)
+	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,17 +198,17 @@ func (s *groupService) GetGroupByID(groupID uuid.UUID) (*response.GroupResponse,
 	return &res, nil
 }
 
-func (s *groupService) UpdateGroup(groupID uuid.UUID, name string) (*response.GroupResponse, error) {
+func (s *groupService) UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*response.GroupResponse, error) {
 	// Implementasi logika untuk memperbarui nama grup
 	return &response.GroupResponse{}, nil
 }
 
-func (s *groupService) DeleteGroup(groupID uuid.UUID) error {
-	return s.repo.DeleteGroup(groupID)
+func (s *groupService) DeleteGroup(ctx context.Context, groupID uuid.UUID) error {
+	return s.repo.DeleteGroup(ctx, groupID)
 }
 
 // services/group_service.go
-func (s *groupService) AddUserToGroup(groupID uuid.UUID, userIDs []uuid.UUID) error {
+func (s *groupService) AddUserToGroup(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) error {
 	// 1. (Opsional) Cek dulu Group-nya ada gak?
 	// _, err := s.repo.GetGroupByID(groupID)
 	// if err != nil { return errors.New("group not found") }
@@ -224,9 +225,9 @@ func (s *groupService) AddUserToGroup(groupID uuid.UUID, userIDs []uuid.UUID) er
 	}
 
 	// 3. Panggil Repo buat nyimpen
-	return s.repo.CreateMembers(members)
+	return s.repo.CreateMembers(ctx, members)
 }
 
-func (s *groupService) RemoveUserFromGroup(groupID, userID uuid.UUID) error {
-	return s.repo.RemoveUserFromGroup(groupID, userID)
+func (s *groupService) RemoveUserFromGroup(ctx context.Context, groupID, userID uuid.UUID) error {
+	return s.repo.RemoveUserFromGroup(ctx, groupID, userID)
 }

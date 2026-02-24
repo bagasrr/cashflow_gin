@@ -14,6 +14,7 @@ func GroupRoutes(r *gin.RouterGroup, controller *controllers.GroupController) {
 		groups.GET("/", controller.GetAllGroups)
 		groups.POST("/", controller.CreateGroup)
 		groups.GET("/:id", controller.GetGroupByID)
+		groups.DELETE("/:id", controller.DeleteGroup)
 		// groups.PATCH("/:id/update", controller.UpdateGroup)
 		groups.PATCH("/:id/remove-user", controller.RemoveUserFromGroup)
 	}

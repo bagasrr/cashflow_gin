@@ -12,6 +12,7 @@ func WalletRoutes(r *gin.RouterGroup, controller *controllers.WalletController) 
 	wallets.Use(middlewares.AuthMiddleware()) // Middleware dipasang di sini
 	{
 		wallets.GET("/", controller.GetAllWallets)
+		wallets.GET("/mine", controller.GetMine)
 		wallets.GET("/:id/detail", controller.GetWalletByID)
 	}
 }

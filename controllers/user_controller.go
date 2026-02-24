@@ -1,12 +1,10 @@
 package controllers
 
 import (
-	"cashflow_gin/dto/response"
 	"cashflow_gin/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type UserController struct {
@@ -28,53 +26,28 @@ func NewUserController(s services.UserService) *UserController {
 // @Security 	 BearerAuth
 // @Router       /users/ [get]
 func (c *UserController) FindAllUser(ctx *gin.Context) {
-	users, err := c.service.FindAllUser()
+	users, err := c.service.FindAllUser(ctx.Request.Context())
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError,
-			response.BaseResponse{
-				Status:  false,
-				Message: "error",
-				Errors:  err.Error(),
-			})
+		SendError(ctx, http.StatusInternalServerError, "error", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "success",
-		Data:    users,
-		Errors:  nil,
-	})
+	SendSuccess(ctx, http.StatusOK, "success", users)
 }
 
 func (c *UserController) GetMyProfile(ctx *gin.Context) {
 	// 1 baris untuk ambil UserID
-	userID, err := uuid.Parse(ctx.GetString("user_id"))
+	userID, err := GetUserID(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, response.BaseResponse{
-			Status:  false,
-			Message: "Unauthorized",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
-	user, err := c.service.GetMyProfile(userID)
+	user, err := c.service.GetMyProfile(ctx.Request.Context(), userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.BaseResponse{
-			Status:  false,
-			Message: "Failed to retrieve profile",
-			Errors:  err.Error(),
-			Data:    nil,
-		})
+		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve profile", err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.BaseResponse{
-		Status:  true,
-		Message: "Profile retrieved successfully",
-		Data:    user,
-		Errors:  nil,
-	})
+	SendSuccess(ctx, http.StatusOK, "Profile retrieved successfully", user)
 }

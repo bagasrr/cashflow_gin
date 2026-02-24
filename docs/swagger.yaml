@@ -123,8 +123,6 @@ definitions:
     properties:
       group_id:
         type: string
-      id:
-        type: string
       name:
         example: Makanan
         type: string
@@ -227,6 +225,9 @@ definitions:
       name:
         example: Tabungan
         type: string
+      transaction_count:
+        example: 5
+        type: integer
       transactions:
         items:
           $ref: '#/definitions/response.TransactionResponse'
@@ -520,6 +521,36 @@ paths:
       tags:
       - Groups
   /groups/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Menghapus grup berdasarkan ID.
+      parameters:
+      - description: ID Grup
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.BaseResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Group
+      tags:
+      - Groups
     get:
       consumes:
       - application/json

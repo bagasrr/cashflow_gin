@@ -5,6 +5,7 @@ import (
 	"cashflow_gin/dto/response"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -13,11 +14,11 @@ import (
 )
 
 type TransactionService interface {
-	Create(userID uuid.UUID, input request.CreateTransactionRequest) (response.TransactionResponse, error)
-	GetAll() (*[]response.TransactionResponse, error)
-	GetTransactionByID(userID uuid.UUID, transactionID uuid.UUID) (response.TransactionResponse, error)
-	UpdateTransaction(userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error)
-	SoftDeleteTransaction(userID, transactionID, walletID uuid.UUID) error
+	Create(ctx context.Context, userID uuid.UUID, input request.CreateTransactionRequest) (response.TransactionResponse, error)
+	GetAll(ctx context.Context, userID uuid.UUID, role models.UserRole) (*[]response.TransactionResponse, error)
+	GetTransactionByID(ctx context.Context, userID uuid.UUID, transactionID uuid.UUID) (response.TransactionResponse, error)
+	UpdateTransaction(ctx context.Context, userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error)
+	SoftDeleteTransaction(ctx context.Context, userID, transactionID, walletID uuid.UUID) error
 }
 
 type transactionService struct {
@@ -45,27 +46,27 @@ func NewTransactionService(
 	}
 }
 
-func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransactionRequest) (response.TransactionResponse, error) {
+func (s *transactionService) Create(ctx context.Context, userID uuid.UUID, input request.CreateTransactionRequest) (response.TransactionResponse, error) {
 	// 1. Parsing UUID
 	walletUUID, err := uuid.Parse(input.WalletID)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("invalid wallet id")
 	}
 
-	wallet, err := s.walletRepo.FindByID(walletUUID)
+	wallet, err := s.walletRepo.FindByID(ctx, walletUUID)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("wallet not found")
 	}
 
 	// Personal Wallet
 	// Cek Apakah user id yang mengirim = user id yang punya wallet
-	isGroupWallet, err := s.groupRepo.IsGroupWallet(walletUUID)
+	isGroupWallet, err := s.groupRepo.IsGroupWallet(ctx, walletUUID)
 	fmt.Println("Is Group Wallet?", isGroupWallet)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("failed to check wallet type")
 	}
 	if isGroupWallet {
-		isGroupMember, err := s.groupRepo.IsGroupMember(*wallet.GroupID, userID)
+		isGroupMember, err := s.groupRepo.IsGroupMember(ctx, *wallet.GroupID, userID)
 		fmt.Println("Is Group Member?", isGroupMember)
 		if err != nil {
 			return response.TransactionResponse{}, errors.New("failed to check group membership")
@@ -74,14 +75,14 @@ func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransa
 			return response.TransactionResponse{}, errors.New("unauthorized: user is not a member of the group wallet, cannot create personal transaction")
 		}
 	} else {
-		reqUser := s.transactionRepo.IsOwner(userID, input.WalletID)
+		reqUser := s.transactionRepo.IsOwner(ctx, userID, input.WalletID)
 		if !reqUser {
 			return response.TransactionResponse{}, errors.New("unauthorized: wallet does not belong to user")
 		}
 	}
 
 	// 2. BUSSINESS LOGIC: Cek Category Type (Income/Expense)
-	category, err := s.categoryRepo.FindByName(input.CategoryName)
+	category, err := s.categoryRepo.FindByName(ctx, input.CategoryName)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("category not found")
 	}
@@ -110,7 +111,7 @@ func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransa
 	}
 
 	// 4. Save Atomic (Transaction + Wallet Update)
-	err = s.transactionRepo.CreateWithWalletUpdate(&transaction)
+	err = s.transactionRepo.CreateWithWalletUpdate(ctx, &transaction)
 	if err != nil {
 		return response.TransactionResponse{}, err
 	}
@@ -129,10 +130,17 @@ func (s *transactionService) Create(userID uuid.UUID, input request.CreateTransa
 	return res, nil
 }
 
-func (s *transactionService) GetAll() (*[]response.TransactionResponse, error) {
+func (s *transactionService) GetAll(ctx context.Context, userID uuid.UUID, role models.UserRole) (*[]response.TransactionResponse, error) {
 	// 1. Panggil Repository (Filter by UserID biar gak bocor data orang lain)
+	var transactions []models.Transaction
+	var err error
 
-	transactions, err := s.transactionRepo.FindAll()
+	if role == models.RoleAdmin || role == models.RoleModerator {
+		transactions, err = s.transactionRepo.FindAll(ctx)
+	} else {
+		transactions, err = s.transactionRepo.FindAllByUserID(ctx, userID)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +167,8 @@ func (s *transactionService) GetAll() (*[]response.TransactionResponse, error) {
 	return &transactionResponses, nil
 }
 
-func (s *transactionService) GetTransactionByID(userID uuid.UUID, transactionID uuid.UUID) (response.TransactionResponse, error) {
-	user, err := s.userRepo.FindMyProfile(userID)
+func (s *transactionService) GetTransactionByID(ctx context.Context, userID uuid.UUID, transactionID uuid.UUID) (response.TransactionResponse, error) {
+	user, err := s.userRepo.FindMyProfile(ctx, userID)
 	if err != nil {
 		return response.TransactionResponse{}, err
 	}
@@ -169,7 +177,7 @@ func (s *transactionService) GetTransactionByID(userID uuid.UUID, transactionID 
 		return response.TransactionResponse{}, errors.New("unauthorized: user not found")
 	}
 
-	transaction, err := s.transactionRepo.FindByID(transactionID)
+	transaction, err := s.transactionRepo.FindByID(ctx, transactionID)
 	if err != nil {
 		return response.TransactionResponse{}, err
 	}
@@ -191,13 +199,13 @@ func (s *transactionService) GetTransactionByID(userID uuid.UUID, transactionID 
 	return res, nil
 }
 
-func (s *transactionService) UpdateTransaction(userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error) {
-	reqUser, err := s.userRepo.FindMyProfile(userID)
+func (s *transactionService) UpdateTransaction(ctx context.Context, userID, transactionID uuid.UUID, input request.UpdateTransactionRequest) (response.TransactionResponse, error) {
+	reqUser, err := s.userRepo.FindMyProfile(ctx, userID)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("unauthorized: user not found")
 	}
 	// Cari Transaksi dan validasi
-	transaction, err := s.transactionRepo.FindByID(transactionID)
+	transaction, err := s.transactionRepo.FindByID(ctx, transactionID)
 	if err != nil {
 		return response.TransactionResponse{}, errors.New("transaction not found")
 	}
@@ -235,7 +243,7 @@ func (s *transactionService) UpdateTransaction(userID, transactionID uuid.UUID, 
 
 	if deltaAmount != 0 {
 		fmt.Println("Update Transaction With Wallet Ballance")
-		err := s.transactionRepo.UpdateTransactionWithWalletBallance(transaction, deltaAmount)
+		err := s.transactionRepo.UpdateTransactionWithWalletBallance(ctx, transaction, deltaAmount)
 		if err != nil {
 			return response.TransactionResponse{}, err
 		}
@@ -243,7 +251,7 @@ func (s *transactionService) UpdateTransaction(userID, transactionID uuid.UUID, 
 		fmt.Println("Update Transaction ONLY")
 
 		// Simpan perubahan
-		err = s.transactionRepo.UpdateTransaction(transaction)
+		err = s.transactionRepo.UpdateTransaction(ctx, transaction)
 		if err != nil {
 			return response.TransactionResponse{}, err
 		}
@@ -264,13 +272,13 @@ func (s *transactionService) UpdateTransaction(userID, transactionID uuid.UUID, 
 	return res, nil
 }
 
-func (s *transactionService) SoftDeleteTransaction(userID, transactionID, walletID uuid.UUID) error {
-	reqUser, err := s.userRepo.FindMyProfile(userID)
+func (s *transactionService) SoftDeleteTransaction(ctx context.Context, userID, transactionID, walletID uuid.UUID) error {
+	reqUser, err := s.userRepo.FindMyProfile(ctx, userID)
 	if err != nil {
 		return errors.New("unauthorized: user not found")
 	}
 	// Cari Transaksi dan validasi
-	transaction, err := s.transactionRepo.FindByID(transactionID)
+	transaction, err := s.transactionRepo.FindByID(ctx, transactionID)
 	if err != nil {
 		return errors.New("transaction not found")
 	}
@@ -283,7 +291,7 @@ func (s *transactionService) SoftDeleteTransaction(userID, transactionID, wallet
 	deltaAmount := -transaction.Amount
 	fmt.Println("Delta Amount", deltaAmount)
 
-	err = s.transactionRepo.SoftDeleteTransaction(transactionID, deltaAmount, walletID)
+	err = s.transactionRepo.SoftDeleteTransaction(ctx, transactionID, deltaAmount, walletID)
 	if err != nil {
 		return err
 	}

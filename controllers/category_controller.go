@@ -28,6 +28,32 @@ func NewCategoryController(s services.CategoryService) *CategoryController {
 // @Failure      500 {object} response.BaseResponse
 // @Security 	 BearerAuth
 // @Router       /categories/default [post]
+func (c *CategoryController) CreateDefault(ctx *gin.Context) {
+	var input request.CreateCategoryRequest
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		SendError(ctx, http.StatusBadRequest, "Invalid input", err)
+		return
+	}
+
+	category, err := c.services.CreateDefault(ctx.Request.Context(), &input)
+	if err != nil {
+		SendError(ctx, http.StatusInternalServerError, "Failed to create default categories", err)
+		return
+	}
+
+	SendSuccess(ctx, http.StatusOK, "Default categories created successfully", category)
+}
+
+// CreateDefaultCategories godoc
+// @Summary      Create Default Categories
+// @Description  Membuat kategori default untuk pengguna baru.
+// @Tags         Categories
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} response.BaseResponse{data=[]response.CategoryResponse}
+// @Failure      500 {object} response.BaseResponse
+// @Security 	 BearerAuth
+// @Router       /categories/default [post]
 func (c *CategoryController) CreateDefaultCategories(ctx *gin.Context) {
 	category, err := c.services.CreateDefaultCategories(ctx.Request.Context())
 	if err != nil {

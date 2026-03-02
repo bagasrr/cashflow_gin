@@ -10,6 +10,7 @@ import (
 
 type CategoryRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Category, error)
+	CreateDefault(ctx context.Context, cat *models.Category) error
 	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
 	FindAll(ctx context.Context) (*[]models.Category, error)
 	FindByName(ctx context.Context, name string) (*models.Category, error)
@@ -35,6 +36,10 @@ func (r *categoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*model
 	// Note: Parameter userID bisa lu tambah nanti buat validasi ownership
 	err := r.db.WithContext(ctx).First(&category, "id = ?", id).Error
 	return &category, err
+}
+
+func (r *categoryRepository) CreateDefault(ctx context.Context, cat *models.Category) error {
+	return r.db.WithContext(ctx).Create(&cat).Error
 }
 
 func (r *categoryRepository) CreateDefaultCategories(ctx context.Context) (*[]models.Category, error) {

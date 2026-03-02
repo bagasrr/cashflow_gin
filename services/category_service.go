@@ -12,6 +12,7 @@ import (
 )
 
 type CategoryService interface {
+	CreateDefault(ctx context.Context, input *request.CreateCategoryRequest) (*response.CategoryResponse, error)
 	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
 	GetAllCategories(ctx context.Context, userRole models.UserRole) (*[]response.CategoryResponse, error)
 
@@ -28,6 +29,25 @@ type categoryService struct {
 
 func NewCategoryService(r repository.CategoryRepository) CategoryService {
 	return &categoryService{repo: r}
+}
+
+func (s *categoryService) CreateDefault(ctx context.Context, input *request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+	category := models.Category{
+		Name:   input.Name,
+		Type:   input.Type,
+		UserID: uuid.Nil,
+	}
+	err := s.repo.CreateDefault(ctx, &category)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &response.CategoryResponse{
+		Name: category.Name,
+		Type: category.Type,
+	}
+
+	return res, err
 }
 
 func (s *categoryService) CreateDefaultCategories(ctx context.Context) (*[]models.Category, error) {

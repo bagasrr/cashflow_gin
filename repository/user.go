@@ -32,13 +32,17 @@ func (r *userRepository) FindByEmailOrUsername(ctx context.Context, email, usern
 
 func (r *userRepository) FindAllUser(ctx context.Context) ([]models.User, error) {
 	var users []models.User
-	subQuery := `(
-        SELECT COUNT(*) 
-        FROM transactions t
-        JOIN wallets w ON t.wallet_id = w.id
-        WHERE w.user_id = users.id
-    )`
-	err := r.db.WithContext(ctx).Select("users.*, " + subQuery + " as transaction_count").Preload("Wallets").Find(&users).Error
+	walletSelectQuery := `
+        wallets.*, 
+        (
+            SELECT COUNT(*) 
+            FROM transactions 
+            WHERE transactions.wallet_id = wallets.id
+        ) as transaction_count
+    `
+	err := r.db.WithContext(ctx).Preload("Wallets", func(db *gorm.DB) *gorm.DB {
+		return db.Select(walletSelectQuery)
+	}).Find(&users).Error
 	return users, err
 }
 

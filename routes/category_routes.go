@@ -11,8 +11,9 @@ func CategoryRoutes(r *gin.RouterGroup, controller *controllers.CategoryControll
 	categories := r.Group("/categories")
 	categories.Use(middlewares.AuthMiddleware())
 	{
-		categories.POST("/default-cat-admin-only-wlee", controller.CreateDefaultCategories)
+		categories.POST("/default-cat-admin-only", controller.CreateDefaultCategories)
 		categories.GET("/", controller.GetAllCategories)
+		categories.POST("/", controller.CreateDefault)
 
 		categories.POST("/mine", controller.CreateMy)
 		categories.GET("/mine", controller.GetMine)

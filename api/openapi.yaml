@@ -1,0 +1,1614 @@
+openapi: 3.0.3
+info:
+  title: Cashflow API
+  version: 1.0.0
+  description: Dokumentasi API Cashflow dengan arsitektur Design-First
+
+servers:
+  - url: /api
+    description: API Base URL
+
+tags:
+  - name: Auth
+    description: Endpoint untuk registrasi dan autentikasi
+  - name: Users
+    description: Endpoint terkait user
+  - name: Transactions
+    description: Endpont terkait transaksi
+  - name: Categories
+    description: Manajemen kategori transaksi (Income/Expense)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # --- BASE RESPONSES BEGIN ---
+    SuccessBaseRes:
+      type: object
+      properties:
+        status:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Success"
+
+    500BaseRes:
+      type: object
+      properties:
+        status:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Server Error"
+        errors:
+          type: string
+          example: "There is a problem with the server"
+
+    400BaseRes:
+      type: object
+      properties:
+        status:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Bad Request"
+        errors:
+          type: string
+          example: "There is a problem with the request"
+    # --- BASE RESPONSES BEGIN ---
+
+    # --- ENTITAS UTAMA ---
+    #--------------- USER BEGIN ---------------
+    UserRes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          example: "john.doe@example.com"
+        user_role:
+          type: string
+          example: "USER"
+
+    UserBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/UserRes"
+
+    UserListRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/UserRes"
+            meta:
+              type: object
+              properties:
+                current_page:
+                  type: integer
+                  example: 1
+                total_pages:
+                  type: integer
+                  example: 5
+                total_items:
+                  type: integer
+                  example: 50
+    #--------------- USER END ---------------
+    #--------------- WALLET BEGIN -------------
+    WalletRes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        balance:
+          type: integer
+          example: 100000
+        name:
+          type: string
+          example: "Wallet Gaji"
+        transactions_count:
+          type: integer
+          example: 10
+        group_id:
+          type: string
+          nullable: true
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionRes"
+
+    WalletBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/WalletRes"
+
+    WalletListBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              type: array
+              $ref: "#/components/schemas/WalletRes"
+            meta:
+              type: object
+              properties:
+                current_page:
+                  type: integer
+                  example: 1
+                total_pages:
+                  type: integer
+                  example: 5
+                total_items:
+                  type: integer
+                  example: 50
+
+    CreateWalletReq:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          example: "Wallet Utama"
+        type:
+          type: string
+          example: "Income"
+
+    UpdateWalletReq:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Wallet Utama"
+        type:
+          type: string
+          example: "Income"
+
+    #--------------- WALLET END -------------
+    #--------------- TRANSACTION BEGIN -------------
+    TransactionRes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: "Gaji Bulanan"
+        amount:
+          type: integer
+          example: 100000
+        description:
+          type: string
+          example: "Gaji bulan Januari 2026"
+        date:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+        category:
+          $ref: "#/components/schemas/CategoryRes"
+        user:
+          $ref: "#/components/schemas/UserRes"
+
+    TxWithWallet:
+      allOf:
+        - $ref: "#/components/schemas/TransactionRes"
+        - type: object
+          properties:
+            wallet:
+              $ref: "#/components/schemas/WalletRes"
+
+    TransactionBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/TransactionRes"
+
+    TransactionListRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/TransactionRes"
+            meta:
+              type: object
+              properties:
+                current_page:
+                  type: integer
+                  example: 1
+                total_pages:
+                  type: integer
+                  example: 5
+                total_items:
+                  type: integer
+                  example: 50
+
+    TxWithWalletBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/TxWithWallet"
+
+    CreateTransactionReq:
+      type: object
+      required:
+        - wallet_id
+        - title
+        - amount
+        - category_name
+        - date
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
+        title:
+          type: string
+          example: "Gaji Bulanan"
+        amount:
+          type: integer
+          example: 100000
+        description:
+          type: string
+          example: "Gaji bulan Januari 2026"
+        category_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
+        date:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+
+    UpdateTransactionReq:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Gaji Bulanan"
+        amount:
+          type: integer
+          example: 100000
+        description:
+          type: string
+          example: "Gaji bulan Januari 2026"
+        category_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
+        date:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+    #--------------- TRANSACTION END -------------
+    #--------------- CATEGORY BEGIN -------------
+    CategoryRes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Makanan"
+        type:
+          type: string
+          example: "Expense"
+
+    CategoryBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/CategoryRes"
+
+    CategoryListBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/CategoryRes"
+            meta:
+              type: object
+              properties:
+                current_page:
+                  type: integer
+                  example: 1
+                total_pages:
+                  type: integer
+                  example: 5
+                total_items:
+                  type: integer
+                  example: 50
+    UpdateCategoryReq:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Makanan"
+        type:
+          type: string
+          example: "expense"
+    CreateCategoryReq:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          example: "Makanan"
+        type:
+          type: string
+          example: "expense"
+    #--------------- CATEGORY END -------------
+    #--------------- AUTH BEGIN ---------------
+    AuthLoginRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    RegisterReq:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          example: "john.doe@example.com"
+        password:
+          type: string
+          example: "password123"
+
+    LoginReq:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: "john.doe@example.com"
+        password:
+          type: string
+          example: "password123"
+    #--------------- AUTH END ---------------
+    #--------------- GROUP BEGIN ---------------
+    CreateGroupReq:
+      type: object
+      required: [name, memberids]
+      properties:
+        name:
+          type: string
+          example: "Group Utama"
+        memberids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description:
+          type: string
+          example: "Group ini adalah group utama"
+
+    GroupMembersRes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          example: "john_doe"
+        role:
+          type: string
+          example: "ADMIN"
+        userId:
+          type: string
+          format: uuid
+
+    GroupBaseRes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Group Utama"
+        description:
+          type: string
+          example: "Group ini adalah group utama"
+        wallet:
+          $ref: "#/components/schemas/WalletRes"
+        members:
+          type: array
+          $ref: "#/components/schemas/GroupMembersRes"
+
+    GroupListBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              type: array
+              $ref: "#/components/schemas/GroupBaseRes"
+    #--------------- GROUP END -----------------
+paths:
+  # ==========================================
+  # AUTH DOMAIN
+  # ==========================================
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register User
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterReq"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login User
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginReq"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthLoginRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  # ==========================================
+  # USER DOMAIN
+  # ==========================================
+  /users/:
+    get:
+      tags:
+        - Users
+      summary: Find All Users
+      operationId: findAllUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Jumlah data per halaman
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get My Profile
+      operationId: getMyProfile
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Find User By ID
+      operationId: findUserById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+    patch:
+      tags:
+        - Users
+      summary: Update User By ID
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterReq"
+      responses:
+        "201":
+          description: Update Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  # ==========================================
+  # Transaction DOMAIN
+  # ==========================================
+  /transactions:
+    get:
+      tags:
+        - Transactions
+      summary: Get All Transactions
+      description: Endpoint untuk menampilkan semua transaksi by limit dan page
+      operationId: getTransactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Jumlah data per halaman
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionListRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    post:
+      tags:
+        - Transactions
+      summary: Create Transaction
+      description: Endpoint untuk membuat transaksi
+      operationId: createTransaction
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransactionReq"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /transactions/{id}:
+    get:
+      tags:
+        - Transactions
+      summary: Find Transaction By ID
+      description: Endpoint untuk menampilkan detail transaksi
+      operationId: findTransactionById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transaction ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    patch:
+      tags:
+        - Transactions
+      summary: Update Transaction By ID
+      description: Endpoint untuk update transaksi
+      operationId: updateTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transaction ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTransactionReq"
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    delete:
+      tags:
+        - Transactions
+      summary: Delete Transaction By ID (soft)
+      description: Endpoint untuk soft-detele transaksi
+      operationId: deleteTransaction
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transaction ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  # ==========================================
+  # CATEGORY DOMAIN
+  # ==========================================
+  /categories:
+    post:
+      tags:
+        - Categories
+      summary: Buat Kategori Baru
+      operationId: createCategory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryReq"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryBaseRes"
+        "400":
+          description: Bad Request (Validasi gagal)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    get:
+      tags:
+        - Categories
+      summary: Get All Categories
+      operationId: getCategories
+      description: Get All Categories with pagination and Admin Role
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: true
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Jumlah data per halaman
+          required: true
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /categories/me:
+    get:
+      tags:
+        - Categories
+      summary: Get all the user categories
+      operationId: getMyCategories
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /categories/default:
+    get:
+      tags:
+        - Categories
+      summary: Get Default Categories
+      operationId: getDefaultCategories
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+    post:
+      tags:
+        - Categories
+      summary: Create Default Categories
+      operationId: createDefaultCategories
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryReq"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /categories/{id}:
+    get:
+      tags:
+        - Categories
+      summary: Get Category By ID
+      operationId: getCategoryById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    patch:
+      tags:
+        - Categories
+      summary: Update Category By ID
+      operationId: updateCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryReq"
+      responses:
+        "201":
+          description: Update Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+    delete:
+      tags:
+        - Categories
+      summary: Delete Category By ID (soft)
+      operationId: deleteCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  # ==========================================
+  # WALLET DOMAIN
+  # ==========================================
+  /wallets:
+    post:
+      tags:
+        - Wallets
+      summary: Create Wallet
+      operationId: createWallet
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWalletReq"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    get:
+      tags:
+        - Wallets
+      summary: Get all the user wallets
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      operationId: getMyWallets
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /wallets/{id}:
+    get:
+      tags:
+        - Wallets
+      summary: Get Wallet By ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      operationId: getWalletById
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+    patch:
+      tags:
+        - Wallets
+      summary: Update Wallet By ID
+      operationId: updateWallet
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWalletReq"
+      responses:
+        "201":
+          description: Update Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+    delete:
+      tags:
+        - Wallets
+      summary: Delete Wallet By ID (soft)
+      operationId: deleteWallet
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  # ==========================================
+  # GROUP DOMAIN
+  # ==========================================
+  /groups:
+    get:
+      tags:
+        - Groups
+      summary: Get all the user groups
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      operationId: getGroups
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    post:
+      tags:
+        - Groups
+      summary: Create New Group
+      operationId: createGroup
+      responses:
+        "201":
+          description:
+          content:
+            aplication/json:
+              schema:
+                $ref: "#/components/schemas/GroupBaseRes"
+        "400":
+          description:
+          content:
+            aplication/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description:
+          content:
+            aplication/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+  /groups/{id}:
+    get:
+      tags:
+        - Groups
+      summary: Get Group By ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      operationId: getGroupById
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    patch:
+      tags:
+        - Groups
+      summary: Update Group By ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      operationId: updateGroup
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          description: Update Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Srror
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+    delete:
+      tags:
+        - Groups
+      summary: Delete Group By ID (soft)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      operationId: deleteGroup
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          desctription: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"

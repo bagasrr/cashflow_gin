@@ -43,6 +43,7 @@ func (s *categoryService) CreateDefault(ctx context.Context, input *request.Crea
 	}
 
 	res := &response.CategoryResponse{
+		ID:   category.ID,
 		Name: category.Name,
 		Type: category.Type,
 	}

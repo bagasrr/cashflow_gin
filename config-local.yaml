@@ -8,3 +8,5 @@ database:
   user: "postgres"
   password: "postgres"
   name: "cashflow_db"
+
+JWT_SECRET: "PASSWORDJWTGUATAUGUNANYAPAWHHEHE"

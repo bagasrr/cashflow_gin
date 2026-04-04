@@ -4,8 +4,8 @@ import (
 	"cashflow_gin/api"
 	"cashflow_gin/config"
 	"cashflow_gin/handler"
+	"cashflow_gin/middlewares"
 	"cashflow_gin/repository"
-	"cashflow_gin/routes"
 	"cashflow_gin/services"
 	"fmt"
 	"log"
@@ -20,6 +20,13 @@ type MasterAPI struct {
 	*handler.TransactionAPI
 	*handler.UserAPI
 	*handler.WalletAPI
+	*handler.GroupAPI
+}
+
+type standardError struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Errors  string `json:"errors"`
 }
 
 func Run() {
@@ -42,15 +49,16 @@ func Run() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
-	// groupRepo := repository.NewGroupRepository(db) // Buka kalau group udah ada
+	groupRepo := repository.NewGroupRepository(db) // Buka kalau group udah ada
 
 	// B. Inisialisasi Services (Layer Tengah)
 	authService := services.NewAuthService(authRepo)
 	categoryService := services.NewCategoryService(categoryRepo)
 	userService := services.NewUserService(userRepo)
 	// Hati-hati: TransactionService lu biasanya butuh banyak repo
-	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, nil, walletRepo)
+	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo)
 	walletService := services.NewWalletService(walletRepo, nil)
+	groupService := services.NewGroupService(groupRepo)
 
 	// C. Inisialisasi Handlers (Gerbang Luar)
 	authAPI := &handler.AuthAPI{Service: authService}
@@ -58,6 +66,7 @@ func Run() {
 	transactionAPI := &handler.TransactionAPI{Service: transactionService}
 	userAPI := &handler.UserAPI{Service: userService}
 	walletAPI := &handler.WalletAPI{Service: walletService}
+	groupAPI := &handler.GroupAPI{Service: groupService}
 
 	// D. Gabungkan ke Master API
 	masterHandler := &MasterAPI{
@@ -66,14 +75,24 @@ func Run() {
 		TransactionAPI: transactionAPI,
 		UserAPI:        userAPI,
 		WalletAPI:      walletAPI,
+		GroupAPI:       groupAPI,
 	}
 
+	r.Use(middlewares.AuthMiddleware())
 	// E. Daftarkan ke Gin Router
 	strictHandler := api.NewStrictHandler(masterHandler, nil)
 	// PENTING: Jangan lupa kasih BaseURL "/api" kalau di yaml lu path-nya mulai dari "/api"
 	// Tapi kalau di yaml lu udah nulis "/api/categories", gak usah pake WithBaseURL di sini.
+
 	api.RegisterHandlersWithOptions(r, strictHandler, api.GinServerOptions{
 		BaseURL: "/api",
+		ErrorHandler: func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, standardError{
+				Status:  false,
+				Message: "Invalid Request Format",
+				Errors:  err.Error(),
+			})
+		},
 	})
 
 	// ------------------------------------
@@ -81,7 +100,7 @@ func Run() {
 	// ------------------------------------
 	// Gw biarin ini nyala, TAPI lu harus segera mematikan rute-rute di router.go
 	// yang udah lu pindahin ke OpenAPI, biar Gin gak Panic karena rute bentrok.
-	routes.SetupRoutes(db, r)
+	// routes.SetupRoutes(db, r)
 
 	// ------------------------------------
 	// ZONA SWAGGER DOCS

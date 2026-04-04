@@ -27,5 +27,5 @@ func (c *TransactionAPI) FindTransactionById(ctx context.Context, request api.Fi
 }
 
 func (c *TransactionAPI) UpdateTransaction(ctx context.Context, request api.UpdateTransactionRequestObject) (api.UpdateTransactionResponseObject, error) {
-	return api.UpdateTransaction200JSONResponse{}, nil
+	return api.UpdateTransaction201JSONResponse{}, nil
 }

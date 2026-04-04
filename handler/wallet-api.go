@@ -27,5 +27,5 @@ func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRe
 }
 
 func (c *WalletAPI) UpdateWallet(ctx context.Context, request api.UpdateWalletRequestObject) (api.UpdateWalletResponseObject, error) {
-	return api.UpdateWallet200JSONResponse{}, nil
+	return api.UpdateWallet201JSONResponse{}, nil
 }

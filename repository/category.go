@@ -12,7 +12,7 @@ type CategoryRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Category, error)
 	CreateDefault(ctx context.Context, cat *models.Category) error
 	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
-	FindAll(ctx context.Context) (*[]models.Category, error)
+	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, error)
 	FindByName(ctx context.Context, name string) (*models.Category, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Category, error)
 	FindByGroupID(ctx context.Context, groupID uuid.UUID) (*[]models.Category, error)
@@ -61,9 +61,12 @@ func (r *categoryRepository) CreateDefaultCategories(ctx context.Context) (*[]mo
 	return &categories, r.db.WithContext(ctx).Create(&categories).Error
 }
 
-func (r *categoryRepository) FindAll(ctx context.Context) (*[]models.Category, error) {
+func (r *categoryRepository) FindAll(ctx context.Context, limit int, offset int) (*[]models.Category, error) {
 	var categories []models.Category
-	err := r.db.WithContext(ctx).Find(&categories).Error
+	err := r.db.WithContext(ctx).
+		Limit(limit).
+		Offset(offset).
+		Find(&categories).Error
 	return &categories, err
 }
 

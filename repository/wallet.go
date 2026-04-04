@@ -9,7 +9,7 @@ import (
 )
 
 type WalletRepository interface {
-	FindAll(ctx context.Context) (*[]models.Wallet, error)
+	FindAll(ctx context.Context, offset int, limit int) (*[]models.Wallet, error)
 	FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
 	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
 }
@@ -42,13 +42,14 @@ func (r *walletRepository) FindByID(ctx context.Context, walletID uuid.UUID) (*m
 	return &wallet, nil // Return alamat memorinya
 }
 
-func (r *walletRepository) FindAll(ctx context.Context) (*[]models.Wallet, error) {
+func (r *walletRepository) FindAll(ctx context.Context, offset int, limit int) (*[]models.Wallet, error) {
 	var wallets []models.Wallet
 
 	// Susun logic-nya: Panggil DB -> Set Limit -> Eksekusi (Find)
 	err := r.db.WithContext(ctx).
 		Select("wallets.*, " + countQuery + " as transaction_count").
-		Limit(10).
+		Limit(limit).
+		Offset(offset).
 		Find(&wallets).Error
 
 	return &wallets, err

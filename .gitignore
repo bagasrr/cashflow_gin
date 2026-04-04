@@ -69,3 +69,6 @@ ehthumbs.v2
 .env
 
 SessionJwt.md
+
+config-local.yaml
+config.yaml

@@ -26,8 +26,10 @@ func NewWalletService(wRepo repository.WalletRepository, gRepo repository.GroupR
 }
 
 func (s *walletService) GetAll(ctx context.Context) (*[]response.WalletResponse, error) {
-	// Implementasi untuk mendapatkan semua wallet
-	wallet, err := s.walletRepo.FindAll(ctx)
+	limit := 10
+	offset := 0
+	// nanti ganti jadi dinamis
+	wallet, err := s.walletRepo.FindAll(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}

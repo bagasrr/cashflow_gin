@@ -8,10 +8,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Bikin hirarki struct sesuai bentuk YAML
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	JWTSecret string `mapstructure:"JWT_SECRET"`
 }
 
 type ServerConfig struct {
@@ -32,7 +32,7 @@ var AppConfig Config
 
 func LoadConfig() {
 	// 1. Baca .env dulu buat tau kita di environment mana (local/staging/prod)
-	_ = godotenv.Load() 
+	_ = godotenv.Load()
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "local" // Default kalau .env gak ada

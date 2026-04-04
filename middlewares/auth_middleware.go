@@ -1,11 +1,14 @@
 package middlewares
 
 import (
-	"cashflow_gin/dto/response"
-	"context"
+	"fmt"
+	"log"
 	"net/http"
-	"os"
 	"strings"
+
+	// Ganti import config ini sesuai path project Cashflow lu
+	"cashflow_gin/config"
+	"cashflow_gin/dto/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -13,44 +16,101 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		publicRoutes := []string{
+			"/api/auth/login",
+			"/api/auth/register",
+			"/docs",         // Biar Swagger UI tetep bisa dibuka
+			"/openapi.yaml", // Biar file dokumentasinya tetep bisa dibaca
+		}
+
+		// 2. CEK APAKAH USER MENUJU JALUR VIP
+		currentPath := c.Request.URL.Path
+		for _, route := range publicRoutes {
+			// Kalau URL awalan-nya cocok dengan whitelist, langsung loloskan
+			if strings.HasPrefix(currentPath, route) {
+				c.Next()
+				return // Hentikan pengecekan token di bawahnya
+			}
+		}
 		authHeader := c.GetHeader("Authorization")
-		if !strings.Contains(authHeader, "Bearer") {
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
 				Status:  false,
-				Message: "Unauthorized: No Bearer token | Please login first",
+				Message: "Unauthorized",
 				Errors:  "Missing or invalid Authorization header",
-				Data:    nil,
 			})
 			return
 		}
 
-		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		// token, err := jwt.Parse(tokenString, func(t *jwt.SimpleClaims) (interface{}, error) {
-		// 	return []byte(os.Getenv("JWT_SECRET")), nil
-		// })
-
-		token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(os.Getenv("JWT_SECRET")), nil
+		// 1. TANGKAP ERROR-NYA, JANGAN DIBUANG
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Pastikan metode signing-nya sesuai
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			// 2. AMBIL DARI CONFIG MEMORI, BUKAN OS.GETENV
+			// Asumsi lu punya JWTSecret di struct config lu
+			return []byte(config.AppConfig.JWTSecret), nil
 		})
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// Simpan UserID ke context biar bisa dipake Controller
-			c.Set("user_id", claims["user_id"])
-			c.Set("user_role", claims["user_role"])
-			// Sisipkan ke context standar bawaan Request agar bisa diakses oleh StrictServer
-			ctx := context.WithValue(c.Request.Context(), "user_id", claims["user_id"])
-			ctx = context.WithValue(ctx, "user_role", claims["user_role"])
-			c.Request = c.Request.WithContext(ctx)
-			c.Next()
-		} else {
+		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
 				Status:  false,
-				Message: "Unauthorized: Invalid token | Please login again",
-				Errors:  "Token Expired or Invalid",
-				Data:    nil,
+				Message: "Unauthorized",
+				Errors:  "Token is expired or invalid",
 			})
 			return
 		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
+				Status:  false,
+				Message: "Unauthorized",
+				Errors:  "Invalid token structure",
+			})
+			return
+		}
+
+		// 3. SAFE TYPE ASSERTION (ANTI-PANIC)
+		userID, idOk := claims["user_id"].(string)
+		// userRole, roleOk := claims["user_role"].(string)
+		rawRole := claims["user_role"]
+		roleOk := false
+		var userRole string
+
+		// Normalisasi tipe data: Apapun bentuknya (float64, int, string), jadikan string
+		if rawRole != nil {
+			userRole = fmt.Sprintf("%v", rawRole)
+			log.Printf("DEBUG: Extracted user_role claim: %v (type %T) -> normalized to string: %s", rawRole, rawRole, userRole)
+			roleOk = true
+		}
+
+		// Validasi akhir
+		if !idOk || !roleOk {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
+				Status:  false,
+				Message: "Unauthorized",
+				Errors:  "Token payload is missing required claims or format is invalid",
+			})
+			return
+		}
+
+		if !idOk || !roleOk {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
+				Status:  false,
+				Message: "Unauthorized",
+				Errors:  "Token payload is missing required claims",
+			})
+			return
+		}
+
+		// 4. MASUKKAN KE DALAM CONTEXT STANDAR GO
+		c.Set("user_id", userID)
+		c.Set("user_role", userRole)
+
+		c.Next()
 	}
 }

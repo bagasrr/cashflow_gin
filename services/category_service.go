@@ -14,7 +14,7 @@ import (
 type CategoryService interface {
 	CreateDefault(ctx context.Context, input *request.CreateCategoryRequest) (*response.CategoryResponse, error)
 	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
-	GetAllCategories(ctx context.Context, userRole models.UserRole) (*[]response.CategoryResponse, error)
+	GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]response.CategoryResponse, error)
 
 	CreateMy(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
 	GetMine(ctx context.Context, userID uuid.UUID) (*[]response.CategoryResponse, error)
@@ -56,12 +56,23 @@ func (s *categoryService) CreateDefaultCategories(ctx context.Context) (*[]model
 	return newCategory, err
 }
 
-func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole) (*[]response.CategoryResponse, error) {
+func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]response.CategoryResponse, error) {
 	if userRole > models.RoleModerator {
 		return nil, errors.New("forbidden: access is denied")
 	}
 
-	cat, err := s.repo.FindAll(ctx)
+	if limit == 0 {
+		limit = 10
+	}
+	if page == 0 {
+		page = 1
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := (page - 1) * limit
+
+	cat, err := s.repo.FindAll(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}

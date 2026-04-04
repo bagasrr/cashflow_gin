@@ -99,5 +99,5 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 }
 
 func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestObject) (api.UpdateUserResponseObject, error) {
-	return api.UpdateUser200JSONResponse{}, nil
+	return api.UpdateUser201JSONResponse{}, nil
 }

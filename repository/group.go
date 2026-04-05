@@ -15,6 +15,7 @@ type GroupRepository interface {
 
 	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error)
 	IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
+	IsGroupAdmin(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
 	UpdateGroup(ctx context.Context, group *models.Group) error
 	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
@@ -109,5 +110,11 @@ func (r *groupRepository) IsGroupMember(ctx context.Context, groupID, userID uui
 	var count int64
 	err := r.db.WithContext(ctx).Model(&models.GroupMember{}).Where("group_id = ? AND user_id = ?", groupID, userID).Count(&count).Error
 	fmt.Println("Count : ", count)
+	return count > 0, err
+}
+
+func (r *groupRepository) IsGroupAdmin(ctx context.Context, groupID, userID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.GroupMember{}).Where("group_id = ? AND user_id = ? AND members_role = ?", groupID, userID, models.GroupAdmin).Count(&count).Error
 	return count > 0, err
 }

@@ -65,15 +65,18 @@ type CategoryListBaseRes struct {
 
 // CategoryRes defines model for CategoryRes.
 type CategoryRes struct {
-	Id   *openapi_types.UUID `json:"id,omitempty"`
-	Name *string             `json:"name,omitempty"`
-	Type *string             `json:"type,omitempty"`
+	GroupId *string             `json:"group_id,omitempty"`
+	Id      *openapi_types.UUID `json:"id,omitempty"`
+	Name    *string             `json:"name,omitempty"`
+	Type    *string             `json:"type,omitempty"`
+	UserId  *string             `json:"user_id,omitempty"`
 }
 
 // CreateCategoryReq defines model for CreateCategoryReq.
 type CreateCategoryReq struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	GroupId *openapi_types.UUID `json:"group_id,omitempty"`
+	Name    string              `json:"name"`
+	Type    string              `json:"type"`
 }
 
 // CreateTransactionReq defines model for CreateTransactionReq.
@@ -245,10 +248,19 @@ type WalletRes struct {
 // GetCategoriesParams defines parameters for GetCategories.
 type GetCategoriesParams struct {
 	// Page Page number
-	Page int `form:"page" json:"page"`
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
 
 	// Limit Jumlah data per halaman
-	Limit int `form:"limit" json:"limit"`
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetMyCategoriesParams defines parameters for GetMyCategories.
+type GetMyCategoriesParams struct {
+	// Page Page number
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// Limit Jumlah data per halaman
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetGroupsParams defines parameters for GetGroups.
@@ -333,7 +345,7 @@ type ServerInterface interface {
 	CreateDefaultCategories(c *gin.Context)
 	// Get all the user categories
 	// (GET /categories/me)
-	GetMyCategories(c *gin.Context)
+	GetMyCategories(c *gin.Context, params GetMyCategoriesParams)
 	// Delete Category By ID (soft)
 	// (DELETE /categories/{id})
 	DeleteCategory(c *gin.Context, id string)
@@ -447,31 +459,17 @@ func (siw *ServerInterfaceWrapper) GetCategories(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetCategoriesParams
 
-	// ------------- Required query parameter "page" -------------
+	// ------------- Optional query parameter "page" -------------
 
-	if paramValue := c.Query("page"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Required query parameter "limit" -------------
+	// ------------- Optional query parameter "limit" -------------
 
-	if paramValue := c.Query("limit"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -535,7 +533,28 @@ func (siw *ServerInterfaceWrapper) CreateDefaultCategories(c *gin.Context) {
 // GetMyCategories operation middleware
 func (siw *ServerInterfaceWrapper) GetMyCategories(c *gin.Context) {
 
+	var err error
+
 	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMyCategoriesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -544,7 +563,7 @@ func (siw *ServerInterfaceWrapper) GetMyCategories(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetMyCategories(c)
+	siw.Handler.GetMyCategories(c, params)
 }
 
 // DeleteCategory operation middleware
@@ -1390,6 +1409,7 @@ func (response CreateDefaultCategories500JSONResponse) VisitCreateDefaultCategor
 }
 
 type GetMyCategoriesRequestObject struct {
+	Params GetMyCategoriesParams
 }
 
 type GetMyCategoriesResponseObject interface {
@@ -2666,8 +2686,10 @@ func (sh *strictHandler) CreateDefaultCategories(ctx *gin.Context) {
 }
 
 // GetMyCategories operation middleware
-func (sh *strictHandler) GetMyCategories(ctx *gin.Context) {
+func (sh *strictHandler) GetMyCategories(ctx *gin.Context, params GetMyCategoriesParams) {
 	var request GetMyCategoriesRequestObject
+
+	request.Params = params
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.GetMyCategories(ctx, request.(GetMyCategoriesRequestObject))

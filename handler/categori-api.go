@@ -6,8 +6,8 @@ import (
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
-	"fmt"
 	"log"
+	"strings"
 )
 
 // 1. Ini struct yang dicari-cari sama server.go lu
@@ -22,12 +22,47 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 		Name: req.Body.Name, // Hati-hati, hasil generate YAML biasanya berupa pointer
 		Type: req.Body.Type,
 	}
+	if req.Body.GroupId != nil {
+		reqInput.GroupID = req.Body.GroupId.String()
+	}
+
+	userID, err := utils.GetUserID(ctx)
+	log.Printf("UserID di Context: %s", userID.String())
+
+	if err != nil {
+		status := false
+		msg := "Gagal Auth: " + err.Error()
+		return api.CreateCategory500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
 
 	// Panggil layer Service lu yang lama
-	res, err := c.Service.CreateDefault(ctx, reqInput)
+	res, err := c.Service.Create(ctx, userID, *reqInput)
 	if err != nil {
-		// Kalau service error, return response 500 sesuai kontrak YAML
-		return api.CreateCategory500JSONResponse{}, nil
+		// DETEKSI ERROR DUPLIKASI DARI DATABASE
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") ||
+			strings.Contains(err.Error(), "SQLSTATE 23505") {
+
+			log.Println("❌ ERROR VALIDASI: Nama Kategori Sudah Ada")
+			status := false
+			msg := "Kategori dengan nama tersebut sudah ada."
+			// WAJIB RETURN 400 (Bad Request), bukan 500.
+			// Pastikan di openapi.yaml lu udah definisiin response 400 untuk endpoint ini.
+			return api.CreateCategory400JSONResponse{
+				Status:  &status,
+				Message: &msg,
+			}, nil
+		}
+
+		// Kalau error lain (misal koneksi DB mati), baru return 500
+		status := false
+		msg := "Gagal membuat kategori: " + err.Error()
+		return api.CreateCategory500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
 	}
 
 	message := "Create Category Success"
@@ -48,11 +83,7 @@ func (c *CategoryAPI) GetDefaultCategories(ctx context.Context, request api.GetD
 }
 
 func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategoriesRequestObject) (api.GetCategoriesResponseObject, error) {
-	fmt.Printf("DEBUG CONTEXT: %+v\n", ctx)
-
 	// Coba ambil pake string manual buat ngetes
-	rawRole := ctx.Value(utils.UserRoleKey)
-	fmt.Printf("RAW ROLE DARI UTILS KEY: %v (Type: %T)\n", rawRole, rawRole)
 	role, err := utils.GetUserRole(ctx)
 	if err != nil {
 		log.Println("❌ ERROR AUTH:", err)
@@ -61,13 +92,18 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 		msg := "Gagal Auth: " + err.Error()
 		return api.GetCategories500JSONResponse{Status: &status, Message: &msg}, nil
 	}
-	limitValue := request.Params.Limit
-	pageValue := request.Params.Page
+	limitValue := 10
+	pageValue := 1
 
+	if request.Params.Limit != nil {
+		limitValue = *request.Params.Limit
+	}
+
+	if request.Params.Page != nil {
+		pageValue = *request.Params.Page
+	}
 	cat, err := c.Service.GetAllCategories(ctx, role, limitValue, pageValue)
 	if err != nil {
-		log.Println("❌ ERROR DATABASE:", err)
-
 		status := false
 		msg := "Gagal Database: " + err.Error()
 		return api.GetCategories500JSONResponse{Status: &status, Message: &msg}, nil
@@ -75,11 +111,14 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 	var res []api.CategoryRes
 	for _, v := range *cat {
 		res = append(res, api.CategoryRes{
-			Id:   &v.ID,
-			Name: &v.Name,
-			Type: &v.Type,
+			Id:      &v.ID,
+			UserId:  &v.UserID,
+			GroupId: &v.GroupID,
+			Name:    &v.Name,
+			Type:    &v.Type,
 		})
 	}
+	log.Println("✅ Get Categories Success")
 	return api.GetCategories200JSONResponse{
 		Data: &res,
 	}, nil
@@ -90,7 +129,48 @@ func (c *CategoryAPI) CreateDefaultCategories(ctx context.Context, request api.C
 }
 
 func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCategoriesRequestObject) (api.GetMyCategoriesResponseObject, error) {
-	return api.GetMyCategories200JSONResponse{}, nil
+	userID, err := utils.GetUserID(ctx)
+	if err != nil {
+		status := false
+		msg := "Gagal Auth: " + err.Error()
+		return api.GetMyCategories500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+
+	pageValue := 1
+	limitValue := 10
+
+	if request.Params.Limit != nil {
+		limitValue = *request.Params.Limit
+	}
+
+	if request.Params.Page != nil {
+		pageValue = *request.Params.Page
+	}
+	cat, err := c.Service.GetMine(ctx, userID, pageValue, limitValue)
+	if err != nil {
+		status := false
+		msg := "Gagal mengambil kategori: " + err.Error()
+		return api.GetMyCategories500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+	var res []api.CategoryRes
+	for _, v := range *cat {
+		res = append(res, api.CategoryRes{
+			Id:      &v.ID,
+			UserId:  &v.UserID,
+			GroupId: &v.GroupID,
+			Name:    &v.Name,
+			Type:    &v.Type,
+		})
+	}
+	return api.GetMyCategories200JSONResponse{
+		Data: &res,
+	}, nil
 }
 
 func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCategoryRequestObject) (api.DeleteCategoryResponseObject, error) {

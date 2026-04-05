@@ -81,7 +81,7 @@ func (c *CategoryController) GetAllCategories(ctx *gin.Context) {
 		return
 	}
 
-	cat, err := c.services.GetAllCategories(ctx.Request.Context(), role)
+	cat, err := c.services.GetAllCategories(ctx.Request.Context(), role, 100, 1) // Default limit 100, page 1
 	if err != nil {
 		SendError(ctx, http.StatusInternalServerError, "Failed to retrieve categories", err)
 		return

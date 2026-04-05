@@ -9,17 +9,18 @@ import (
 )
 
 type CategoryRepository interface {
-	FindByID(ctx context.Context, id uuid.UUID) (*models.Category, error)
+	Create(ctx context.Context, category *models.Category) (*models.Category, error)
 	CreateDefault(ctx context.Context, cat *models.Category) error
 	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
 	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, error)
+
 	FindByName(ctx context.Context, name string) (*models.Category, error)
-	FindByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Category, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Category, error)
 	FindByGroupID(ctx context.Context, groupID uuid.UUID) (*[]models.Category, error)
-	Create(ctx context.Context, category *models.Category) (*models.Category, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*models.Category, error)
 	Update(ctx context.Context, category *models.Category) (*models.Category, error)
 	Delete(ctx context.Context, category *models.Category) error
-	FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error)
+	// FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error)
 }
 
 type categoryRepository struct {
@@ -76,9 +77,9 @@ func (r *categoryRepository) FindByName(ctx context.Context, name string) (*mode
 	return &category, err
 }
 
-func (r *categoryRepository) FindByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Category, error) {
+func (r *categoryRepository) FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Category, error) {
 	var categories []models.Category
-	err := r.db.WithContext(ctx).Where("user_id = ? OR user_id = ?", userID, uuid.Nil).Find(&categories).Error
+	err := r.db.WithContext(ctx).Where("user_id = ? ", userID).Limit(limit).Offset(offset).Find(&categories).Error
 	return &categories, err
 }
 
@@ -103,8 +104,8 @@ func (r *categoryRepository) Delete(ctx context.Context, category *models.Catego
 	return err
 }
 
-func (r *categoryRepository) FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error) {
-	var category models.Category
-	err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&category).Error
-	return &category, err
-}
+// func (r *categoryRepository) FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error) {
+// 	var category models.Category
+// 	err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&category).Error
+// 	return &category, err
+// }

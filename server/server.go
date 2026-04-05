@@ -53,7 +53,7 @@ func Run() {
 
 	// B. Inisialisasi Services (Layer Tengah)
 	authService := services.NewAuthService(authRepo)
-	categoryService := services.NewCategoryService(categoryRepo)
+	categoryService := services.NewCategoryService(categoryRepo, groupRepo, userRepo)
 	userService := services.NewUserService(userRepo)
 	// Hati-hati: TransactionService lu biasanya butuh banyak repo
 	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo)

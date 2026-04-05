@@ -14,6 +14,8 @@ type UserRepository interface {
 	FindAllUser(ctx context.Context) ([]models.User, error)
 	FindMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error)
 	Login(ctx context.Context, input *request.LoginRequest) (*models.User, error)
+
+	IsRoleAdmin(ctx context.Context, userID uuid.UUID) (bool, error)
 }
 
 type userRepository struct {
@@ -71,4 +73,13 @@ func (r *userRepository) Login(ctx context.Context, input *request.LoginRequest)
 	err := r.db.WithContext(ctx).First(&user, "email = ?", input.Email).Error
 
 	return &user, err
+}
+
+func (r *userRepository) IsRoleAdmin(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var user models.User
+	err := r.db.WithContext(ctx).First(&user, "id = ?", userID).Error
+	if err != nil {
+		return false, err
+	}
+	return user.UserRole == models.RoleAdmin, nil
 }

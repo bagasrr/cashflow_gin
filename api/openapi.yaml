@@ -319,6 +319,12 @@ components:
         id:
           type: string
           format: uuid
+        user_id:
+          type: string
+          nullable: true
+        group_id:
+          type: string
+          nullable: true
         name:
           type: string
           example: "Makanan"
@@ -376,6 +382,11 @@ components:
         type:
           type: string
           example: "expense"
+        group_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: "123e4567-e89b-12d3-a456-426655440000"
     #--------------- CATEGORY END -------------
     #--------------- AUTH BEGIN ---------------
     AuthLoginRes:
@@ -977,14 +988,14 @@ paths:
         - name: page
           in: query
           description: Page number
-          required: true
+          required: false
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
           description: Jumlah data per halaman
-          required: true
+          required: false
           schema:
             type: integer
             default: 10
@@ -1016,6 +1027,21 @@ paths:
       operationId: getMyCategories
       security:
         - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Jumlah data per halaman
+          required: false
+          schema:
+            type: integer
+            default: 10
       responses:
         "200":
           description: Success

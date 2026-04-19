@@ -2,7 +2,9 @@ package handler
 
 import (
 	"cashflow_gin/api"
+	"cashflow_gin/models"
 	"cashflow_gin/services"
+	"cashflow_gin/utils"
 	"context"
 	"fmt"
 
@@ -95,9 +97,97 @@ func (u *UserAPI) GetMyProfile(ctx context.Context, req api.GetMyProfileRequestO
 }
 
 func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequestObject) (api.FindUserByIdResponseObject, error) {
-	return api.FindUserById200JSONResponse{}, nil
+	requesterRole, err := utils.GetUserRole(ctx)
+	if err != nil {
+		status := false
+		msg := "Failed to get requester role: " + err.Error()
+		return api.FindUserById500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+
+	targetID, err := uuid.Parse(request.Id)
+	if err != nil {
+		status := false
+		msg := "Failed to parse user ID: " + err.Error()
+		return api.FindUserById500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+	target, err := u.Service.FindUserByID(ctx, targetID, requesterRole)
+	if err != nil {
+		status := false
+		msg := "Failed to retrieve user: " + err.Error()
+		return api.FindUserById500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+	status := true
+	msg := "Success"
+	return api.FindUserById200JSONResponse{
+		Status:  &status,
+		Message: &msg,
+		Data: &api.UserRes{
+			Id:       &targetID,
+			Username: &target.Username,
+			Email:    &target.Email,
+			UserRole: &target.UserRole,
+		},
+	}, nil
 }
 
 func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestObject) (api.UpdateUserResponseObject, error) {
-	return api.UpdateUser201JSONResponse{}, nil
+	requestor, err := utils.GetUserID(ctx)
+	if err != nil {
+		status := false
+		msg := "Failed to get requester ID: " + err.Error()
+		return api.UpdateUser500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+	targetID, err := uuid.Parse(request.Id)
+	if err != nil {
+		status := false
+		msg := "Failed to parse target user ID: " + err.Error()
+		return api.UpdateUser500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+
+	targetUser := models.User{
+		Base: models.Base{
+			ID: targetID,
+		},
+		Username: request.Body.Username,
+		Email:    request.Body.Email,
+		Password: request.Body.Password,
+	}
+
+	res, err := u.Service.UpdateUser(ctx, requestor, targetUser)
+	if err != nil {
+		status := false
+		msg := "Failed to update user: " + err.Error()
+		return api.UpdateUser500JSONResponse{
+			Status:  &status,
+			Message: &msg,
+		}, nil
+	}
+
+	status := true
+	msg := "Success"
+	return api.UpdateUser201JSONResponse{
+		Status:  &status,
+		Message: &msg,
+		Data: &api.UserRes{
+			Id:       &targetID,
+			Username: &res.Username,
+			Email:    &res.Email,
+			UserRole: &res.UserRole,
+		},
+	}, nil
 }

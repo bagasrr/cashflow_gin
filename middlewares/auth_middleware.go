@@ -98,15 +98,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		if !idOk || !roleOk {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
-				Status:  false,
-				Message: "Unauthorized",
-				Errors:  "Token payload is missing required claims",
-			})
-			return
-		}
-
 		// 4. MASUKKAN KE DALAM CONTEXT STANDAR GO
 		c.Set("user_id", userID)
 		c.Set("user_role", userRole)

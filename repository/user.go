@@ -16,6 +16,8 @@ type UserRepository interface {
 	Login(ctx context.Context, input *request.LoginRequest) (*models.User, error)
 
 	IsRoleAdmin(ctx context.Context, userID uuid.UUID) (bool, error)
+	FindUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error)
+	UpdateUser(ctx context.Context, user models.User) (models.User, error)
 }
 
 type userRepository struct {
@@ -82,4 +84,15 @@ func (r *userRepository) IsRoleAdmin(ctx context.Context, userID uuid.UUID) (boo
 		return false, err
 	}
 	return user.UserRole == models.RoleAdmin, nil
+}
+
+func (r *userRepository) FindUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
+	var user models.User
+	err := r.db.WithContext(ctx).First(&user, "id = ?", userID).Error
+	return &user, err
+}
+
+func (r *userRepository) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
+	err := r.db.WithContext(ctx).Save(&user).Error
+	return user, err
 }

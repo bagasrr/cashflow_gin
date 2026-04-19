@@ -2,8 +2,11 @@ package services
 
 import (
 	"cashflow_gin/dto/response"
+	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -11,6 +14,9 @@ import (
 type UserService interface {
 	FindAllUser(ctx context.Context) (*[]response.UserResponse, error)
 	GetMyProfile(ctx context.Context, id uuid.UUID) (*response.UserResponse, error)
+
+	FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*response.UserResponse, error)
+	UpdateUser(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*response.UserResponse, error)
 }
 
 type userService struct {
@@ -73,4 +79,48 @@ func (s *userService) GetMyProfile(ctx context.Context, id uuid.UUID) (*response
 		Wallets:  WalletRes,
 	}
 	return UserRes, nil
+}
+
+func (s *userService) FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*response.UserResponse, error) {
+	if requestorRole != models.RoleAdmin {
+		return nil, errors.New("forbidden: acces denied")
+	}
+
+	user, err := s.repo.FindUserByID(ctx, targetID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response.UserResponse{
+		ID:       user.ID.String(),
+		Username: user.Username,
+		Email:    user.Email,
+		UserRole: user.UserRole.String(),
+	}, nil
+}
+
+func (s *userService) UpdateUser(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*response.UserResponse, error) {
+	requestor, err := s.repo.FindUserByID(ctx, requestorID)
+	if err != nil {
+		return nil, err
+	}
+
+	if requestor.UserRole != models.RoleAdmin && requestor.ID != targetUser.ID {
+		return nil, errors.New("forbidden: access denied")
+	}
+
+	fmt.Println("TargetUser : ", targetUser)
+	fmt.Println("Requestor : ", requestor)
+
+	updatedUser, err := s.repo.UpdateUser(ctx, targetUser)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response.UserResponse{
+		ID:       updatedUser.ID.String(),
+		Username: updatedUser.Username,
+		Email:    updatedUser.Email,
+		UserRole: updatedUser.UserRole.String(),
+	}, nil
 }

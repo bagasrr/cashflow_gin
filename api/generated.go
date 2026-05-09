@@ -81,7 +81,7 @@ type CreateCategoryReq struct {
 
 // CreateTransactionReq defines model for CreateTransactionReq.
 type CreateTransactionReq struct {
-	Amount      int                 `json:"amount"`
+	Amount      float64             `json:"amount"`
 	CategoryId  *openapi_types.UUID `json:"category_id,omitempty"`
 	Date        time.Time           `json:"date"`
 	Description *string             `json:"description,omitempty"`
@@ -147,8 +147,8 @@ type TransactionBaseRes struct {
 
 // TransactionListRes defines model for TransactionListRes.
 type TransactionListRes struct {
-	Data    *TransactionRes `json:"data,omitempty"`
-	Message *string         `json:"message,omitempty"`
+	Data    *[]TransactionRes `json:"data,omitempty"`
+	Message *string           `json:"message,omitempty"`
 	Meta    *struct {
 		CurrentPage *int `json:"current_page,omitempty"`
 		TotalItems  *int `json:"total_items,omitempty"`
@@ -159,13 +159,13 @@ type TransactionListRes struct {
 
 // TransactionRes defines model for TransactionRes.
 type TransactionRes struct {
-	Amount      *int                `json:"amount,omitempty"`
-	Category    *CategoryRes        `json:"category,omitempty"`
-	Date        *time.Time          `json:"date,omitempty"`
-	Description *string             `json:"description,omitempty"`
-	Id          *openapi_types.UUID `json:"id,omitempty"`
-	Title       *string             `json:"title,omitempty"`
-	User        *UserRes            `json:"user,omitempty"`
+	Amount      *float64     `json:"amount,omitempty"`
+	Category    *CategoryRes `json:"category,omitempty"`
+	Date        *time.Time   `json:"date,omitempty"`
+	Description *string      `json:"description,omitempty"`
+	Id          *string      `json:"id,omitempty"`
+	Title       *string      `json:"title,omitempty"`
+	User        *UserRes     `json:"user,omitempty"`
 }
 
 // UpdateCategoryReq defines model for UpdateCategoryReq.
@@ -176,7 +176,7 @@ type UpdateCategoryReq struct {
 
 // UpdateTransactionReq defines model for UpdateTransactionReq.
 type UpdateTransactionReq struct {
-	Amount      *int                `json:"amount,omitempty"`
+	Amount      *float64            `json:"amount,omitempty"`
 	CategoryId  *openapi_types.UUID `json:"category_id,omitempty"`
 	Date        *time.Time          `json:"date,omitempty"`
 	Description *string             `json:"description,omitempty"`
@@ -210,10 +210,10 @@ type UserListRes struct {
 
 // UserRes defines model for UserRes.
 type UserRes struct {
-	Email    *string             `json:"email,omitempty"`
-	Id       *openapi_types.UUID `json:"id,omitempty"`
-	UserRole *string             `json:"user_role,omitempty"`
-	Username *string             `json:"username,omitempty"`
+	Email    *string `json:"email,omitempty"`
+	Id       *string `json:"id,omitempty"`
+	UserRole *string `json:"user_role,omitempty"`
+	Username *string `json:"username,omitempty"`
 }
 
 // WalletBaseRes defines model for WalletBaseRes.

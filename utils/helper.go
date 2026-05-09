@@ -65,3 +65,39 @@ func GetUserRole(ctx context.Context) (models.UserRole, error) {
 
 	return models.UserRole(roleInt), nil
 }
+
+func GetUserInfo(ctx context.Context) (uuid.UUID, models.UserRole, error) {
+	ginCtx, ok := ctx.(*gin.Context)
+	if !ok {
+		return uuid.Nil, 0, fmt.Errorf("fatal: context is not a gin.Context")
+	}
+	userId, exists := ginCtx.Get("user_id")
+	if !exists {
+		return uuid.Nil, 0, fmt.Errorf("user ID missing in context (Unauthorized)")
+	}
+	userRole, exists := ginCtx.Get("user_role")
+	if !exists {
+		return uuid.Nil, 0, fmt.Errorf("user role missing in context")
+	}
+
+	roleStr, ok := userRole.(string)
+	if !ok {
+		return uuid.Nil, 0, fmt.Errorf("invalid user role format in context")
+	}
+
+	idStr, ok := userId.(string)
+	if !ok {
+		return uuid.Nil, 0, fmt.Errorf("invalid user ID format in context")
+	}
+
+	roleInt, err := strconv.Atoi(roleStr)
+	if err != nil {
+		return uuid.Nil, 0, fmt.Errorf("failed to parse role number: %s", roleStr)
+	}
+
+	idUser, err := uuid.Parse(idStr)
+	if err != nil {
+		return uuid.Nil, 0, fmt.Errorf("failed to parse user ID format in context")
+	}
+	return idUser, models.UserRole(roleInt), nil
+}

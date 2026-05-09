@@ -5,8 +5,6 @@ import (
 	"cashflow_gin/dto/request"
 	"cashflow_gin/services"
 	"context"
-
-	"github.com/google/uuid"
 )
 
 type AuthAPI struct {
@@ -36,14 +34,13 @@ func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (
 	}
 
 	// 3. Mapping kembali ke Response YAML
-	userID, _ := uuid.Parse(user.ID)
 	status := true
 	msg := "Register Success"
 	return api.Register201JSONResponse{
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &userID,
+			Id:       &user.ID,
 			Username: &user.Username,
 			Email:    &user.Email,
 			UserRole: &user.UserRole,

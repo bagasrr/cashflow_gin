@@ -31,12 +31,11 @@ func (u *UserAPI) FindAllUsers(ctx context.Context, req api.FindAllUsersRequestO
 	// Looping untuk mapping array ke format YAML
 	var responseData []api.UserRes
 	for _, user := range *users {
-		id, _ := uuid.Parse(user.ID) // Hati-hati, buat variabel lokal di dalam loop
 		username := user.Username
 		email := user.Email
 		role := user.UserRole
 		responseData = append(responseData, api.UserRes{
-			Id:       &id,
+			Id:       &user.ID,
 			Username: &username,
 			Email:    &email,
 			UserRole: &role,
@@ -88,7 +87,7 @@ func (u *UserAPI) GetMyProfile(ctx context.Context, req api.GetMyProfileRequestO
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &userID,
+			Id:       &user.ID,
 			Username: &user.Username,
 			Email:    &user.Email,
 			UserRole: &user.UserRole,
@@ -131,7 +130,7 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &targetID,
+			Id:       &target.ID,
 			Username: &target.Username,
 			Email:    &target.Email,
 			UserRole: &target.UserRole,
@@ -184,7 +183,7 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &targetID,
+			Id:       &res.ID,
 			Username: &res.Username,
 			Email:    &res.Email,
 			UserRole: &res.UserRole,

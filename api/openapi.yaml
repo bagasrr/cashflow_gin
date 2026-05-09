@@ -71,7 +71,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          example: "strign"
         username:
           type: string
           example: "john_doe"
@@ -197,13 +197,13 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         title:
           type: string
           example: "Gaji Bulanan"
         amount:
-          type: integer
-          example: 100000
+          type: number
+          format: double
+          example: 100000,00
         description:
           type: string
           example: "Gaji bulan Januari 2026"
@@ -238,7 +238,10 @@ components:
         - type: object
           properties:
             data:
-              $ref: "#/components/schemas/TransactionRes"
+              type: array
+              items:
+                $ref: "#/components/schemas/TransactionRes"
+
             meta:
               type: object
               properties:
@@ -277,8 +280,9 @@ components:
           type: string
           example: "Gaji Bulanan"
         amount:
-          type: integer
-          example: 100000
+          type: number
+          format: double
+          example: 100000,00
         description:
           type: string
           example: "Gaji bulan Januari 2026"
@@ -298,8 +302,9 @@ components:
           type: string
           example: "Gaji Bulanan"
         amount:
-          type: integer
-          example: 100000
+          type: number
+          format: double
+          example: 100000,00
         description:
           type: string
           example: "Gaji bulan Januari 2026"

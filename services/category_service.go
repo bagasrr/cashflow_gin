@@ -47,7 +47,7 @@ func (s *categoryService) CreateDefault(ctx context.Context, input *request.Crea
 	}
 
 	res := &response.CategoryResponse{
-		ID:      category.ID,
+		ID:      category.ID.String(),
 		UserID:  category.UserID.String(),
 		GroupID: category.GroupID.String(),
 		Name:    category.Name,
@@ -123,7 +123,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input re
 		// return &res, nil
 	}
 	res := response.CategoryResponse{
-		ID:     createdCategory.ID,
+		ID:     createdCategory.ID.String(),
 		UserID: createdCategory.UserID.String(),
 		Name:   createdCategory.Name,
 		Type:   createdCategory.Type,
@@ -163,7 +163,7 @@ func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.
 	var res []response.CategoryResponse
 	for _, category := range *cat {
 		r := response.CategoryResponse{
-			ID:     category.ID,
+			ID:     category.ID.String(),
 			UserID: category.UserID.String(),
 			// GroupID: category.GroupID.String(),
 			Name: category.Name,
@@ -242,7 +242,7 @@ func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*r
 	}
 
 	res := response.CategoryResponse{
-		ID:     category.ID,
+		ID:     category.ID.String(),
 		UserID: category.UserID.String(),
 		Name:   category.Name,
 		Type:   category.Type,
@@ -305,7 +305,7 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uui
 	}
 
 	res := response.CategoryResponse{
-		ID:     updatedCategory.ID,
+		ID:     updatedCategory.ID.String(),
 		UserID: updatedCategory.UserID.String(),
 		// GroupID: updatedCategory.GroupID.String(),
 		Name: updatedCategory.Name,

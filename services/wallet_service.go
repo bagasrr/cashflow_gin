@@ -1,7 +1,7 @@
 package services
 
 import (
-	"cashflow_gin/dto/response"
+	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
 	"errors"
@@ -10,9 +10,9 @@ import (
 )
 
 type WalletService interface {
-	GetAll(ctx context.Context) (*[]response.WalletResponse, error)
-	GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*response.WalletResponse, error)
-	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]response.WalletResponse, error)
+	GetAll(ctx context.Context) (*[]models.Wallet, error)
+	GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*models.Wallet, error)
+	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
 }
 
 type walletService struct {
@@ -25,7 +25,7 @@ func NewWalletService(wRepo repository.WalletRepository, gRepo repository.GroupR
 	return &walletService{walletRepo: wRepo, groupRepo: gRepo}
 }
 
-func (s *walletService) GetAll(ctx context.Context) (*[]response.WalletResponse, error) {
+func (s *walletService) GetAll(ctx context.Context) (*[]models.Wallet, error) {
 	limit := 10
 	offset := 0
 	// nanti ganti jadi dinamis
@@ -33,46 +33,15 @@ func (s *walletService) GetAll(ctx context.Context) (*[]response.WalletResponse,
 	if err != nil {
 		return nil, err
 	}
-
-	var responses []response.WalletResponse
-	for _, w := range *wallet {
-		var transactions []response.TransactionResponse
-		for _, t := range w.Transactions {
-			transactions = append(transactions, response.TransactionResponse{
-				ID:          t.ID.String(),
-				Title:       t.Title,
-				Amount:      t.Amount,
-				Date:        t.Date,
-				Description: t.Description,
-				User: response.UserResponse{
-					// ID:       t.User.ID.String(),
-					Username: t.User.Username,
-					Email:    t.User.Email,
-					// UserRole: t.User.UserRole.String(),
-				},
-				Category: response.CategoryResponse{
-					Name: t.Category.Name,
-					Type: t.Category.Type,
-				},
-			})
-		}
-		responses = append(responses, response.WalletResponse{
-			ID:               w.ID,
-			Name:             w.Name,
-			Balance:          w.Balance,
-			Transactions:     transactions,
-			TransactionCount: w.TransactionCount,
-		})
-	}
-	return &responses, nil
+	return wallet, nil
 }
 
-func (s *walletService) GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*response.WalletResponse, error) { // groupID DIBUANG
+func (s *walletService) GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*models.Wallet, error) { // groupID DIBUANG
 
 	// 1. FETCH DULUAN. Biarkan database yang berbicara ini dompet apa.
 	wallet, err := s.walletRepo.FindByID(ctx, walletID)
 	if err != nil {
-		return &response.WalletResponse{}, err
+		return &models.Wallet{}, err
 	}
 
 	// 2. INTEROGASI WUJUD DOMPETNYA
@@ -80,52 +49,24 @@ func (s *walletService) GetWalletByID(ctx context.Context, userID, walletID uuid
 		// SKENARIO A: INI DOMPET GRUP
 		isMember, err := s.groupRepo.IsGroupMember(ctx, *wallet.GroupID, userID)
 		if err != nil || !isMember {
-			return &response.WalletResponse{}, errors.New("unauthorized: you are not a member of this group")
+			return &models.Wallet{}, errors.New("unauthorized: you are not a member of this group")
 		}
 	} else if wallet.UserID != nil {
 		// SKENARIO B: INI DOMPET PERSONAL
 		// Perhatikan tanda '*'. Kita membandingkan VALUE-nya, bukan alamat memorinya.
 		if *wallet.UserID != userID {
-			return &response.WalletResponse{}, errors.New("unauthorized: wallet does not belong to you")
+			return &models.Wallet{}, errors.New("unauthorized: wallet does not belong to you")
 		}
 	} else {
 		// Data cacat di database (tidak punya pemilik)
-		return &response.WalletResponse{}, errors.New("internal error: wallet has no owner")
+		return &models.Wallet{}, errors.New("internal error: wallet has no owner")
 	}
 
-	var transactions []response.TransactionResponse
-	for _, t := range wallet.Transactions {
-		transactions = append(transactions, response.TransactionResponse{
-			ID:          t.ID.String(),
-			Title:       t.Title,
-			Amount:      t.Amount,
-			Date:        t.Date,
-			Description: t.Description,
-			User: response.UserResponse{
-				ID:       t.User.ID.String(),
-				Username: t.User.Username,
-				Email:    t.User.Email,
-				UserRole: t.User.UserRole.String(),
-			},
-			Category: response.CategoryResponse{
-				Name: t.Category.Name,
-				Type: t.Category.Type,
-			},
-		})
-	}
-
-	response := response.WalletResponse{
-		ID:               wallet.ID,
-		Name:             wallet.Name,
-		Balance:          wallet.Balance,
-		Transactions:     transactions,
-		TransactionCount: wallet.TransactionCount,
-	}
-	return &response, nil
+	return wallet, nil
 }
 
 // services/wallet_service.go
-func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]response.WalletResponse, error) {
+func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Wallet, error) {
 	// 1. Validasi cegah angka minus atau nol (Hacker/Bug Frontend)
 	if page < 1 {
 		page = 1
@@ -143,16 +84,5 @@ func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, lim
 		return nil, err
 	}
 
-	var res []response.WalletResponse
-
-	for _, w := range *wallets {
-		res = append(res, response.WalletResponse{
-			ID:               w.ID,
-			Name:             w.Name,
-			Balance:          w.Balance,
-			TransactionCount: w.TransactionCount,
-		})
-	}
-
-	return &res, nil
+	return wallets, nil
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type GroupRepository interface {
-	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group, wallet *models.Wallet, members *[]models.GroupMember) error
+	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) error
 	GetAllGroups(ctx context.Context) (*[]models.Group, error)
 
 	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error)
@@ -32,33 +32,11 @@ func NewGroupRepository(db *gorm.DB) GroupRepository {
 	return &groupRepository{db: db}
 }
 
-func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group, wallet *models.Wallet, members *[]models.GroupMember) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// A. Create Group dulu (biar dapet ID Group)
-		if err := tx.Create(group).Error; err != nil {
-			return err
-		}
-
-		// B. Assign GroupID ke Wallet & Create Wallet
-		wallet.GroupID = &group.ID // Asumsi di model Wallet pake pointer *uuid.UUID
-		if err := tx.Create(wallet).Error; err != nil {
-			return err
-		}
-
-		// C. Assign GroupID ke semua Member & Create Members
-		for i := range *members {
-			(*members)[i].GroupID = group.ID
-		}
-
-		// Batch Insert Members
-		if err := tx.Create(members).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
+func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) error {
+	// Karena Wallet dan Members sudah di-embed di dalam struct Group oleh Service,
+	// GORM akan otomatis menjalankan transaksi ACID untuk semuanya.
+	return r.db.WithContext(ctx).Create(group).Error
 }
-
 func (r *groupRepository) GetAllGroups(ctx context.Context) (*[]models.Group, error) {
 	var groups []models.Group
 

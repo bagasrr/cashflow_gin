@@ -2,7 +2,6 @@ package services
 
 import (
 	"cashflow_gin/dto/request"
-	"cashflow_gin/dto/response"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
@@ -17,7 +16,7 @@ import (
 
 type AuthService interface {
 	Login(ctx context.Context, input *request.LoginRequest) (string, error)
-	Register(ctx context.Context, input request.CreateUserRequest) (*response.UserResponse, error)
+	Register(ctx context.Context, input request.CreateUserRequest) (*models.User, error)
 }
 
 type authService struct {
@@ -52,15 +51,21 @@ func (s *authService) Login(ctx context.Context, input *request.LoginRequest) (s
 	return tokenString, err
 }
 
-func (s *authService) Register(ctx context.Context, input request.CreateUserRequest) (*response.UserResponse, error) {
-	// cek apakah email atau username udah ada di db?
+func (s *authService) Register(ctx context.Context, input request.CreateUserRequest) (*models.User, error) {
+	// 1. VALIDASI DATABASE YANG SOLID
 	_, err := s.repo.FindByEmail(ctx, input.Email)
-	// kalo udah ada kan err = nil, kembalikan error
 	if err == nil {
+		// User benar-benar ditemukan
 		return nil, errors.New("email atau username sudah terdaftar")
 	}
+	// CEK: Apakah errornya karena DB mati, atau murni karena user belum ada?
+	// Asumsi lu pake GORM, pastikan import "gorm.io/gorm"
+	if err != nil && err.Error() != "record not found" {
+		// Kalau errornya BUKAN "record not found", berarti DB lu lagi bermasalah
+		return nil, fmt.Errorf("database error: %v", err)
+	}
 
-	// kalo err != nil / belum ada
+	// 2. HASHING PASSWORD
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, errors.New("error hashing password")
@@ -68,39 +73,31 @@ func (s *authService) Register(ctx context.Context, input request.CreateUserRequ
 
 	defaultRole := models.RoleUser
 
+	// 3. RAKIT USER SEKALIGUS DOMPETNYA (GORM ASSOCIATION)
+	// Ingat, field relasi di model User lu namanya Wallets (bentuknya Slice/Array)
 	user := models.User{
 		Username:         input.Username,
 		Email:            input.Email,
 		Password:         string(hashedPassword),
-		UserRole:         defaultRole, // assign a pointer to models.RoleUser
+		UserRole:         defaultRole,
 		SubscriptionPlan: "free",
-	}
 
-	wallet := &models.Wallet{
-		UserID:   &user.ID,
-		Name:     fmt.Sprintf("Frist Wallet %s", user.Username),
-		Balance:  0,
-		Currency: "IDR",
-	}
-
-	err = s.repo.CreateUserWithWallet(ctx, &user, wallet)
-	if err != nil {
-		return nil, err
-	}
-
-	res := &response.UserResponse{
-		ID:       user.ID.String(),
-		Username: user.Username,
-		Email:    user.Email,
-		UserRole: user.UserRole.String(),
-		Wallets: []response.WalletResponse{
+		// Kita langsung tempelkan dompet pertamanya di sini
+		Wallets: []models.Wallet{
 			{
-				ID:      wallet.ID,
-				Name:    wallet.Name,
-				Balance: wallet.Balance,
+				Name:     fmt.Sprintf("First Wallet %s", input.Username), // Typo fixed
+				Balance:  0,
+				Currency: "IDR",
 			},
 		},
 	}
 
-	return res, nil
+	// 4. LEMPAR KE REPO (Satu pemanggilan saja)
+	// Ingat, kita butuh mengirim alamat memori dari struct value 'user' di atas
+	createdUser, err := s.repo.CreateUserWithWallet(ctx, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return createdUser, nil
 }

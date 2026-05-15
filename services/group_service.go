@@ -1,21 +1,21 @@
 package services
 
 import (
-	"cashflow_gin/dto/request"
-	"cashflow_gin/dto/response"
+	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
 
 type GroupService interface {
-	CreateGroup(ctx context.Context, ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error)
-	GetAllGroups(ctx context.Context) (*[]response.GroupResponse, error)
+	CreateGroup(ctx context.Context, ownerID uuid.UUID, input *api.CreateGroupReq) (*models.Group, error)
+	GetAllGroups(ctx context.Context) (*[]models.Group, error)
 
-	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*response.GroupResponse, error)
-	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*response.GroupResponse, error)
+	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
+	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error)
 	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
 
 	AddUserToGroup(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) error
@@ -30,44 +30,24 @@ func NewGroupService(r repository.GroupRepository) GroupService {
 	return &groupService{repo: r}
 }
 
-func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input request.CreateGroupRequest) (*response.GroupResponse, error) {
+// UBAH MUTLAK: Parameter input jadi pointer ke Body aslinya
+func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input *api.CreateGroupReq) (*models.Group, error) {
 	uniqMemberID := make(map[uuid.UUID]bool)
 	uniqMemberID[ownerID] = true
 
-	for _, idStr := range input.MemberIDs {
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			continue
+	// Pastikan input.Memberids tidak nil sebelum di-loop (bawaan oapi-codegen)
+	if input.Memberids != nil {
+		for _, idStr := range input.Memberids {
+			id, err := uuid.Parse(idStr)
+			if err != nil {
+				// STOP! Jangan di-continue. Tolak requestnya kalau datanya cacat.
+				return nil, errors.New("terdapat format member ID yang tidak valid")
+			}
+			uniqMemberID[id] = true
 		}
-		uniqMemberID[id] = true
 	}
-
-	// 1. Inisialisasi Group
-	newGroup := models.Group{
-		Name:        input.Name,
-		Description: input.Description,
-		OwnerID:     ownerID, // Set Owner
-	}
-
-	// 2. Inisialisasi Wallet untuk Group
-	// Ingat model Wallet kita sebelumnya (UserID null, GroupID terisi)
-	newWallet := models.Wallet{
-		Name:    "Wallet " + input.Name,
-		Balance: 0,
-		// GroupID akan diisi otomatis oleh GORM lewat relasi, atau bisa manual nanti
-	}
-
-	// 3. Siapkan List Member
-	// Member PERTAMA wajib si OWNER itu sendiri (Role: ADMIN)
-	// members := []models.GroupMember{
-	// 	{
-	// 		UserID:      ownerID,
-	// 		MembersRole: models.GroupAdmin, // Owner otomatis jadi Admin
-	// 	},
-	// }
 
 	var members []models.GroupMember
-
 	for userID := range uniqMemberID {
 		role := models.GroupParticipant
 		if userID == ownerID {
@@ -79,128 +59,66 @@ func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input
 		})
 	}
 
-	// (Opsional) Tambahin member lain dari input jika ada
-	// for _, invitedIDStr := range input.MemberIDs {
-	// 	invitedID, _ := uuid.Parse(invitedIDStr)
-	// 	members = append(members, models.GroupMember{
-	// 		UserID:      invitedID,
-	// 		MembersRole: 2,
-	// 	})
-	// }
+	//var wallets []models.Wallet
+	//for
 
-	// 4. SAVE KE DB (Panggil Repo yang Transactional)
-	// Kita kirim pointer biar ID-nya ke-generate dan balik ke variable ini
-	err := s.repo.CreateGroupWithWalletAndMembers(ctx, &newGroup, &newWallet, &members)
-	if err != nil {
-		return &response.GroupResponse{}, err
+	// 1. RAKIT SEMUANYA DALAM SATU WADAH (GORM Association)
+	// Deskripsi harus di-dereference dengan aman karena tipenya *string di OpenAPI
+	var desc string
+	if input.Description != nil {
+		desc = *input.Description
 	}
 
-	// 5. MAPPING KE RESPONSE (Manual Mapping biar Rapi)
-	// Ambil data member yang baru disimpan buat ditampilkan
-	var memberResponses []response.GroupMemberResponse
-	for _, m := range members {
-		memberResponses = append(memberResponses, response.GroupMemberResponse{
-			ID:     m.ID.String(),
-			UserID: m.UserID.String(),
-			Role:   m.MembersRole.String(),
-			// Username idealnya di-preload di repo atau fetch ulang,
-			// disini kita skip dulu atau set kosong
-			Username: m.User.Username,
-		})
-	}
+	memberCount := len(members)
 
-	res := response.GroupResponse{
-		ID:          newGroup.ID.String(),
-		Name:        newGroup.Name,
-		Description: newGroup.Description,
-		Wallet: response.WalletResponse{
-			ID:      newWallet.ID,
-			Name:    newWallet.Name,
-			Balance: newWallet.Balance,
+	newGroup := models.Group{
+		Name:        input.Name,
+		Description: desc,
+		OwnerID:     ownerID,
+		MemberCount: memberCount,
+		Wallet: []models.Wallet{
+			{
+				Name:     "Wallet " + input.Name,
+				Balance:  0,
+				Currency: "IDR",
+			},
 		},
-		Members: memberResponses,
+		Members: members,
 	}
 
-	return &res, nil
+	// 2. SAVE KE DB (Satu pemanggilan saja)
+	err := s.repo.CreateGroupWithWalletAndMembers(ctx, &newGroup)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. KEMBALIKAN MODEL ASLINYA
+	// Jangan mapping DTO di sini! Biarkan Handler yang mengurusnya.
+	return &newGroup, nil
 }
 
-func (s *groupService) GetAllGroups(ctx context.Context) (*[]response.GroupResponse, error) {
+func (s *groupService) GetAllGroups(ctx context.Context) (*[]models.Group, error) {
 	// Implementasi logika untuk mendapatkan semua grup
 	groups, err := s.repo.GetAllGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var groupResponses []response.GroupResponse
-	for _, group := range *groups {
-
-		var walletRes response.WalletResponse
-
-		for _, w := range group.Wallet {
-			walletRes = response.WalletResponse{
-				ID:      w.ID,
-				Name:    w.Name,
-				Balance: w.Balance,
-			}
-			break
-		}
-		groupResponses = append(groupResponses, response.GroupResponse{
-			ID:           group.ID.String(),
-			Name:         group.Name,
-			Description:  group.Description,
-			Wallet:       walletRes,
-			TotalMembers: group.MemberCount,
-		})
-	}
-
-	return &groupResponses, nil
+	return groups, nil
 }
 
-func (s *groupService) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*response.GroupResponse, error) {
+func (s *groupService) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error) {
 	// Implementasi logika untuk mendapatkan grup berdasarkan ID
-
 	group, err := s.repo.GetGroupByID(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
-
-	// Mapping ke response
-	var memberResponses []response.GroupMemberResponse
-	for _, m := range group.Members {
-		memberResponses = append(memberResponses, response.GroupMemberResponse{
-			ID:       m.ID.String(),
-			UserID:   m.UserID.String(),
-			Role:     m.MembersRole.String(),
-			Username: m.User.Username, // Idealnya di-preload di repo atau fetch ulang
-		})
-	}
-
-	var walletRes response.WalletResponse
-	for _, w := range group.Wallet {
-		walletRes = response.WalletResponse{
-			ID:      w.ID,
-			Name:    w.Name,
-			Balance: w.Balance,
-			// GroupID: w.GroupID,
-		}
-		break // Asumsi cuma 1 wallet per group, keluar setelah dapat yang pertama
-	}
-
-	res := response.GroupResponse{
-		ID:           group.ID.String(),
-		Name:         group.Name,
-		Description:  group.Description,
-		Wallet:       walletRes,
-		Members:      memberResponses,
-		TotalMembers: group.MemberCount,
-	}
-
-	return &res, nil
+	return group, nil
 }
 
-func (s *groupService) UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*response.GroupResponse, error) {
+func (s *groupService) UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error) {
 	// Implementasi logika untuk memperbarui nama grup
-	return &response.GroupResponse{}, nil
+	return &models.Group{}, nil
 }
 
 func (s *groupService) DeleteGroup(ctx context.Context, groupID uuid.UUID) error {

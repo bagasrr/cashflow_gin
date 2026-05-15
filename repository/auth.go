@@ -12,7 +12,8 @@ type AuthRepository interface {
 	Login(ctx context.Context, input *request.LoginRequest) (*models.User, error)
 	Register(ctx context.Context, input *request.CreateUserRequest) (*models.User, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
-	CreateUserWithWallet(ctx context.Context, user *models.User, wallet *models.Wallet) error
+	//CreateUserWithWallet(ctx context.Context, user *models.User, wallet *models.Wallet) (*models.User, error)
+	CreateUserWithWallet(ctx context.Context, user *models.User) (*models.User, error)
 }
 
 type authRepository struct {
@@ -43,15 +44,14 @@ func (r *authRepository) FindByEmail(ctx context.Context, email string) (*models
 	return &user, err
 }
 
-func (r *authRepository) CreateUserWithWallet(ctx context.Context, user *models.User, wallet *models.Wallet) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(user).Error; err != nil {
-			return err
-		}
-		wallet.UserID = &user.ID
-		if err := tx.Create(wallet).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+// Cuma butuh nerima *models.User, karena walletnya nanti diselipin di dalemnya
+func (r *authRepository) CreateUserWithWallet(ctx context.Context, user *models.User) (*models.User, error) {
+	// 1. HAPUS TANDA & DI DEPAN user, KARENA user SUDAH POINTER
+	// 2. GORM otomatis membuka transaksi dan menginsert relasi (Wallets) di dalamnya
+	err := r.db.WithContext(ctx).Create(user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }

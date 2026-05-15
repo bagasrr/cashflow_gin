@@ -23,11 +23,11 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 		Type: req.Body.Type,
 	}
 	if req.Body.GroupId != nil {
-		reqInput.GroupID = req.Body.GroupId.String()
+		reqInput.GroupID = *req.Body.GroupId
 	}
 
 	userID, err := utils.GetUserID(ctx)
-	log.Printf("UserID di Context: %s", userID.String())
+	log.Printf("UserID di Context: %s", userID)
 
 	if err != nil {
 		status := false
@@ -69,9 +69,9 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 	status := true
 	return api.CreateCategory201JSONResponse{
 		Data: &api.CategoryRes{
-			Id:   &res.ID,
-			Name: &res.Name,
-			Type: &res.Type,
+			Id:   res.ID,
+			Name: res.Name,
+			Type: res.Type,
 		},
 		Message: &message, // Assign the pointer to a string variable
 		Status:  &status,
@@ -111,11 +111,11 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 	var res []api.CategoryRes
 	for _, v := range *cat {
 		res = append(res, api.CategoryRes{
-			Id:      &v.ID,
+			Id:      v.ID,
 			UserId:  &v.UserID,
 			GroupId: &v.GroupID,
-			Name:    &v.Name,
-			Type:    &v.Type,
+			Name:    v.Name,
+			Type:    v.Type,
 		})
 	}
 	log.Println("✅ Get Categories Success")
@@ -161,11 +161,11 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 	var res []api.CategoryRes
 	for _, v := range *cat {
 		res = append(res, api.CategoryRes{
-			Id:      &v.ID,
+			Id:      v.ID,
 			UserId:  &v.UserID,
 			GroupId: &v.GroupID,
-			Name:    &v.Name,
-			Type:    &v.Type,
+			Name:    v.Name,
+			Type:    v.Type,
 		})
 	}
 	return api.GetMyCategories200JSONResponse{

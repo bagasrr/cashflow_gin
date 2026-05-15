@@ -1,4 +1,4 @@
-openapi: 3.0.3
+fopenapi: 3.0.3
 info:
   title: Cashflow API
   version: 1.0.0
@@ -68,6 +68,12 @@ components:
     #--------------- USER BEGIN ---------------
     UserRes:
       type: object
+      required:
+        - id
+        - username
+        - email
+        - user_role
+        - wallets
       properties:
         id:
           type: string
@@ -81,6 +87,10 @@ components:
         user_role:
           type: string
           example: "USER"
+        wallets:
+          type: array
+          items:
+              $ref: "#/components/schemas/WalletRes"
 
     UserBaseRes:
       allOf:
@@ -115,23 +125,30 @@ components:
     #--------------- WALLET BEGIN -------------
     WalletRes:
       type: object
+      required:
+        - id
+        - balance
+        - name
+        - transaction_count
+        - group_id
+        - transactions
       properties:
         id:
           type: string
-          format: uuid
         balance:
           type: integer
+          format: int64
           example: 100000
         name:
           type: string
           example: "Wallet Gaji"
-        transactions_count:
+        transaction_count:
           type: integer
+          format: int64
           example: 10
         group_id:
           type: string
           nullable: true
-          format: uuid
           example: "123e4567-e89b-12d3-a456-426655440000"
         transactions:
           type: array
@@ -153,7 +170,8 @@ components:
           properties:
             data:
               type: array
-              $ref: "#/components/schemas/WalletRes"
+              items: 
+                $ref: "#/components/schemas/WalletRes"
             meta:
               type: object
               properties:
@@ -194,6 +212,13 @@ components:
     #--------------- TRANSACTION BEGIN -------------
     TransactionRes:
       type: object
+      required:
+        - id
+        - title
+        - amount
+        - date
+        - category
+        - user
       properties:
         id:
           type: string
@@ -201,9 +226,9 @@ components:
           type: string
           example: "Gaji Bulanan"
         amount:
-          type: number
-          format: double
-          example: 100000,00
+          type: integer
+          format: int64
+          example: 100000
         description:
           type: string
           example: "Gaji bulan Januari 2026"
@@ -269,26 +294,24 @@ components:
         - wallet_id
         - title
         - amount
-        - category_name
+        - category_id
         - date
       properties:
         wallet_id:
           type: string
-          format: uuid
           example: "123e4567-e89b-12d3-a456-426655440000"
         title:
           type: string
           example: "Gaji Bulanan"
         amount:
-          type: number
-          format: double
-          example: 100000,00
+          type: integer
+          format: int64
+          example: 100000
         description:
           type: string
           example: "Gaji bulan Januari 2026"
         category_id:
           type: string
-          format: uuid
           example: "123e4567-e89b-12d3-a456-426655440000"
         date:
           type: string
@@ -297,20 +320,25 @@ components:
 
     UpdateTransactionReq:
       type: object
+      required:
+        - title
+        - amount
+        - description
+        - category_id
+        - date
       properties:
         title:
           type: string
           example: "Gaji Bulanan"
         amount:
-          type: number
-          format: double
-          example: 100000,00
+          type: integer
+          format: int64
+          example: 100000
         description:
           type: string
           example: "Gaji bulan Januari 2026"
         category_id:
           type: string
-          format: uuid
           example: "123e4567-e89b-12d3-a456-426655440000"
         date:
           type: string
@@ -320,10 +348,15 @@ components:
     #--------------- CATEGORY BEGIN -------------
     CategoryRes:
       type: object
+      required:
+        - id
+        - user_id
+        - name
+        - type
       properties:
         id:
           type: string
-          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
         user_id:
           type: string
           nullable: true
@@ -366,6 +399,7 @@ components:
                 total_items:
                   type: integer
                   example: 50
+
     UpdateCategoryReq:
       type: object
       properties:
@@ -375,6 +409,7 @@ components:
         type:
           type: string
           example: "expense"
+
     CreateCategoryReq:
       type: object
       required:
@@ -389,7 +424,6 @@ components:
           example: "expense"
         group_id:
           type: string
-          format: uuid
           nullable: true
           example: "123e4567-e89b-12d3-a456-426655440000"
     #--------------- CATEGORY END -------------
@@ -433,7 +467,9 @@ components:
     #--------------- GROUP BEGIN ---------------
     CreateGroupReq:
       type: object
-      required: [name, memberids]
+      required:
+      - name
+      - memberids
       properties:
         name:
           type: string
@@ -442,7 +478,7 @@ components:
           type: array
           items:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426655440000"
         description:
           type: string
           example: "Group ini adalah group utama"
@@ -452,7 +488,7 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
         username:
           type: string
           example: "john_doe"
@@ -461,14 +497,13 @@ components:
           example: "ADMIN"
         userId:
           type: string
-          format: uuid
-
+          example: "123e4567-e89b-12d3-a456-426655440000"
     GroupBaseRes:
       type: object
       properties:
         id:
           type: string
-          format: uuid
+          example: "123e4567-e89b-12d3-a456-426655440000"
         name:
           type: string
           example: "Group Utama"
@@ -479,7 +514,8 @@ components:
           $ref: "#/components/schemas/WalletRes"
         members:
           type: array
-          $ref: "#/components/schemas/GroupMembersRes"
+          items:
+            $ref: "#/components/schemas/GroupMembersRes"
 
     GroupListBaseRes:
       allOf:
@@ -488,7 +524,8 @@ components:
           properties:
             data:
               type: array
-              $ref: "#/components/schemas/GroupBaseRes"
+              items:
+                $ref: "#/components/schemas/GroupBaseRes"
     #--------------- GROUP END -----------------
 paths:
   # ==========================================
@@ -673,7 +710,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
-    patch:
+    put:
       tags:
         - Users
       summary: Update User By ID
@@ -852,7 +889,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-    patch:
+    put:
       tags:
         - Transactions
       summary: Update Transaction By ID
@@ -1167,7 +1204,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-    patch:
+    put:
       tags:
         - Categories
       summary: Update Category By ID
@@ -1338,7 +1375,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       operationId: getWalletById
       security:
         - BearerAuth: []
@@ -1368,7 +1404,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
-    patch:
+    put:
       tags:
         - Wallets
       summary: Update Wallet By ID
@@ -1500,6 +1536,12 @@ paths:
         - Groups
       summary: Create New Group
       operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupReq"
       responses:
         "201":
           description:
@@ -1536,7 +1578,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       operationId: getGroupById
       security:
         - BearerAuth: []
@@ -1565,7 +1606,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-    patch:
+    put:
       tags:
         - Groups
       summary: Update Group By ID
@@ -1575,7 +1616,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       operationId: updateGroup
       security:
         - BearerAuth: []
@@ -1614,7 +1654,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
       operationId: deleteGroup
       security:
         - BearerAuth: []

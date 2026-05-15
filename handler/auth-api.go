@@ -40,10 +40,10 @@ func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &user.ID,
-			Username: &user.Username,
-			Email:    &user.Email,
-			UserRole: &user.UserRole,
+			Id:       user.ID.String(),
+			Username: user.Username,
+			Email:    user.Email,
+			UserRole: user.UserRole.String(),
 		},
 	}, nil
 }

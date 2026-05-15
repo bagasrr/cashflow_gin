@@ -28,17 +28,13 @@ func (u *UserAPI) FindAllUsers(ctx context.Context, req api.FindAllUsersRequestO
 		}, nil
 	}
 
-	// Looping untuk mapping array ke format YAML
 	var responseData []api.UserRes
 	for _, user := range *users {
-		username := user.Username
-		email := user.Email
-		role := user.UserRole
 		responseData = append(responseData, api.UserRes{
-			Id:       &user.ID,
-			Username: &username,
-			Email:    &email,
-			UserRole: &role,
+			Id:       user.ID.String(), // UBAH MUTLAK: Harus pakai .String()
+			Username: user.Username,
+			Email:    user.Email,
+			UserRole: user.UserRole.String(), // UBAH MUTLAK: Harus pakai .String()
 		})
 	}
 
@@ -52,7 +48,6 @@ func (u *UserAPI) FindAllUsers(ctx context.Context, req api.FindAllUsersRequestO
 }
 
 func (u *UserAPI) GetMyProfile(ctx context.Context, req api.GetMyProfileRequestObject) (api.GetMyProfileResponseObject, error) {
-	// THE FIX: Cara ekstrak UserID di Strict Server (Asumsi JWT Middleware menyisipkan data ke Context)
 	userIDClaim := ctx.Value("user_id")
 	if userIDClaim == nil {
 		status := false
@@ -81,17 +76,29 @@ func (u *UserAPI) GetMyProfile(ctx context.Context, req api.GetMyProfileRequestO
 		return api.GetMyProfile500JSONResponse{Status: &status, Message: &msg, Errors: &errStr}, nil
 	}
 
-	status := true
-	msg := "Success"
+	var wallets []api.WalletRes
+	for _, wallet := range user.Wallets {
+		wallets = append(wallets, api.WalletRes{
+			Id:               wallet.ID.String(),
+			Balance:          wallet.Balance,
+			GroupId:          utils.UUIDPtrToStringPtr(wallet.GroupID),
+			Name:             wallet.Name,
+			TransactionCount: wallet.TransactionCount,
+		})
+	}
+
+	res := api.UserRes{
+		Email:    user.Email,
+		Username: user.Username,
+		Id:       user.ID.String(),
+		UserRole: user.UserRole.String(),
+		Wallets:  wallets,
+	}
+
 	return api.GetMyProfile200JSONResponse{
-		Status:  &status,
-		Message: &msg,
-		Data: &api.UserRes{
-			Id:       &user.ID,
-			Username: &user.Username,
-			Email:    &user.Email,
-			UserRole: &user.UserRole,
-		},
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success get user profile"),
+		Data:    &res,
 	}, nil
 }
 
@@ -115,6 +122,7 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 			Message: &msg,
 		}, nil
 	}
+
 	target, err := u.Service.FindUserByID(ctx, targetID, requesterRole)
 	if err != nil {
 		status := false
@@ -124,16 +132,17 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 			Message: &msg,
 		}, nil
 	}
+
 	status := true
 	msg := "Success"
 	return api.FindUserById200JSONResponse{
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &target.ID,
-			Username: &target.Username,
-			Email:    &target.Email,
-			UserRole: &target.UserRole,
+			Id:       target.ID.String(), // UBAH MUTLAK: Harus pakai .String()
+			Username: target.Username,
+			Email:    target.Email,
+			UserRole: target.UserRole.String(), // UBAH MUTLAK: Harus pakai .String()
 		},
 	}, nil
 }
@@ -141,13 +150,12 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestObject) (api.UpdateUserResponseObject, error) {
 	requestor, err := utils.GetUserID(ctx)
 	if err != nil {
-		status := false
-		msg := "Failed to get requester ID: " + err.Error()
 		return api.UpdateUser500JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr(err.Error()),
 		}, nil
 	}
+
 	targetID, err := uuid.Parse(request.Id)
 	if err != nil {
 		status := false
@@ -183,10 +191,10 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 		Status:  &status,
 		Message: &msg,
 		Data: &api.UserRes{
-			Id:       &res.ID,
-			Username: &res.Username,
-			Email:    &res.Email,
-			UserRole: &res.UserRole,
+			Id:       res.ID.String(),
+			Username: res.Username,
+			Email:    res.Email,
+			UserRole: res.UserRole.String(),
 		},
 	}, nil
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
-	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -65,28 +64,35 @@ type CategoryListBaseRes struct {
 
 // CategoryRes defines model for CategoryRes.
 type CategoryRes struct {
-	GroupId *string             `json:"group_id,omitempty"`
-	Id      *openapi_types.UUID `json:"id,omitempty"`
-	Name    *string             `json:"name,omitempty"`
-	Type    *string             `json:"type,omitempty"`
-	UserId  *string             `json:"user_id,omitempty"`
+	GroupId *string `json:"group_id,omitempty"`
+	Id      string  `json:"id"`
+	Name    string  `json:"name"`
+	Type    string  `json:"type"`
+	UserId  *string `json:"user_id"`
 }
 
 // CreateCategoryReq defines model for CreateCategoryReq.
 type CreateCategoryReq struct {
-	GroupId *openapi_types.UUID `json:"group_id,omitempty"`
-	Name    string              `json:"name"`
-	Type    string              `json:"type"`
+	GroupId *string `json:"group_id,omitempty"`
+	Name    string  `json:"name"`
+	Type    string  `json:"type"`
+}
+
+// CreateGroupReq defines model for CreateGroupReq.
+type CreateGroupReq struct {
+	Description *string  `json:"description,omitempty"`
+	Memberids   []string `json:"memberids"`
+	Name        string   `json:"name"`
 }
 
 // CreateTransactionReq defines model for CreateTransactionReq.
 type CreateTransactionReq struct {
-	Amount      float64             `json:"amount"`
-	CategoryId  *openapi_types.UUID `json:"category_id,omitempty"`
-	Date        time.Time           `json:"date"`
-	Description *string             `json:"description,omitempty"`
-	Title       string              `json:"title"`
-	WalletId    openapi_types.UUID  `json:"wallet_id"`
+	Amount      int64     `json:"amount"`
+	CategoryId  string    `json:"category_id"`
+	Date        time.Time `json:"date"`
+	Description *string   `json:"description,omitempty"`
+	Title       string    `json:"title"`
+	WalletId    string    `json:"wallet_id"`
 }
 
 // CreateWalletReq defines model for CreateWalletReq.
@@ -97,26 +103,26 @@ type CreateWalletReq struct {
 
 // GroupBaseRes defines model for GroupBaseRes.
 type GroupBaseRes struct {
-	Description *string             `json:"description,omitempty"`
-	Id          *openapi_types.UUID `json:"id,omitempty"`
-	Members     *GroupMembersRes    `json:"members,omitempty"`
-	Name        *string             `json:"name,omitempty"`
-	Wallet      *WalletRes          `json:"wallet,omitempty"`
+	Description *string            `json:"description,omitempty"`
+	Id          *string            `json:"id,omitempty"`
+	Members     *[]GroupMembersRes `json:"members,omitempty"`
+	Name        *string            `json:"name,omitempty"`
+	Wallet      *WalletRes         `json:"wallet,omitempty"`
 }
 
 // GroupListBaseRes defines model for GroupListBaseRes.
 type GroupListBaseRes struct {
-	Data    *GroupBaseRes `json:"data,omitempty"`
-	Message *string       `json:"message,omitempty"`
-	Status  *bool         `json:"status,omitempty"`
+	Data    *[]GroupBaseRes `json:"data,omitempty"`
+	Message *string         `json:"message,omitempty"`
+	Status  *bool           `json:"status,omitempty"`
 }
 
 // GroupMembersRes defines model for GroupMembersRes.
 type GroupMembersRes struct {
-	Id       *openapi_types.UUID `json:"id,omitempty"`
-	Role     *string             `json:"role,omitempty"`
-	UserId   *openapi_types.UUID `json:"userId,omitempty"`
-	Username *string             `json:"username,omitempty"`
+	Id       *string `json:"id,omitempty"`
+	Role     *string `json:"role,omitempty"`
+	UserId   *string `json:"userId,omitempty"`
+	Username *string `json:"username,omitempty"`
 }
 
 // LoginReq defines model for LoginReq.
@@ -159,13 +165,13 @@ type TransactionListRes struct {
 
 // TransactionRes defines model for TransactionRes.
 type TransactionRes struct {
-	Amount      *float64     `json:"amount,omitempty"`
-	Category    *CategoryRes `json:"category,omitempty"`
-	Date        *time.Time   `json:"date,omitempty"`
-	Description *string      `json:"description,omitempty"`
-	Id          *string      `json:"id,omitempty"`
-	Title       *string      `json:"title,omitempty"`
-	User        *UserRes     `json:"user,omitempty"`
+	Amount      int64       `json:"amount"`
+	Category    CategoryRes `json:"category"`
+	Date        time.Time   `json:"date"`
+	Description *string     `json:"description,omitempty"`
+	Id          string      `json:"id"`
+	Title       string      `json:"title"`
+	User        UserRes     `json:"user"`
 }
 
 // UpdateCategoryReq defines model for UpdateCategoryReq.
@@ -176,11 +182,11 @@ type UpdateCategoryReq struct {
 
 // UpdateTransactionReq defines model for UpdateTransactionReq.
 type UpdateTransactionReq struct {
-	Amount      *float64            `json:"amount,omitempty"`
-	CategoryId  *openapi_types.UUID `json:"category_id,omitempty"`
-	Date        *time.Time          `json:"date,omitempty"`
-	Description *string             `json:"description,omitempty"`
-	Title       *string             `json:"title,omitempty"`
+	Amount      int64     `json:"amount"`
+	CategoryId  string    `json:"category_id"`
+	Date        time.Time `json:"date"`
+	Description string    `json:"description"`
+	Title       string    `json:"title"`
 }
 
 // UpdateWalletReq defines model for UpdateWalletReq.
@@ -210,10 +216,11 @@ type UserListRes struct {
 
 // UserRes defines model for UserRes.
 type UserRes struct {
-	Email    *string `json:"email,omitempty"`
-	Id       *string `json:"id,omitempty"`
-	UserRole *string `json:"user_role,omitempty"`
-	Username *string `json:"username,omitempty"`
+	Email    string      `json:"email"`
+	Id       string      `json:"id"`
+	UserRole string      `json:"user_role"`
+	Username string      `json:"username"`
+	Wallets  []WalletRes `json:"wallets"`
 }
 
 // WalletBaseRes defines model for WalletBaseRes.
@@ -225,8 +232,8 @@ type WalletBaseRes struct {
 
 // WalletListBaseRes defines model for WalletListBaseRes.
 type WalletListBaseRes struct {
-	Data    *WalletRes `json:"data,omitempty"`
-	Message *string    `json:"message,omitempty"`
+	Data    *[]WalletRes `json:"data,omitempty"`
+	Message *string      `json:"message,omitempty"`
 	Meta    *struct {
 		CurrentPage *int `json:"current_page,omitempty"`
 		TotalItems  *int `json:"total_items,omitempty"`
@@ -237,12 +244,12 @@ type WalletListBaseRes struct {
 
 // WalletRes defines model for WalletRes.
 type WalletRes struct {
-	Balance           *int                `json:"balance,omitempty"`
-	GroupId           *openapi_types.UUID `json:"group_id,omitempty"`
-	Id                *openapi_types.UUID `json:"id,omitempty"`
-	Name              *string             `json:"name,omitempty"`
-	Transactions      *[]TransactionRes   `json:"transactions,omitempty"`
-	TransactionsCount *int                `json:"transactions_count,omitempty"`
+	Balance          int64            `json:"balance"`
+	GroupId          *string          `json:"group_id"`
+	Id               string           `json:"id"`
+	Name             string           `json:"name"`
+	TransactionCount int64            `json:"transaction_count"`
+	Transactions     []TransactionRes `json:"transactions"`
 }
 
 // GetCategoriesParams defines parameters for GetCategories.
@@ -308,6 +315,9 @@ type CreateDefaultCategoriesJSONRequestBody = CreateCategoryReq
 // UpdateCategoryJSONRequestBody defines body for UpdateCategory for application/json ContentType.
 type UpdateCategoryJSONRequestBody = UpdateCategoryReq
 
+// CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
+type CreateGroupJSONRequestBody = CreateGroupReq
+
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = CreateTransactionReq
 
@@ -353,7 +363,7 @@ type ServerInterface interface {
 	// (GET /categories/{id})
 	GetCategoryById(c *gin.Context, id string)
 	// Update Category By ID
-	// (PATCH /categories/{id})
+	// (PUT /categories/{id})
 	UpdateCategory(c *gin.Context, id string)
 	// Get all the user groups
 	// (GET /groups)
@@ -363,13 +373,13 @@ type ServerInterface interface {
 	CreateGroup(c *gin.Context)
 	// Delete Group By ID (soft)
 	// (DELETE /groups/{id})
-	DeleteGroup(c *gin.Context, id openapi_types.UUID)
+	DeleteGroup(c *gin.Context, id string)
 	// Get Group By ID
 	// (GET /groups/{id})
-	GetGroupById(c *gin.Context, id openapi_types.UUID)
+	GetGroupById(c *gin.Context, id string)
 	// Update Group By ID
-	// (PATCH /groups/{id})
-	UpdateGroup(c *gin.Context, id openapi_types.UUID)
+	// (PUT /groups/{id})
+	UpdateGroup(c *gin.Context, id string)
 	// Get All Transactions
 	// (GET /transactions)
 	GetTransactions(c *gin.Context, params GetTransactionsParams)
@@ -383,7 +393,7 @@ type ServerInterface interface {
 	// (GET /transactions/{id})
 	FindTransactionById(c *gin.Context, id string)
 	// Update Transaction By ID
-	// (PATCH /transactions/{id})
+	// (PUT /transactions/{id})
 	UpdateTransaction(c *gin.Context, id string)
 	// Find All Users
 	// (GET /users/)
@@ -395,7 +405,7 @@ type ServerInterface interface {
 	// (GET /users/{id})
 	FindUserById(c *gin.Context, id string)
 	// Update User By ID
-	// (PATCH /users/{id})
+	// (PUT /users/{id})
 	UpdateUser(c *gin.Context, id string)
 	// Get all the user wallets
 	// (GET /wallets)
@@ -408,9 +418,9 @@ type ServerInterface interface {
 	DeleteWallet(c *gin.Context, id string)
 	// Get Wallet By ID
 	// (GET /wallets/{id})
-	GetWalletById(c *gin.Context, id openapi_types.UUID)
+	GetWalletById(c *gin.Context, id string)
 	// Update Wallet By ID
-	// (PATCH /wallets/{id})
+	// (PUT /wallets/{id})
 	UpdateWallet(c *gin.Context, id string)
 }
 
@@ -699,9 +709,9 @@ func (siw *ServerInterfaceWrapper) DeleteGroup(c *gin.Context) {
 	var err error
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: "uuid"})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
 		return
@@ -725,9 +735,9 @@ func (siw *ServerInterfaceWrapper) GetGroupById(c *gin.Context) {
 	var err error
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: "uuid"})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
 		return
@@ -751,9 +761,9 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(c *gin.Context) {
 	var err error
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: "uuid"})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
 		return
@@ -1086,9 +1096,9 @@ func (siw *ServerInterfaceWrapper) GetWalletById(c *gin.Context) {
 	var err error
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: "uuid"})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
 		return
@@ -1168,26 +1178,26 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/categories/me", wrapper.GetMyCategories)
 	router.DELETE(options.BaseURL+"/categories/:id", wrapper.DeleteCategory)
 	router.GET(options.BaseURL+"/categories/:id", wrapper.GetCategoryById)
-	router.PATCH(options.BaseURL+"/categories/:id", wrapper.UpdateCategory)
+	router.PUT(options.BaseURL+"/categories/:id", wrapper.UpdateCategory)
 	router.GET(options.BaseURL+"/groups", wrapper.GetGroups)
 	router.POST(options.BaseURL+"/groups", wrapper.CreateGroup)
 	router.DELETE(options.BaseURL+"/groups/:id", wrapper.DeleteGroup)
 	router.GET(options.BaseURL+"/groups/:id", wrapper.GetGroupById)
-	router.PATCH(options.BaseURL+"/groups/:id", wrapper.UpdateGroup)
+	router.PUT(options.BaseURL+"/groups/:id", wrapper.UpdateGroup)
 	router.GET(options.BaseURL+"/transactions", wrapper.GetTransactions)
 	router.POST(options.BaseURL+"/transactions", wrapper.CreateTransaction)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction)
 	router.GET(options.BaseURL+"/transactions/:id", wrapper.FindTransactionById)
-	router.PATCH(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
+	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
 	router.GET(options.BaseURL+"/users/", wrapper.FindAllUsers)
 	router.GET(options.BaseURL+"/users/me", wrapper.GetMyProfile)
 	router.GET(options.BaseURL+"/users/:id", wrapper.FindUserById)
-	router.PATCH(options.BaseURL+"/users/:id", wrapper.UpdateUser)
+	router.PUT(options.BaseURL+"/users/:id", wrapper.UpdateUser)
 	router.GET(options.BaseURL+"/wallets", wrapper.GetMyWallets)
 	router.POST(options.BaseURL+"/wallets", wrapper.CreateWallet)
 	router.DELETE(options.BaseURL+"/wallets/:id", wrapper.DeleteWallet)
 	router.GET(options.BaseURL+"/wallets/:id", wrapper.GetWalletById)
-	router.PATCH(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
+	router.PUT(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
 }
 
 type LoginRequestObject struct {
@@ -1603,6 +1613,7 @@ func (response GetGroups500JSONResponse) VisitGetGroupsResponse(w http.ResponseW
 }
 
 type CreateGroupRequestObject struct {
+	Body *CreateGroupJSONRequestBody
 }
 
 type CreateGroupResponseObject interface {
@@ -1676,7 +1687,7 @@ func (response CreateGroup500AplicationjsonResponse) VisitCreateGroupResponse(w 
 }
 
 type DeleteGroupRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	Id string `json:"id"`
 }
 
 type DeleteGroupResponseObject interface {
@@ -1720,7 +1731,7 @@ func (response DeleteGroup500JSONResponse) VisitDeleteGroupResponse(w http.Respo
 }
 
 type GetGroupByIdRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	Id string `json:"id"`
 }
 
 type GetGroupByIdResponseObject interface {
@@ -1764,7 +1775,7 @@ func (response GetGroupById500JSONResponse) VisitGetGroupByIdResponse(w http.Res
 }
 
 type UpdateGroupRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	Id string `json:"id"`
 }
 
 type UpdateGroupResponseObject interface {
@@ -2310,7 +2321,7 @@ func (response DeleteWallet500JSONResponse) VisitDeleteWalletResponse(w http.Res
 }
 
 type GetWalletByIdRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	Id string `json:"id"`
 }
 
 type GetWalletByIdResponseObject interface {
@@ -2428,7 +2439,7 @@ type StrictServerInterface interface {
 	// (GET /categories/{id})
 	GetCategoryById(ctx context.Context, request GetCategoryByIdRequestObject) (GetCategoryByIdResponseObject, error)
 	// Update Category By ID
-	// (PATCH /categories/{id})
+	// (PUT /categories/{id})
 	UpdateCategory(ctx context.Context, request UpdateCategoryRequestObject) (UpdateCategoryResponseObject, error)
 	// Get all the user groups
 	// (GET /groups)
@@ -2443,7 +2454,7 @@ type StrictServerInterface interface {
 	// (GET /groups/{id})
 	GetGroupById(ctx context.Context, request GetGroupByIdRequestObject) (GetGroupByIdResponseObject, error)
 	// Update Group By ID
-	// (PATCH /groups/{id})
+	// (PUT /groups/{id})
 	UpdateGroup(ctx context.Context, request UpdateGroupRequestObject) (UpdateGroupResponseObject, error)
 	// Get All Transactions
 	// (GET /transactions)
@@ -2458,7 +2469,7 @@ type StrictServerInterface interface {
 	// (GET /transactions/{id})
 	FindTransactionById(ctx context.Context, request FindTransactionByIdRequestObject) (FindTransactionByIdResponseObject, error)
 	// Update Transaction By ID
-	// (PATCH /transactions/{id})
+	// (PUT /transactions/{id})
 	UpdateTransaction(ctx context.Context, request UpdateTransactionRequestObject) (UpdateTransactionResponseObject, error)
 	// Find All Users
 	// (GET /users/)
@@ -2470,7 +2481,7 @@ type StrictServerInterface interface {
 	// (GET /users/{id})
 	FindUserById(ctx context.Context, request FindUserByIdRequestObject) (FindUserByIdResponseObject, error)
 	// Update User By ID
-	// (PATCH /users/{id})
+	// (PUT /users/{id})
 	UpdateUser(ctx context.Context, request UpdateUserRequestObject) (UpdateUserResponseObject, error)
 	// Get all the user wallets
 	// (GET /wallets)
@@ -2485,7 +2496,7 @@ type StrictServerInterface interface {
 	// (GET /wallets/{id})
 	GetWalletById(ctx context.Context, request GetWalletByIdRequestObject) (GetWalletByIdResponseObject, error)
 	// Update Wallet By ID
-	// (PATCH /wallets/{id})
+	// (PUT /wallets/{id})
 	UpdateWallet(ctx context.Context, request UpdateWalletRequestObject) (UpdateWalletResponseObject, error)
 }
 
@@ -2832,6 +2843,14 @@ func (sh *strictHandler) GetGroups(ctx *gin.Context, params GetGroupsParams) {
 func (sh *strictHandler) CreateGroup(ctx *gin.Context) {
 	var request CreateGroupRequestObject
 
+	var body CreateGroupJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.CreateGroup(ctx, request.(CreateGroupRequestObject))
 	}
@@ -2854,7 +2873,7 @@ func (sh *strictHandler) CreateGroup(ctx *gin.Context) {
 }
 
 // DeleteGroup operation middleware
-func (sh *strictHandler) DeleteGroup(ctx *gin.Context, id openapi_types.UUID) {
+func (sh *strictHandler) DeleteGroup(ctx *gin.Context, id string) {
 	var request DeleteGroupRequestObject
 
 	request.Id = id
@@ -2881,7 +2900,7 @@ func (sh *strictHandler) DeleteGroup(ctx *gin.Context, id openapi_types.UUID) {
 }
 
 // GetGroupById operation middleware
-func (sh *strictHandler) GetGroupById(ctx *gin.Context, id openapi_types.UUID) {
+func (sh *strictHandler) GetGroupById(ctx *gin.Context, id string) {
 	var request GetGroupByIdRequestObject
 
 	request.Id = id
@@ -2908,7 +2927,7 @@ func (sh *strictHandler) GetGroupById(ctx *gin.Context, id openapi_types.UUID) {
 }
 
 // UpdateGroup operation middleware
-func (sh *strictHandler) UpdateGroup(ctx *gin.Context, id openapi_types.UUID) {
+func (sh *strictHandler) UpdateGroup(ctx *gin.Context, id string) {
 	var request UpdateGroupRequestObject
 
 	request.Id = id
@@ -3285,7 +3304,7 @@ func (sh *strictHandler) DeleteWallet(ctx *gin.Context, id string) {
 }
 
 // GetWalletById operation middleware
-func (sh *strictHandler) GetWalletById(ctx *gin.Context, id openapi_types.UUID) {
+func (sh *strictHandler) GetWalletById(ctx *gin.Context, id string) {
 	var request GetWalletByIdRequestObject
 
 	request.Id = id

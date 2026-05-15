@@ -4,6 +4,7 @@ import (
 	"cashflow_gin/dto/request"
 	"cashflow_gin/models"
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -11,13 +12,13 @@ import (
 
 type UserRepository interface {
 	FindByEmailOrUsername(ctx context.Context, email, username string) (*models.User, error)
-	FindAllUser(ctx context.Context) ([]models.User, error)
+	FindAllUser(ctx context.Context) (*[]models.User, error)
 	FindMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error)
 	Login(ctx context.Context, input *request.LoginRequest) (*models.User, error)
 
 	IsRoleAdmin(ctx context.Context, userID uuid.UUID) (bool, error)
 	FindUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error)
-	UpdateUser(ctx context.Context, user models.User) (models.User, error)
+	UpdateUser(ctx context.Context, user models.User) (*models.User, error)
 }
 
 type userRepository struct {
@@ -34,7 +35,7 @@ func (r *userRepository) FindByEmailOrUsername(ctx context.Context, email, usern
 	return &user, err
 }
 
-func (r *userRepository) FindAllUser(ctx context.Context) ([]models.User, error) {
+func (r *userRepository) FindAllUser(ctx context.Context) (*[]models.User, error) {
 	var users []models.User
 	walletSelectQuery := `
         wallets.*, 
@@ -47,11 +48,11 @@ func (r *userRepository) FindAllUser(ctx context.Context) ([]models.User, error)
 	err := r.db.WithContext(ctx).Preload("Wallets", func(db *gorm.DB) *gorm.DB {
 		return db.Select(walletSelectQuery)
 	}).Find(&users).Error
-	return users, err
+	return &users, err
 }
 
 func (r *userRepository) FindMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error) {
-	var user *models.User
+	var user models.User
 	walletSelectQuery := `
         wallets.*, 
         (
@@ -67,7 +68,10 @@ func (r *userRepository) FindMyProfile(ctx context.Context, id uuid.UUID) (*mode
 		}).
 		// 2. Ambil User-nya (Query Utama bersih aja)
 		First(&user, "id = ?", id).Error
-	return user, err
+
+	fmt.Println("result di repo : ", user)
+	fmt.Println("error di repo : ", err)
+	return &user, err
 }
 
 func (r *userRepository) Login(ctx context.Context, input *request.LoginRequest) (*models.User, error) {
@@ -92,7 +96,7 @@ func (r *userRepository) FindUserByID(ctx context.Context, userID uuid.UUID) (*m
 	return &user, err
 }
 
-func (r *userRepository) UpdateUser(ctx context.Context, user models.User) (models.User, error) {
+func (r *userRepository) UpdateUser(ctx context.Context, user models.User) (*models.User, error) {
 	err := r.db.WithContext(ctx).Save(&user).Error
-	return user, err
+	return &user, err
 }

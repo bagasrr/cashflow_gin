@@ -101,3 +101,26 @@ func GetUserInfo(ctx context.Context) (uuid.UUID, models.UserRole, error) {
 	}
 	return idUser, models.UserRole(roleInt), nil
 }
+
+func SafeStringDereference(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
+}
+
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
+func StringPtr(s string) *string {
+	return &s
+}
+
+func UUIDPtrToStringPtr(u *uuid.UUID) *string {
+	if u == nil {
+		return nil
+	}
+	s := u.String()
+	return &s
+}

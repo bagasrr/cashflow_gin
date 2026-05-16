@@ -4,7 +4,9 @@ import (
 	"cashflow_gin/api"
 	"cashflow_gin/dto/request"
 	"cashflow_gin/services"
+	"cashflow_gin/utils"
 	"context"
+	"fmt"
 )
 
 type AuthAPI struct {
@@ -33,17 +35,29 @@ func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (
 		}, nil
 	}
 
+	fmt.Println("user di handler : ", user)
+
 	// 3. Mapping kembali ke Response YAML
-	status := true
-	msg := "Register Success"
+	var wallets []api.WalletRes
+	for _, wallet := range user.Wallets {
+		wallets = append(wallets, api.WalletRes{
+			Id:               wallet.ID.String(),
+			Balance:          wallet.Balance,
+			GroupId:          utils.UUIDPtrToStringPtr(wallet.GroupID),
+			Name:             wallet.Name,
+			TransactionCount: wallet.TransactionCount,
+		})
+	}
+
 	return api.Register201JSONResponse{
-		Status:  &status,
-		Message: &msg,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Create user successfully"),
 		Data: &api.UserRes{
 			Id:       user.ID.String(),
 			Username: user.Username,
 			Email:    user.Email,
 			UserRole: user.UserRole.String(),
+			Wallets:  wallets,
 		},
 	}, nil
 }

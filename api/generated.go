@@ -20,6 +20,27 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
+// Defines values for UpdateUserReqUserRole.
+const (
+	Admin     UpdateUserReqUserRole = "admin"
+	Moderator UpdateUserReqUserRole = "moderator"
+	User      UpdateUserReqUserRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the UpdateUserReqUserRole enum.
+func (e UpdateUserReqUserRole) Valid() bool {
+	switch e {
+	case Admin:
+		return true
+	case Moderator:
+		return true
+	case User:
+		return true
+	default:
+		return false
+	}
+}
+
 // N400BaseRes defines model for 400BaseRes.
 type N400BaseRes struct {
 	Errors  *string `json:"errors,omitempty"`
@@ -189,6 +210,17 @@ type UpdateTransactionReq struct {
 	Title       string    `json:"title"`
 }
 
+// UpdateUserReq defines model for UpdateUserReq.
+type UpdateUserReq struct {
+	Email    string                `json:"email"`
+	Id       string                `json:"id"`
+	UserRole UpdateUserReqUserRole `json:"user_role"`
+	Username string                `json:"username"`
+}
+
+// UpdateUserReqUserRole defines model for UpdateUserReq.UserRole.
+type UpdateUserReqUserRole string
+
 // UpdateWalletReq defines model for UpdateWalletReq.
 type UpdateWalletReq struct {
 	Name *string `json:"name,omitempty"`
@@ -216,11 +248,11 @@ type UserListRes struct {
 
 // UserRes defines model for UserRes.
 type UserRes struct {
-	Email    string      `json:"email"`
-	Id       string      `json:"id"`
-	UserRole string      `json:"user_role"`
-	Username string      `json:"username"`
-	Wallets  []WalletRes `json:"wallets"`
+	Email    string       `json:"email"`
+	Id       string       `json:"id"`
+	UserRole string       `json:"user_role"`
+	Username string       `json:"username"`
+	Wallets  *[]WalletRes `json:"wallets,omitempty"`
 }
 
 // WalletBaseRes defines model for WalletBaseRes.
@@ -324,8 +356,11 @@ type CreateTransactionJSONRequestBody = CreateTransactionReq
 // UpdateTransactionJSONRequestBody defines body for UpdateTransaction for application/json ContentType.
 type UpdateTransactionJSONRequestBody = UpdateTransactionReq
 
+// UpdateMyProfileJSONRequestBody defines body for UpdateMyProfile for application/json ContentType.
+type UpdateMyProfileJSONRequestBody = UpdateUserReq
+
 // UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
-type UpdateUserJSONRequestBody = RegisterReq
+type UpdateUserJSONRequestBody = UpdateUserReq
 
 // CreateWalletJSONRequestBody defines body for CreateWallet for application/json ContentType.
 type CreateWalletJSONRequestBody = CreateWalletReq
@@ -401,6 +436,9 @@ type ServerInterface interface {
 	// Get My Profile
 	// (GET /users/me)
 	GetMyProfile(c *gin.Context)
+	// Update my profile
+	// (PUT /users/me)
+	UpdateMyProfile(c *gin.Context)
 	// Find User By ID
 	// (GET /users/{id})
 	FindUserById(c *gin.Context, id string)
@@ -961,6 +999,21 @@ func (siw *ServerInterfaceWrapper) GetMyProfile(c *gin.Context) {
 	siw.Handler.GetMyProfile(c)
 }
 
+// UpdateMyProfile operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMyProfile(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateMyProfile(c)
+}
+
 // FindUserById operation middleware
 func (siw *ServerInterfaceWrapper) FindUserById(c *gin.Context) {
 
@@ -1191,6 +1244,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
 	router.GET(options.BaseURL+"/users/", wrapper.FindAllUsers)
 	router.GET(options.BaseURL+"/users/me", wrapper.GetMyProfile)
+	router.PUT(options.BaseURL+"/users/me", wrapper.UpdateMyProfile)
 	router.GET(options.BaseURL+"/users/:id", wrapper.FindUserById)
 	router.PUT(options.BaseURL+"/users/:id", wrapper.UpdateUser)
 	router.GET(options.BaseURL+"/wallets", wrapper.GetMyWallets)
@@ -2108,6 +2162,50 @@ func (response GetMyProfile500JSONResponse) VisitGetMyProfileResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateMyProfileRequestObject struct {
+	Body *UpdateMyProfileJSONRequestBody
+}
+
+type UpdateMyProfileResponseObject interface {
+	VisitUpdateMyProfileResponse(w http.ResponseWriter) error
+}
+
+type UpdateMyProfile201JSONResponse UserBaseRes
+
+func (response UpdateMyProfile201JSONResponse) VisitUpdateMyProfileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMyProfile400JSONResponse N400BaseRes
+
+func (response UpdateMyProfile400JSONResponse) VisitUpdateMyProfileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMyProfile401JSONResponse N400BaseRes
+
+func (response UpdateMyProfile401JSONResponse) VisitUpdateMyProfileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateMyProfile500JSONResponse N500BaseRes
+
+func (response UpdateMyProfile500JSONResponse) VisitUpdateMyProfileResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type FindUserByIdRequestObject struct {
 	Id string `json:"id"`
 }
@@ -2477,6 +2575,9 @@ type StrictServerInterface interface {
 	// Get My Profile
 	// (GET /users/me)
 	GetMyProfile(ctx context.Context, request GetMyProfileRequestObject) (GetMyProfileResponseObject, error)
+	// Update my profile
+	// (PUT /users/me)
+	UpdateMyProfile(ctx context.Context, request UpdateMyProfileRequestObject) (UpdateMyProfileResponseObject, error)
 	// Find User By ID
 	// (GET /users/{id})
 	FindUserById(ctx context.Context, request FindUserByIdRequestObject) (FindUserByIdResponseObject, error)
@@ -3147,6 +3248,39 @@ func (sh *strictHandler) GetMyProfile(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetMyProfileResponseObject); ok {
 		if err := validResponse.VisitGetMyProfileResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateMyProfile operation middleware
+func (sh *strictHandler) UpdateMyProfile(ctx *gin.Context) {
+	var request UpdateMyProfileRequestObject
+
+	var body UpdateMyProfileJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateMyProfile(ctx, request.(UpdateMyProfileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateMyProfile")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(UpdateMyProfileResponseObject); ok {
+		if err := validResponse.VisitUpdateMyProfileResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

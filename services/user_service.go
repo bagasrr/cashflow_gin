@@ -16,6 +16,7 @@ type UserService interface {
 
 	FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*models.User, error)
 	UpdateUser(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error)
+	UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user models.User) (*models.User, error)
 }
 
 type userService struct {
@@ -76,4 +77,16 @@ func (s *userService) UpdateUser(ctx context.Context, requestorID uuid.UUID, tar
 	}
 
 	return updatedUser, nil
+}
+
+func (s *userService) UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user models.User) (*models.User, error) {
+	if reqId != user.ID {
+		return nil, errors.New("forbidden: access denied")
+	}
+	profileUpdate, err := s.repo.UpdateUser(ctx, user)
+	if err != nil {
+		return nil, err
+
+	}
+	return profileUpdate, nil
 }

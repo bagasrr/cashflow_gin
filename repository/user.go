@@ -92,7 +92,19 @@ func (r *userRepository) IsRoleAdmin(ctx context.Context, userID uuid.UUID) (boo
 
 func (r *userRepository) FindUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
 	var user models.User
-	err := r.db.WithContext(ctx).First(&user, "id = ?", userID).Error
+	walletSelectQuery := `
+        wallets.*, 
+        (
+            SELECT COUNT(*) 
+            FROM transactions 
+            WHERE transactions.wallet_id = wallets.id
+        ) as transaction_count
+    `
+	err := r.db.WithContext(ctx).
+		Preload("Wallets", func(db *gorm.DB) *gorm.DB {
+			return db.Select(walletSelectQuery)
+		}).
+		First(&user, "id = ?", userID).Error
 	return &user, err
 }
 

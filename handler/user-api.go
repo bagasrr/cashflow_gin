@@ -92,7 +92,7 @@ func (u *UserAPI) GetMyProfile(ctx context.Context, req api.GetMyProfileRequestO
 		Username: user.Username,
 		Id:       user.ID.String(),
 		UserRole: user.UserRole.String(),
-		Wallets:  wallets,
+		Wallets:  &wallets,
 	}
 
 	return api.GetMyProfile200JSONResponse{
@@ -133,21 +133,31 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 		}, nil
 	}
 
-	status := true
-	msg := "Success"
+	var wallets []api.WalletRes
+	for _, wallet := range target.Wallets {
+		wallets = append(wallets, api.WalletRes{
+			Id:               wallet.ID.String(),
+			Balance:          wallet.Balance,
+			GroupId:          utils.UUIDPtrToStringPtr(wallet.GroupID),
+			Name:             wallet.Name,
+			TransactionCount: wallet.TransactionCount,
+		})
+	}
+
 	return api.FindUserById200JSONResponse{
-		Status:  &status,
-		Message: &msg,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success get user profile"),
 		Data: &api.UserRes{
 			Id:       target.ID.String(), // UBAH MUTLAK: Harus pakai .String()
 			Username: target.Username,
 			Email:    target.Email,
 			UserRole: target.UserRole.String(), // UBAH MUTLAK: Harus pakai .String()
+			Wallets:  &wallets,
 		},
 	}, nil
 }
 
-func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestObject) (api.UpdateUserResponseObject, error) {
+func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserReq) (api.UpdateUserResponseObject, error) {
 	requestor, err := utils.GetUserID(ctx)
 	if err != nil {
 		return api.UpdateUser500JSONResponse{
@@ -166,35 +176,76 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 		}, nil
 	}
 
+	userRole := models.ParseUserRole(string(request.UserRole))
 	targetUser := models.User{
 		Base: models.Base{
 			ID: targetID,
 		},
-		Username: request.Body.Username,
-		Email:    request.Body.Email,
-		Password: request.Body.Password,
+		Username: request.Username,
+		Email:    request.Email,
+		UserRole: userRole,
 	}
 
 	res, err := u.Service.UpdateUser(ctx, requestor, targetUser)
 	if err != nil {
-		status := false
-		msg := "Failed to update user: " + err.Error()
 		return api.UpdateUser500JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Failed to update user: " + err.Error()),
 		}, nil
 	}
 
-	status := true
-	msg := "Success"
 	return api.UpdateUser201JSONResponse{
-		Status:  &status,
-		Message: &msg,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success update user profile"),
 		Data: &api.UserRes{
 			Id:       res.ID.String(),
 			Username: res.Username,
 			Email:    res.Email,
 			UserRole: res.UserRole.String(),
+		},
+	}, nil
+}
+
+func (u *UserAPI) UpdateMyProfile(ctx context.Context, req api.UpdateUserReq) (api.UpdateUserResponseObject, error) {
+	reqId, err := utils.GetUserID(ctx)
+	if err != nil {
+		return api.UpdateUser500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Forbidden Access : " + err.Error()),
+		}, nil
+	}
+
+	targetID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return api.UpdateUser400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("cant parse userid : " + err.Error()),
+		}, nil
+	}
+	user := models.User{
+		Base: models.Base{
+			ID: targetID,
+		},
+		Username: req.Username,
+		Email:    req.Email,
+		UserRole: models.ParseUserRole(string(req.UserRole)),
+	}
+	profileUpdate, err := u.Service.UpdateMyProfile(ctx, reqId, user)
+	if err != nil {
+		return api.UpdateUser500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Failed to update user: " + err.Error()),
+		}, nil
+	}
+
+	return api.UpdateUser201JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Update Success bosQ"),
+		Data: &api.UserRes{
+			Email:    profileUpdate.Email,
+			Id:       profileUpdate.ID.String(),
+			UserRole: profileUpdate.UserRole.String(),
+			Username: profileUpdate.Username,
 		},
 	}, nil
 }

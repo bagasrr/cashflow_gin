@@ -58,11 +58,10 @@ func (s *authService) Register(ctx context.Context, input request.CreateUserRequ
 		// User benar-benar ditemukan
 		return nil, errors.New("email atau username sudah terdaftar")
 	}
-	// CEK: Apakah errornya karena DB mati, atau murni karena user belum ada?
-	// Asumsi lu pake GORM, pastikan import "gorm.io/gorm"
+
 	if err != nil && err.Error() != "record not found" {
-		// Kalau errornya BUKAN "record not found", berarti DB lu lagi bermasalah
 		return nil, fmt.Errorf("database error: %v", err)
+		//Kalau errornya BUKAN "record not found", berarti DB lu lagi bermasalah
 	}
 
 	// 2. HASHING PASSWORD
@@ -99,5 +98,6 @@ func (s *authService) Register(ctx context.Context, input request.CreateUserRequ
 		return nil, err
 	}
 
+	fmt.Println(createdUser)
 	return createdUser, nil
 }

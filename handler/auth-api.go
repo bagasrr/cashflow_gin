@@ -57,7 +57,7 @@ func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (
 			Username: user.Username,
 			Email:    user.Email,
 			UserRole: user.UserRole.String(),
-			Wallets:  wallets,
+			Wallets:  &wallets,
 		},
 	}, nil
 }

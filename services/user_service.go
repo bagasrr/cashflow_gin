@@ -15,7 +15,7 @@ type UserService interface {
 	GetMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error)
 
 	FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*models.User, error)
-	UpdateUser(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error)
+	UpdateUserByAdmin(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error)
 	UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user models.User) (*models.User, error)
 }
 
@@ -59,7 +59,7 @@ func (s *userService) FindUserByID(ctx context.Context, targetID uuid.UUID, requ
 	return user, nil
 }
 
-func (s *userService) UpdateUser(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error) {
+func (s *userService) UpdateUserByAdmin(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error) {
 	requestor, err := s.repo.FindUserByID(ctx, requestorID)
 	if err != nil {
 		return nil, err
@@ -68,10 +68,12 @@ func (s *userService) UpdateUser(ctx context.Context, requestorID uuid.UUID, tar
 	if requestor.UserRole != models.RoleAdmin && requestor.ID != targetUser.ID {
 		return nil, errors.New("forbidden: access denied")
 	}
-	fmt.Println("TargetUser : ", targetUser)
-	fmt.Println("Requestor : ", requestor)
+	//fmt.Println("TargetUser : ", targetUser)
+	//fmt.Println("Requestor : ", requestor)
 
-	updatedUser, err := s.repo.UpdateUser(ctx, targetUser)
+	fmt.Println("Password: ", targetUser.Password)
+
+	updatedUser, err := s.repo.UpdateUserByAdmin(ctx, targetUser)
 	if err != nil {
 		return nil, err
 	}

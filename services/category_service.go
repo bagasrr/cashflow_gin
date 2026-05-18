@@ -18,7 +18,7 @@ type CategoryService interface {
 
 	Create(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
 	CreateMy(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
-	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]response.CategoryResponse, error)
+	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error)
 
 	GetById(ctx context.Context, categoryID uuid.UUID) (*response.CategoryResponse, error)
 	UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
@@ -212,27 +212,14 @@ func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input 
 	return &res, nil
 }
 
-func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]response.CategoryResponse, error) {
+func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error) {
 	offset := (page - 1) * limit
 	categories, err := s.repo.FindByUserID(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 
-	var res []response.CategoryResponse
-	for _, category := range *categories {
-		r := response.CategoryResponse{
-			Name:   category.Name,
-			UserID: category.UserID.String(),
-			Type:   category.Type,
-		}
-		if category.GroupID != nil {
-			r.GroupID = category.GroupID.String()
-		}
-		res = append(res, r)
-	}
-
-	return &res, nil
+	return categories, nil
 }
 
 func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*response.CategoryResponse, error) {

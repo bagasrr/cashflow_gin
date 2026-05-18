@@ -79,7 +79,7 @@ func (r *categoryRepository) FindByName(ctx context.Context, name string) (*mode
 
 func (r *categoryRepository) FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Category, error) {
 	var categories []models.Category
-	err := r.db.WithContext(ctx).Where("user_id = ? ", userID).Limit(limit).Offset(offset).Find(&categories).Error
+	err := r.db.WithContext(ctx).Where("user_id = ? OR user_id IS NULL", userID).Limit(limit).Offset(offset).Find(&categories).Error
 	return &categories, err
 }
 

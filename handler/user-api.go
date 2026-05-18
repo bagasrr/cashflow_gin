@@ -167,7 +167,7 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 	}
 
 	req := request.Body
-	targetID, err := uuid.Parse(req.Id)
+	targetID, err := uuid.Parse(request.Id) //ambil dari param
 	if err != nil {
 		status := false
 		msg := "Failed to parse target user ID: " + err.Error()
@@ -187,7 +187,7 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 		UserRole: userRole,
 	}
 
-	res, err := u.Service.UpdateUser(ctx, requestor, targetUser)
+	res, err := u.Service.UpdateUserByAdmin(ctx, requestor, targetUser)
 	if err != nil {
 		return api.UpdateUser500JSONResponse{
 			Status:  utils.BoolPtr(false),
@@ -216,16 +216,9 @@ func (u *UserAPI) UpdateMyProfile(ctx context.Context, req api.UpdateMyProfileRe
 		}, nil
 	}
 
-	targetID, err := uuid.Parse(req.Body.Id)
-	if err != nil {
-		return api.UpdateMyProfile400JSONResponse{
-			Status:  utils.BoolPtr(false),
-			Message: utils.StringPtr("cant parse userid : " + err.Error()),
-		}, nil
-	}
 	user := models.User{
 		Base: models.Base{
-			ID: targetID,
+			ID: reqId,
 		},
 		Username: req.Body.Username,
 		Email:    req.Body.Email,

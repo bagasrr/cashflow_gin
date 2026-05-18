@@ -14,6 +14,8 @@ type AuthRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	//CreateUserWithWallet(ctx context.Context, user *models.User, wallet *models.Wallet) (*models.User, error)
 	CreateUserWithWallet(ctx context.Context, user *models.User) (*models.User, error)
+	FindUserForPasswordReset(ctx context.Context, email string) (*models.User, error)
+	UpdatePassword(ctx context.Context, user *models.User) error
 }
 
 type authRepository struct {
@@ -54,4 +56,28 @@ func (r *authRepository) CreateUserWithWallet(ctx context.Context, user *models.
 	}
 
 	return user, nil
+}
+
+func (r *authRepository) FindUserForPasswordReset(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
+
+	// GORM akan mencari user yang memiliki email DAN username yang persis sama
+	err := r.db.WithContext(ctx).
+		Where("email = ?", email).
+		First(&user).Error
+
+	if err != nil {
+		// Biarkan error ini mengalir ke Service.
+		// Service nanti yang ngecek apakah errornya gorm.ErrRecordNotFound
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *authRepository) UpdatePassword(ctx context.Context, user *models.User) error {
+	err := r.db.WithContext(ctx).
+		Model(user).Omit("email", "username", "user_role", "wallets").
+		Updates(user).Error
+	return err
 }

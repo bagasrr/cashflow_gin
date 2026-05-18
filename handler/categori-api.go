@@ -160,16 +160,20 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 	}
 	var res []api.CategoryRes
 	for _, v := range *cat {
+		uid := v.UserID.String()
+		guid := v.GroupID.String()
 		res = append(res, api.CategoryRes{
-			Id:      v.ID,
-			UserId:  &v.UserID,
-			GroupId: &v.GroupID,
+			Id:      v.ID.String(),
+			UserId:  &uid,
+			GroupId: &guid,
 			Name:    v.Name,
 			Type:    v.Type,
 		})
 	}
 	return api.GetMyCategories200JSONResponse{
-		Data: &res,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Get My Categories Success"),
+		Data:    &res,
 	}, nil
 }
 

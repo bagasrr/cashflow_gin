@@ -122,6 +122,12 @@ type CreateWalletReq struct {
 	Type string `json:"type"`
 }
 
+// ForgotPassword defines model for ForgotPassword.
+type ForgotPassword struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 // GroupBaseRes defines model for GroupBaseRes.
 type GroupBaseRes struct {
 	Description *string            `json:"description,omitempty"`
@@ -213,7 +219,6 @@ type UpdateTransactionReq struct {
 // UpdateUserReq defines model for UpdateUserReq.
 type UpdateUserReq struct {
 	Email    string                `json:"email"`
-	Id       string                `json:"id"`
 	UserRole UpdateUserReqUserRole `json:"user_role"`
 	Username string                `json:"username"`
 }
@@ -332,6 +337,9 @@ type GetMyWalletsParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ForgotPasswordJSONRequestBody defines body for ForgotPassword for application/json ContentType.
+type ForgotPasswordJSONRequestBody = ForgotPassword
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginReq
 
@@ -370,6 +378,9 @@ type UpdateWalletJSONRequestBody = UpdateWalletReq
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Forgot Password
+	// (POST /auth/forgotpassword)
+	ForgotPassword(c *gin.Context)
 	// Login User
 	// (POST /auth/login)
 	Login(c *gin.Context)
@@ -470,6 +481,19 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// ForgotPassword operation middleware
+func (siw *ServerInterfaceWrapper) ForgotPassword(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ForgotPassword(c)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(c *gin.Context) {
@@ -1222,6 +1246,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.POST(options.BaseURL+"/auth/forgotpassword", wrapper.ForgotPassword)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login)
 	router.POST(options.BaseURL+"/auth/register", wrapper.Register)
 	router.GET(options.BaseURL+"/categories", wrapper.GetCategories)
@@ -1252,6 +1277,41 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/wallets/:id", wrapper.DeleteWallet)
 	router.GET(options.BaseURL+"/wallets/:id", wrapper.GetWalletById)
 	router.PUT(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
+}
+
+type ForgotPasswordRequestObject struct {
+	Body *ForgotPasswordJSONRequestBody
+}
+
+type ForgotPasswordResponseObject interface {
+	VisitForgotPasswordResponse(w http.ResponseWriter) error
+}
+
+type ForgotPassword200JSONResponse AuthLoginRes
+
+func (response ForgotPassword200JSONResponse) VisitForgotPasswordResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ForgotPassword400JSONResponse N400BaseRes
+
+func (response ForgotPassword400JSONResponse) VisitForgotPasswordResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ForgotPassword500JSONResponse N500BaseRes
+
+func (response ForgotPassword500JSONResponse) VisitForgotPasswordResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type LoginRequestObject struct {
@@ -2509,6 +2569,9 @@ func (response UpdateWallet500JSONResponse) VisitUpdateWalletResponse(w http.Res
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Forgot Password
+	// (POST /auth/forgotpassword)
+	ForgotPassword(ctx context.Context, request ForgotPasswordRequestObject) (ForgotPasswordResponseObject, error)
 	// Login User
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -2611,6 +2674,39 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// ForgotPassword operation middleware
+func (sh *strictHandler) ForgotPassword(ctx *gin.Context) {
+	var request ForgotPasswordRequestObject
+
+	var body ForgotPasswordJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ForgotPassword(ctx, request.(ForgotPasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ForgotPassword")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ForgotPasswordResponseObject); ok {
+		if err := validResponse.VisitForgotPasswordResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // Login operation middleware

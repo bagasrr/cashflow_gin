@@ -91,3 +91,24 @@ func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.Lo
 		}{Token: &token},
 	}, nil
 }
+
+func (a *AuthAPI) ForgotPassword(ctx context.Context, req api.ForgotPasswordRequestObject) (api.ForgotPasswordResponseObject, error) {
+	err := a.Service.ForgotPassword(ctx, req.Body.Email, req.Body.Password)
+	if err != nil {
+		errStr := err.Error()
+		status := false
+		msg := "Forgot Password Error"
+		return api.ForgotPassword400JSONResponse{
+			Status:  &status,
+			Message: &msg,
+			Errors:  &errStr,
+		}
+	}
+	var res api.UserRes
+	res.Id = user.ID.String()
+	res.Username = user.Username
+	res.Email = user.Email
+	res.UserRole = user.UserRole.String()
+
+	return res, nil
+}

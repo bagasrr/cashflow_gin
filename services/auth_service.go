@@ -17,6 +17,7 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, input *request.LoginRequest) (string, error)
 	Register(ctx context.Context, input request.CreateUserRequest) (*models.User, error)
+	ForgotPassword(ctx context.Context, email string, password string) error
 }
 
 type authService struct {
@@ -100,4 +101,25 @@ func (s *authService) Register(ctx context.Context, input request.CreateUserRequ
 
 	fmt.Println(createdUser)
 	return createdUser, nil
+}
+
+// ini harus make verif code ke email
+func (s *authService) ForgotPassword(ctx context.Context, email, password string) error {
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("error hashing password")
+	}
+
+	user, err := s.repo.FindUserForPasswordReset(ctx, email)
+	if err != nil {
+		return err
+	}
+	user.Password = string(hashedPassword)
+	upErr := s.repo.UpdatePassword(ctx, user)
+	if upErr != nil {
+		return err
+	}
+
+	return nil
 }

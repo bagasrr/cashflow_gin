@@ -94,14 +94,10 @@ components:
     UpdateUserReq:
       type: object
       required:
-        - id
         - username
         - email
         - user_role
       properties:
-        id:
-          type: string
-          example: "123e4567-e89b-12d3-a456-426655440000"
         username:
           type: string
           example: "john.doe"
@@ -132,6 +128,19 @@ components:
         confirm_new_password:
           type: string
           example: "password123"
+
+    ForgotPassword :
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          example: "john.doe@example.com"
+        password:
+          type: string
+          example: "john.doe"
 
     UserBaseRes:
       allOf:
@@ -504,6 +513,16 @@ components:
         password:
           type: string
           example: "password123"
+
+    ForgotPassReq :
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          example: "john.doe@example.com"
+
     #--------------- AUTH END ---------------
     #--------------- GROUP BEGIN ---------------
     CreateGroupReq:
@@ -635,6 +654,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
+  /auth/forgotpassword:
+    post:
+      tags:
+        - Auth
+      summary: Forgot Password
+      operationId: forgot_password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPassword"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthLoginRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
 
   # ==========================================
   # USER DOMAIN
@@ -800,6 +852,7 @@ paths:
       operationId: updateUser
       security:
         - BearerAuth: []
+
       parameters:
         - name: id
           in: path

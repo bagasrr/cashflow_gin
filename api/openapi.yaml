@@ -17,6 +17,10 @@ tags:
     description: Endpont terkait transaksi
   - name: Categories
     description: Manajemen kategori transaksi (Income/Expense)
+  - name: Wallets
+    description: Manajemen Dompet
+  - name: Groups
+    description: Manajemen Grup Patungan
 
 components:
   securitySchemes:
@@ -89,7 +93,7 @@ components:
         wallets:
           type: array
           items:
-              $ref: "#/components/schemas/WalletRes"
+            $ref: "#/components/schemas/WalletRes"
 
     UpdateUserReq:
       type: object
@@ -140,7 +144,7 @@ components:
           example: "john.doe@example.com"
         password:
           type: string
-          example: "john.doe"
+          example: "newpassword123"
 
     UserBaseRes:
       allOf:
@@ -220,7 +224,7 @@ components:
           properties:
             data:
               type: array
-              items: 
+              items:
                 $ref: "#/components/schemas/WalletRes"
             meta:
               type: object
@@ -514,22 +518,13 @@ components:
           type: string
           example: "password123"
 
-    ForgotPassReq :
-      type: object
-      required:
-        - email
-      properties:
-        email:
-          type: string
-          example: "john.doe@example.com"
-
     #--------------- AUTH END ---------------
     #--------------- GROUP BEGIN ---------------
     CreateGroupReq:
       type: object
       required:
-      - name
-      - memberids
+        - name
+        - memberids
       properties:
         name:
           type: string
@@ -542,6 +537,16 @@ components:
         description:
           type: string
           example: "Group ini adalah group utama"
+
+    UpdateGroupReq:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Group Utama Baru"
+        description:
+          type: string
+          example: "Deskripsi group yang diupdate"
 
     GroupMembersRes:
       type: object
@@ -655,7 +660,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
-  /auth/forgotpassword:
+  /auth/forgot-password:
     post:
       tags:
         - Auth
@@ -1287,7 +1292,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CategoryListBaseRes"
+                $ref: "#/components/schemas/CategoryBaseRes"
         "401":
           description: Unauthorized
           content:
@@ -1680,15 +1685,15 @@ paths:
               $ref: "#/components/schemas/CreateGroupReq"
       responses:
         "201":
-          description:
+          description: Created
           content:
-            aplication/json:
+            application/json:
               schema:
                 $ref: "#/components/schemas/GroupBaseRes"
         "400":
-          description:
+          description: Bad Request
           content:
-            aplication/json:
+            application/json:
               schema:
                 $ref: "#/components/schemas/400BaseRes"
         "401":
@@ -1698,9 +1703,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/400BaseRes"
         "500":
-          description:
+          description: Server Error
           content:
-            aplication/json:
+            application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
   /groups/{id}:
@@ -1755,6 +1760,12 @@ paths:
       operationId: updateGroup
       security:
         - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupReq"
       responses:
         "201":
           description: Update Success
@@ -1775,7 +1786,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/400BaseRes"
         "500":
-          description: Server Srror
+          description: Server Error
           content:
             application/json:
               schema:
@@ -1813,7 +1824,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/400BaseRes"
         "500":
-          desctription: Server Error
+          description: Server Error
           content:
             application/json:
               schema:

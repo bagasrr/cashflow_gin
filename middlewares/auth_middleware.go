@@ -19,6 +19,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		publicRoutes := []string{
 			"/api/auth/login",
 			"/api/auth/register",
+			"/api/auth/forgot-password",
 			"/docs",         // Biar Swagger UI tetep bisa dibuka
 			"/openapi.yaml", // Biar file dokumentasinya tetep bisa dibaca
 		}
@@ -32,6 +33,12 @@ func AuthMiddleware() gin.HandlerFunc {
 				return // Hentikan pengecekan token di bawahnya
 			}
 		}
+		// PASANG RADAR INI SEMENTARA BUAT DEBUGGING
+		fmt.Println("\n=== DEBUG MIDDLEWARE ===")
+		fmt.Println("Path yang ditembak Postman :", currentPath)
+		fmt.Println("Apakah ada di Whitelist?   :", publicRoutes[2])
+		fmt.Println("========================\n")
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{

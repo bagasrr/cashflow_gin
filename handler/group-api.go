@@ -15,7 +15,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 }
 
 func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) (api.CreateGroupResponseObject, error) {
-	return api.CreateGroup201AplicationjsonResponse{}, nil
+	return api.CreateGroup201JSONResponse{}, nil
 }
 
 func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) (api.DeleteGroupResponseObject, error) {

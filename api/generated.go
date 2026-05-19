@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -207,6 +206,12 @@ type UpdateCategoryReq struct {
 	Type *string `json:"type,omitempty"`
 }
 
+// UpdateGroupReq defines model for UpdateGroupReq.
+type UpdateGroupReq struct {
+	Description *string `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
+}
+
 // UpdateTransactionReq defines model for UpdateTransactionReq.
 type UpdateTransactionReq struct {
 	Amount      int64     `json:"amount"`
@@ -358,6 +363,9 @@ type UpdateCategoryJSONRequestBody = UpdateCategoryReq
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = CreateGroupReq
 
+// UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
+type UpdateGroupJSONRequestBody = UpdateGroupReq
+
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = CreateTransactionReq
 
@@ -379,7 +387,7 @@ type UpdateWalletJSONRequestBody = UpdateWalletReq
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Forgot Password
-	// (POST /auth/forgotpassword)
+	// (POST /auth/forgot-password)
 	ForgotPassword(c *gin.Context)
 	// Login User
 	// (POST /auth/login)
@@ -1246,7 +1254,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
-	router.POST(options.BaseURL+"/auth/forgotpassword", wrapper.ForgotPassword)
+	router.POST(options.BaseURL+"/auth/forgot-password", wrapper.ForgotPassword)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login)
 	router.POST(options.BaseURL+"/auth/register", wrapper.Register)
 	router.GET(options.BaseURL+"/categories", wrapper.GetCategories)
@@ -1505,7 +1513,7 @@ type CreateDefaultCategoriesResponseObject interface {
 	VisitCreateDefaultCategoriesResponse(w http.ResponseWriter) error
 }
 
-type CreateDefaultCategories201JSONResponse CategoryListBaseRes
+type CreateDefaultCategories201JSONResponse CategoryBaseRes
 
 func (response CreateDefaultCategories201JSONResponse) VisitCreateDefaultCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -1734,42 +1742,22 @@ type CreateGroupResponseObject interface {
 	VisitCreateGroupResponse(w http.ResponseWriter) error
 }
 
-type CreateGroup201AplicationjsonResponse struct {
-	Body          io.Reader
-	ContentLength int64
-}
+type CreateGroup201JSONResponse GroupBaseRes
 
-func (response CreateGroup201AplicationjsonResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "aplication/json")
-	if response.ContentLength != 0 {
-		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
-	}
+func (response CreateGroup201JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
 
-	if closer, ok := response.Body.(io.ReadCloser); ok {
-		defer closer.Close()
-	}
-	_, err := io.Copy(w, response.Body)
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateGroup400AplicationjsonResponse struct {
-	Body          io.Reader
-	ContentLength int64
-}
+type CreateGroup400JSONResponse N400BaseRes
 
-func (response CreateGroup400AplicationjsonResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "aplication/json")
-	if response.ContentLength != 0 {
-		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
-	}
+func (response CreateGroup400JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
-	if closer, ok := response.Body.(io.ReadCloser); ok {
-		defer closer.Close()
-	}
-	_, err := io.Copy(w, response.Body)
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
 type CreateGroup401JSONResponse N400BaseRes
@@ -1781,23 +1769,13 @@ func (response CreateGroup401JSONResponse) VisitCreateGroupResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateGroup500AplicationjsonResponse struct {
-	Body          io.Reader
-	ContentLength int64
-}
+type CreateGroup500JSONResponse N500BaseRes
 
-func (response CreateGroup500AplicationjsonResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "aplication/json")
-	if response.ContentLength != 0 {
-		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
-	}
+func (response CreateGroup500JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
-	if closer, ok := response.Body.(io.ReadCloser); ok {
-		defer closer.Close()
-	}
-	_, err := io.Copy(w, response.Body)
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
 type DeleteGroupRequestObject struct {
@@ -1889,7 +1867,8 @@ func (response GetGroupById500JSONResponse) VisitGetGroupByIdResponse(w http.Res
 }
 
 type UpdateGroupRequestObject struct {
-	Id string `json:"id"`
+	Id   string `json:"id"`
+	Body *UpdateGroupJSONRequestBody
 }
 
 type UpdateGroupResponseObject interface {
@@ -2570,7 +2549,7 @@ func (response UpdateWallet500JSONResponse) VisitUpdateWalletResponse(w http.Res
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Forgot Password
-	// (POST /auth/forgotpassword)
+	// (POST /auth/forgot-password)
 	ForgotPassword(ctx context.Context, request ForgotPasswordRequestObject) (ForgotPasswordResponseObject, error)
 	// Login User
 	// (POST /auth/login)
@@ -3128,6 +3107,14 @@ func (sh *strictHandler) UpdateGroup(ctx *gin.Context, id string) {
 	var request UpdateGroupRequestObject
 
 	request.Id = id
+
+	var body UpdateGroupJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.UpdateGroup(ctx, request.(UpdateGroupRequestObject))

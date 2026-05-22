@@ -213,5 +213,13 @@ func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCatego
 }
 
 func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCategoryRequestObject) (api.UpdateCategoryResponseObject, error) {
+	catId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.UpdateCategory400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cant Parse Id"),
+		}, err
+	}
+	cat, err := c.Service.UpdateById(ctx, catId)
 	return api.UpdateCategory201JSONResponse{}, nil
 }

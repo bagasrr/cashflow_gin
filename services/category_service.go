@@ -1,8 +1,7 @@
 package services
 
 import (
-	"cashflow_gin/dto/request"
-	"cashflow_gin/dto/response"
+	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
@@ -12,16 +11,16 @@ import (
 )
 
 type CategoryService interface {
-	CreateDefault(ctx context.Context, input *request.CreateCategoryRequest) (*response.CategoryResponse, error)
+	CreateMyDefault(ctx context.Context, input api.CreateCategoryReq) (*models.Category, error)
 	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
-	GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]response.CategoryResponse, error)
+	GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, error)
 
-	Create(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
-	CreateMy(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
+	Create(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
+	CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
 	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error)
 
-	GetById(ctx context.Context, categoryID uuid.UUID) (*response.CategoryResponse, error)
-	UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error)
+	GetById(ctx context.Context, categoryID uuid.UUID) (*models.Category, error)
+	UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
 	DeleteById(ctx context.Context, userID, categoryID uuid.UUID) error
 }
 
@@ -35,7 +34,7 @@ func NewCategoryService(r repository.CategoryRepository, gr repository.GroupRepo
 	return &categoryService{repo: r, groupRepo: gr, userRepo: ur}
 }
 
-func (s *categoryService) CreateDefault(ctx context.Context, input *request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+func (s *categoryService) CreateMyDefault(ctx context.Context, input api.CreateCategoryReq) (*models.Category, error) {
 	category := models.Category{
 		Name:   input.Name,
 		Type:   input.Type,
@@ -46,10 +45,12 @@ func (s *categoryService) CreateDefault(ctx context.Context, input *request.Crea
 		return nil, err
 	}
 
-	res := &response.CategoryResponse{
-		ID:      category.ID.String(),
-		UserID:  category.UserID.String(),
-		GroupID: category.GroupID.String(),
+	res := &models.Category{
+		Base: models.Base{
+			ID: category.ID,
+		},
+		UserID:  category.UserID,
+		GroupID: category.GroupID,
 		Name:    category.Name,
 		Type:    category.Type,
 	}
@@ -57,7 +58,7 @@ func (s *categoryService) CreateDefault(ctx context.Context, input *request.Crea
 	return res, err
 }
 
-func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
 	// Create
 	// Cek User Role Admin atau bukan
 	// Jika admin, auto buat category default ke repo
@@ -83,7 +84,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input re
 		if err != nil {
 			return nil, err
 		}
-		// res := &response.CategoryResponse{
+		// res := &models.Category{
 		// 	ID:      createdCategory.ID,
 		// 	UserID:  createdCategory.UserID.String(),
 		// 	GroupID: createdCategory.GroupID.String(),
@@ -98,8 +99,8 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input re
 			Type:   input.Type,
 		}
 
-		if input.GroupID != "" {
-			id, err := uuid.Parse(input.GroupID)
+		if input.GroupId != nil {
+			id, err := uuid.Parse(*input.GroupId)
 			if err != nil {
 				return nil, errors.New("invalid group id")
 			}
@@ -110,7 +111,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input re
 			return nil, err
 		}
 
-		// res := response.CategoryResponse{
+		// res := models.Category{
 		// 	ID:     createdCategory.ID,
 		// 	UserID: createdCategory.UserID.String(),
 		// 	Name:   createdCategory.Name,
@@ -122,14 +123,14 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input re
 
 		// return &res, nil
 	}
-	res := response.CategoryResponse{
-		ID:     createdCategory.ID.String(),
-		UserID: createdCategory.UserID.String(),
-		Name:   createdCategory.Name,
-		Type:   createdCategory.Type,
-	}
-	if createdCategory.GroupID != nil {
-		res.GroupID = createdCategory.GroupID.String()
+	res := models.Category{
+		Base: models.Base{
+			ID: createdCategory.ID,
+		},
+		UserID:  createdCategory.UserID,
+		GroupID: createdCategory.GroupID,
+		Name:    createdCategory.Name,
+		Type:    createdCategory.Type,
 	}
 
 	return &res, nil
@@ -140,7 +141,7 @@ func (s *categoryService) CreateDefaultCategories(ctx context.Context) (*[]model
 	return newCategory, err
 }
 
-func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]response.CategoryResponse, error) {
+func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, error) {
 	if userRole > models.RoleModerator {
 		return nil, errors.New("forbidden: access is denied")
 	}
@@ -160,19 +161,16 @@ func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.
 	if err != nil {
 		return nil, err
 	}
-	var res []response.CategoryResponse
+	var res []models.Category
 	for _, category := range *cat {
-		r := response.CategoryResponse{
-			ID:     category.ID.String(),
-			UserID: category.UserID.String(),
-			// GroupID: category.GroupID.String(),
-			Name: category.Name,
-			Type: category.Type,
-		}
-		if category.GroupID != nil {
-			r.GroupID = category.GroupID.String()
-		} else {
-			r.GroupID = "nil"
+		r := models.Category{
+			Base: models.Base{
+				ID: category.ID,
+			},
+			UserID:  category.UserID,
+			GroupID: category.GroupID,
+			Name:    category.Name,
+			Type:    category.Type,
 		}
 		res = append(res, r)
 	}
@@ -180,15 +178,15 @@ func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.
 	return &res, err
 }
 
-func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
 	category := models.Category{
 		UserID: userID,
 		Name:   input.Name,
 		Type:   input.Type,
 	}
 
-	if input.GroupID != "" {
-		id, err := uuid.Parse(input.GroupID)
+	if input.GroupId != nil {
+		id, err := uuid.Parse(*input.GroupId)
 		if err != nil {
 			return nil, errors.New("invalid group id")
 		}
@@ -200,15 +198,15 @@ func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input 
 		return nil, err
 	}
 
-	res := response.CategoryResponse{
-		UserID: createdCategory.UserID.String(),
-		Name:   createdCategory.Name,
-		Type:   createdCategory.Type,
+	res := models.Category{
+		Base: models.Base{
+			ID: createdCategory.ID,
+		},
+		UserID:  createdCategory.UserID,
+		GroupID: createdCategory.GroupID,
+		Name:    createdCategory.Name,
+		Type:    createdCategory.Type,
 	}
-	if createdCategory.GroupID != nil {
-		res.GroupID = createdCategory.GroupID.String()
-	}
-
 	return &res, nil
 }
 
@@ -222,26 +220,26 @@ func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, page, l
 	return categories, nil
 }
 
-func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*response.CategoryResponse, error) {
+func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*models.Category, error) {
 	category, err := s.repo.FindByID(ctx, categoryID)
 	if err != nil {
 		return nil, errors.New("category not found")
 	}
 
-	res := response.CategoryResponse{
-		ID:     category.ID.String(),
-		UserID: category.UserID.String(),
-		Name:   category.Name,
-		Type:   category.Type,
-	}
-	if category.GroupID != nil {
-		res.GroupID = category.GroupID.String()
+	res := models.Category{
+		Base: models.Base{
+			ID: category.ID,
+		},
+		UserID:  category.UserID,
+		GroupID: category.GroupID,
+		Name:    category.Name,
+		Type:    category.Type,
 	}
 
 	return &res, nil
 }
 
-func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input request.CreateCategoryRequest) (*response.CategoryResponse, error) {
+func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
 	// category, err := s.repo.FindByIDAndUserID(ctx, categoryID, userID)
 	// if err != nil {
 	// 	return nil, errors.New("category not found or unauthorized")
@@ -276,8 +274,8 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uui
 		}
 	}
 
-	if input.GroupID != "" {
-		groupID, err := uuid.Parse(input.GroupID)
+	if input.GroupId != nil {
+		groupID, err := uuid.Parse(*input.GroupId)
 		if err != nil {
 			return nil, errors.New("invalid group id")
 		}
@@ -291,15 +289,14 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uui
 		return nil, err
 	}
 
-	res := response.CategoryResponse{
-		ID:     updatedCategory.ID.String(),
-		UserID: updatedCategory.UserID.String(),
-		// GroupID: updatedCategory.GroupID.String(),
-		Name: updatedCategory.Name,
-		Type: updatedCategory.Type,
-	}
-	if updatedCategory.GroupID != nil {
-		res.GroupID = updatedCategory.GroupID.String()
+	res := models.Category{
+		Base: models.Base{
+			ID: updatedCategory.ID,
+		},
+		UserID:  updatedCategory.UserID,
+		GroupID: updatedCategory.GroupID,
+		Name:    updatedCategory.Name,
+		Type:    updatedCategory.Type,
 	}
 
 	return &res, nil

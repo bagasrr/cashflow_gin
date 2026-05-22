@@ -174,7 +174,32 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 }
 
 func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCategoryRequestObject) (api.DeleteCategoryResponseObject, error) {
-	return api.DeleteCategory200JSONResponse{}, nil
+	userId, err := utils.GetUserID(ctx)
+	if err != nil {
+		return api.DeleteCategory400JSONResponse{
+			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist" + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
+	catId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.DeleteCategory400JSONResponse{
+			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist" + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
+
+	err = c.Service.DeleteById(ctx, userId, catId)
+	if err != nil {
+		return api.DeleteCategory500JSONResponse{
+			Message: utils.StringPtr("Delete Category Failed: " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
+	return api.DeleteCategory200JSONResponse{
+		Message: utils.StringPtr("Delete Category Success"),
+		Status:  utils.BoolPtr(true),
+	}, nil
 }
 
 func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCategoryByIdRequestObject) (api.GetCategoryByIdResponseObject, error) {

@@ -11,8 +11,8 @@ import (
 )
 
 type CategoryService interface {
-	CreateMyDefault(ctx context.Context, input api.CreateCategoryReq) (*models.Category, error)
-	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
+	CreateMyDefault(ctx context.Context, userId uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
+	CreateSystemCategories(ctx context.Context) (*[]models.Category, error)
 	GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, error)
 
 	Create(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
@@ -20,7 +20,7 @@ type CategoryService interface {
 	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error)
 
 	GetById(ctx context.Context, categoryID uuid.UUID) (*models.Category, error)
-	UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
+	UpdateById(ctx context.Context, userID uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error)
 	DeleteById(ctx context.Context, userID, categoryID uuid.UUID) error
 }
 
@@ -34,13 +34,13 @@ func NewCategoryService(r repository.CategoryRepository, gr repository.GroupRepo
 	return &categoryService{repo: r, groupRepo: gr, userRepo: ur}
 }
 
-func (s *categoryService) CreateMyDefault(ctx context.Context, input api.CreateCategoryReq) (*models.Category, error) {
+func (s *categoryService) CreateMyDefault(ctx context.Context, userId uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
 	category := models.Category{
 		Name:   input.Name,
 		Type:   input.Type,
-		UserID: uuid.Nil,
+		UserID: &userId,
 	}
-	err := s.repo.CreateDefault(ctx, &category)
+	err := s.repo.CreateMyDefault(ctx, &category)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input ap
 		category := models.Category{
 			Name:   input.Name,
 			Type:   input.Type,
-			UserID: uuid.Nil,
+			UserID: nil,
 		}
 		createdCategory, err = s.repo.Create(ctx, &category)
 		if err != nil {
@@ -94,7 +94,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input ap
 		// return res, nil
 	} else {
 		category := models.Category{
-			UserID: userID,
+			UserID: &userID,
 			Name:   input.Name,
 			Type:   input.Type,
 		}
@@ -136,8 +136,8 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input ap
 	return &res, nil
 }
 
-func (s *categoryService) CreateDefaultCategories(ctx context.Context) (*[]models.Category, error) {
-	newCategory, err := s.repo.CreateDefaultCategories(ctx)
+func (s *categoryService) CreateSystemCategories(ctx context.Context) (*[]models.Category, error) {
+	newCategory, err := s.repo.CreateSystemCategories(ctx)
 	return newCategory, err
 }
 
@@ -180,7 +180,7 @@ func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.
 
 func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
 	category := models.Category{
-		UserID: userID,
+		UserID: &userID,
 		Name:   input.Name,
 		Type:   input.Type,
 	}
@@ -239,7 +239,7 @@ func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*m
 	return &res, nil
 }
 
-func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
+func (s *categoryService) UpdateById(ctx context.Context, userID uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error) {
 	// category, err := s.repo.FindByIDAndUserID(ctx, categoryID, userID)
 	// if err != nil {
 	// 	return nil, errors.New("category not found or unauthorized")
@@ -255,6 +255,10 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, categoryID uui
 	//   		- Jika ya, boleh mendelete category tersebut
 	//   		- Jika tidak, return error unauthorized
 	// 3. Jika salah satu kondisi di atas terpenuhi, lakukan update pada category tersebut.
+	categoryID, err := uuid.Parse(input.Id)
+	if err != nil {
+		return nil, errors.New("invalid category id")
+	}
 
 	category, err := s.repo.FindByID(ctx, categoryID)
 	if err != nil {

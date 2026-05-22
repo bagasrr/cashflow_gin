@@ -2,7 +2,6 @@ package handler
 
 import (
 	"cashflow_gin/api" // Ini manggil hasil generate YAML (sesuaikan path kalau salah)
-	"cashflow_gin/dto/request"
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
@@ -20,13 +19,6 @@ type CategoryAPI struct {
 // 2. Ini adalah fungsi WAJIB yang dipaksa oleh interface dari hasil oapi-codegen
 func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategoryRequestObject) (api.CreateCategoryResponseObject, error) {
 	// Mapping input dari DTO otomatis ke DTO manual lu
-	reqInput := &request.CreateCategoryRequest{
-		Name: req.Body.Name, // Hati-hati, hasil generate YAML biasanya berupa pointer
-		Type: req.Body.Type,
-	}
-	if req.Body.GroupId != nil {
-		reqInput.GroupID = *req.Body.GroupId
-	}
 
 	userID, err := utils.GetUserID(ctx)
 	log.Printf("UserID di Context: %s", userID)
@@ -40,8 +32,9 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 		}, nil
 	}
 
+	input := *req.Body
 	// Panggil layer Service lu yang lama
-	res, err := c.Service.Create(ctx, userID, *reqInput)
+	res, err := c.Service.Create(ctx, userID, input)
 	if err != nil {
 		// DETEKSI ERROR DUPLIKASI DARI DATABASE
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") ||
@@ -71,7 +64,7 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 	status := true
 	return api.CreateCategory201JSONResponse{
 		Data: &api.CategoryRes{
-			Id:   res.ID,
+			Id:   res.ID.String(),
 			Name: res.Name,
 			Type: res.Type,
 		},
@@ -113,12 +106,13 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 	var res []api.CategoryRes
 	for _, v := range *cat {
 		res = append(res, api.CategoryRes{
-			Id:      v.ID,
-			UserId:  &v.UserID,
-			GroupId: &v.GroupID,
+			Id:      v.ID.String(),
+			GroupId: utils.UUIDPtrToStringPtr(v.GroupID),
+			UserId:  utils.UUIDPtrToStringPtr(v.UserID),
 			Name:    v.Name,
 			Type:    v.Type,
 		})
+
 	}
 	log.Println("✅ Get Categories Success")
 	return api.GetCategories200JSONResponse{
@@ -126,7 +120,7 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 	}, nil
 }
 
-func (c *CategoryAPI) CreateDefaultCategories(ctx context.Context, request api.CreateDefaultCategoriesRequestObject) (api.CreateDefaultCategoriesResponseObject, error) {
+func (c *CategoryAPI) CreateSystemCategories(ctx context.Context, request api.CreateDefaultCategoriesRequestObject) (api.CreateDefaultCategoriesResponseObject, error) {
 	return api.CreateDefaultCategories201JSONResponse{}, nil
 }
 
@@ -199,9 +193,9 @@ func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCatego
 		}, err
 	}
 	res := api.CategoryRes{
-		Id:      cat.ID,
-		UserId:  &cat.UserID,
-		GroupId: &cat.GroupID,
+		Id:      cat.ID.String(),
+		UserId:  utils.UUIDPtrToStringPtr(cat.UserID),
+		GroupId: utils.UUIDPtrToStringPtr(cat.GroupID),
 		Name:    cat.Name,
 		Type:    cat.Type,
 	}
@@ -213,13 +207,31 @@ func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCatego
 }
 
 func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCategoryRequestObject) (api.UpdateCategoryResponseObject, error) {
-	catId, err := uuid.Parse(request.Id)
+	userId, err := utils.GetUserID(ctx)
 	if err != nil {
 		return api.UpdateCategory400JSONResponse{
+			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
 			Status:  utils.BoolPtr(false),
-			Message: utils.StringPtr("Cant Parse Id"),
 		}, err
 	}
-	cat, err := c.Service.UpdateById(ctx, catId)
-	return api.UpdateCategory201JSONResponse{}, nil
+	inputBody := *request.Body
+	cat, err := c.Service.UpdateById(ctx, userId, inputBody)
+	if err != nil {
+		return api.UpdateCategory500JSONResponse{
+			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
+	res := api.CategoryRes{
+		Id:      cat.ID.String(),
+		GroupId: utils.UUIDPtrToStringPtr(cat.GroupID),
+		Name:    cat.Name,
+		Type:    cat.Type,
+		UserId:  utils.UUIDPtrToStringPtr(cat.UserID),
+	}
+	return api.UpdateCategory201JSONResponse{
+		Data:    &res,
+		Message: utils.StringPtr("Update Category Success"),
+		Status:  utils.BoolPtr(true),
+	}, nil
 }

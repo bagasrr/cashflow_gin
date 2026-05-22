@@ -10,8 +10,8 @@ import (
 
 type CategoryRepository interface {
 	Create(ctx context.Context, category *models.Category) (*models.Category, error)
-	CreateDefault(ctx context.Context, cat *models.Category) error
-	CreateDefaultCategories(ctx context.Context) (*[]models.Category, error)
+	CreateMyDefault(ctx context.Context, cat *models.Category) error
+	CreateSystemCategories(ctx context.Context) (*[]models.Category, error)
 	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, error)
 
 	FindByName(ctx context.Context, name string) (*models.Category, error)
@@ -39,11 +39,11 @@ func (r *categoryRepository) FindByID(ctx context.Context, id uuid.UUID) (*model
 	return &category, err
 }
 
-func (r *categoryRepository) CreateDefault(ctx context.Context, cat *models.Category) error {
+func (r *categoryRepository) CreateMyDefault(ctx context.Context, cat *models.Category) error {
 	return r.db.WithContext(ctx).Create(&cat).Error
 }
 
-func (r *categoryRepository) CreateDefaultCategories(ctx context.Context) (*[]models.Category, error) {
+func (r *categoryRepository) CreateSystemCategories(ctx context.Context) (*[]models.Category, error) {
 	categories := []models.Category{
 		{Name: "Salary", Type: "INCOME"},
 		{Name: "Freelance", Type: "INCOME"},

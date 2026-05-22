@@ -96,6 +96,7 @@ type CreateCategoryReq struct {
 	GroupId *string `json:"group_id,omitempty"`
 	Name    string  `json:"name"`
 	Type    string  `json:"type"`
+	UserId  *string `json:"user_id,omitempty"`
 }
 
 // CreateGroupReq defines model for CreateGroupReq.
@@ -202,8 +203,10 @@ type TransactionRes struct {
 
 // UpdateCategoryReq defines model for UpdateCategoryReq.
 type UpdateCategoryReq struct {
-	Name *string `json:"name,omitempty"`
-	Type *string `json:"type,omitempty"`
+	GroupId *string `json:"group_id,omitempty"`
+	Name    string  `json:"name"`
+	Type    string  `json:"type"`
+	UserId  *string `json:"user_id,omitempty"`
 }
 
 // UpdateGroupReq defines model for UpdateGroupReq.

@@ -8,6 +8,8 @@ import (
 	"context"
 	"log"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // 1. Ini struct yang dicari-cari sama server.go lu
@@ -182,7 +184,32 @@ func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCate
 }
 
 func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCategoryByIdRequestObject) (api.GetCategoryByIdResponseObject, error) {
-	return api.GetCategoryById200JSONResponse{}, nil
+	catId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.GetCategoryById400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cant Parse Id"),
+		}, err
+	}
+	cat, err := c.Service.GetById(ctx, catId)
+	if err != nil {
+		return api.GetCategoryById500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cant Get Category"),
+		}, err
+	}
+	res := api.CategoryRes{
+		Id:      cat.ID,
+		UserId:  &cat.UserID,
+		GroupId: &cat.GroupID,
+		Name:    cat.Name,
+		Type:    cat.Type,
+	}
+	return api.GetCategoryById200JSONResponse{
+		Data:    &res,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Get Category Success"),
+	}, nil
 }
 
 func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCategoryRequestObject) (api.UpdateCategoryResponseObject, error) {

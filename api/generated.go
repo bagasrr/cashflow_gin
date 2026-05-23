@@ -298,6 +298,15 @@ type GetCategoriesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// GetSystemCategoriesParams defines parameters for GetSystemCategories.
+type GetSystemCategoriesParams struct {
+	// Page Page number
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// Limit Jumlah data per halaman
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // GetMyCategoriesParams defines parameters for GetMyCategories.
 type GetMyCategoriesParams struct {
 	// Page Page number
@@ -398,7 +407,7 @@ type ServerInterface interface {
 	CreateCategory(c *gin.Context)
 	// Get system Categories
 	// (GET /categories/default)
-	GetSystemCategories(c *gin.Context)
+	GetSystemCategories(c *gin.Context, params GetSystemCategoriesParams)
 	// Create System Categories
 	// (POST /categories/default)
 	CreateSystemCategories(c *gin.Context)
@@ -578,7 +587,28 @@ func (siw *ServerInterfaceWrapper) CreateCategory(c *gin.Context) {
 // GetSystemCategories operation middleware
 func (siw *ServerInterfaceWrapper) GetSystemCategories(c *gin.Context) {
 
+	var err error
+
 	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSystemCategoriesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -587,7 +617,7 @@ func (siw *ServerInterfaceWrapper) GetSystemCategories(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetSystemCategories(c)
+	siw.Handler.GetSystemCategories(c, params)
 }
 
 // CreateSystemCategories operation middleware
@@ -1467,6 +1497,7 @@ func (response CreateCategory500JSONResponse) VisitCreateCategoryResponse(w http
 }
 
 type GetSystemCategoriesRequestObject struct {
+	Params GetSystemCategoriesParams
 }
 
 type GetSystemCategoriesResponseObject interface {
@@ -2810,8 +2841,10 @@ func (sh *strictHandler) CreateCategory(ctx *gin.Context) {
 }
 
 // GetSystemCategories operation middleware
-func (sh *strictHandler) GetSystemCategories(ctx *gin.Context) {
+func (sh *strictHandler) GetSystemCategories(ctx *gin.Context, params GetSystemCategoriesParams) {
 	var request GetSystemCategoriesRequestObject
+
+	request.Params = params
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.GetSystemCategories(ctx, request.(GetSystemCategoriesRequestObject))

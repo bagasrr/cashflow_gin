@@ -1243,6 +1243,21 @@ paths:
       operationId: getSystemCategories
       security:
         - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Jumlah data per halaman
+          required: false
+          schema:
+            type: integer
+            default: 10
       responses:
         "200":
           description: Success

@@ -126,11 +126,11 @@ type ForgotPassword struct {
 
 // GroupBaseRes defines model for GroupBaseRes.
 type GroupBaseRes struct {
-	Description *string            `json:"description,omitempty"`
-	Id          *string            `json:"id,omitempty"`
-	Members     *[]GroupMembersRes `json:"members,omitempty"`
-	Name        *string            `json:"name,omitempty"`
-	Wallet      *WalletRes         `json:"wallet,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	Id          string            `json:"id"`
+	Members     []GroupMembersRes `json:"members"`
+	Name        string            `json:"name"`
+	Wallet      []WalletRes       `json:"wallet"`
 }
 
 // GroupListBaseRes defines model for GroupListBaseRes.
@@ -143,10 +143,10 @@ type GroupListBaseRes struct {
 
 // GroupMembersRes defines model for GroupMembersRes.
 type GroupMembersRes struct {
-	Id       *string `json:"id,omitempty"`
-	Role     *string `json:"role,omitempty"`
-	UserId   *string `json:"userId,omitempty"`
-	Username *string `json:"username,omitempty"`
+	Id       string `json:"id"`
+	Role     string `json:"role"`
+	UserId   string `json:"userId"`
+	Username string `json:"username"`
 }
 
 // LoginReq defines model for LoginReq.
@@ -292,64 +292,64 @@ type WalletRes struct {
 // GetCategoriesParams defines parameters for GetCategories.
 type GetCategoriesParams struct {
 	// Page Page number
-	Page *int `form:"page,omitempty" json:"page,omitempty"`
+	Page int `form:"page" json:"page"`
 
 	// Limit Jumlah data per halaman
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // GetSystemCategoriesParams defines parameters for GetSystemCategories.
 type GetSystemCategoriesParams struct {
 	// Page Page number
-	Page *int `form:"page,omitempty" json:"page,omitempty"`
+	Page int `form:"page" json:"page"`
 
 	// Limit Jumlah data per halaman
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // GetMyCategoriesParams defines parameters for GetMyCategories.
 type GetMyCategoriesParams struct {
 	// Page Page number
-	Page *int `form:"page,omitempty" json:"page,omitempty"`
+	Page int `form:"page" json:"page"`
 
 	// Limit Jumlah data per halaman
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // GetGroupsParams defines parameters for GetGroups.
 type GetGroupsParams struct {
-	Page  *int `form:"page,omitempty" json:"page,omitempty"`
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Page  int `form:"page" json:"page"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // GetMyGroupsParams defines parameters for GetMyGroups.
 type GetMyGroupsParams struct {
-	Page  *int `form:"page,omitempty" json:"page,omitempty"`
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Page  int `form:"page" json:"page"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // GetTransactionsParams defines parameters for GetTransactions.
 type GetTransactionsParams struct {
 	// Page Page number
-	Page *int `form:"page,omitempty" json:"page,omitempty"`
+	Page int `form:"page" json:"page"`
 
 	// Limit Jumlah data per halaman
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // FindAllUsersParams defines parameters for FindAllUsers.
 type FindAllUsersParams struct {
 	// Page Page number
-	Page *int `form:"page,omitempty" json:"page,omitempty"`
+	Page int `form:"page" json:"page"`
 
 	// Limit Jumlah data per halaman
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // GetMyWalletsParams defines parameters for GetMyWallets.
 type GetMyWalletsParams struct {
-	Page  *int `form:"page,omitempty" json:"page,omitempty"`
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Page  int `form:"page" json:"page"`
+	Limit int `form:"limit" json:"limit"`
 }
 
 // ForgotPasswordJSONRequestBody defines body for ForgotPassword for application/json ContentType.
@@ -549,17 +549,31 @@ func (siw *ServerInterfaceWrapper) GetCategories(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetCategoriesParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -600,17 +614,31 @@ func (siw *ServerInterfaceWrapper) GetSystemCategories(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetSystemCategoriesParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -651,17 +679,31 @@ func (siw *ServerInterfaceWrapper) GetMyCategories(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetMyCategoriesParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -765,17 +807,31 @@ func (siw *ServerInterfaceWrapper) GetGroups(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetGroupsParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -814,17 +870,31 @@ func (siw *ServerInterfaceWrapper) GetMyGroups(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetMyGroupsParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -928,17 +998,31 @@ func (siw *ServerInterfaceWrapper) GetTransactions(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetTransactionsParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -1057,17 +1141,31 @@ func (siw *ServerInterfaceWrapper) FindAllUsers(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params FindAllUsersParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return
@@ -1175,17 +1273,31 @@ func (siw *ServerInterfaceWrapper) GetMyWallets(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetMyWalletsParams
 
-	// ------------- Optional query parameter "page" -------------
+	// ------------- Required query parameter "page" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("page"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "limit" -------------
+	// ------------- Required query parameter "limit" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if paramValue := c.Query("limit"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
 		return

@@ -523,6 +523,11 @@ components:
 
     GroupMembersRes:
       type: object
+      required:
+        - id
+        - username
+        - role
+        - userId
       properties:
         id:
           type: string
@@ -538,6 +543,11 @@ components:
           example: "123e4567-e89b-12d3-a456-426655440000"
     GroupBaseRes:
       type: object
+      required:
+        - id
+        - name
+        - wallet
+        - members
       properties:
         id:
           type: string
@@ -549,7 +559,9 @@ components:
           type: string
           example: "Group ini adalah group utama"
         wallet:
-          $ref: "#/components/schemas/WalletRes"
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletRes"
         members:
           type: array
           items:
@@ -698,14 +710,14 @@ paths:
         - name: page
           in: query
           description: Page number
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
           description: Jumlah data per halaman
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -903,14 +915,14 @@ paths:
         - name: page
           in: query
           description: Page number
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
           description: Jumlah data per halaman
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -1161,14 +1173,14 @@ paths:
         - name: page
           in: query
           description: Page number
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
           description: Jumlah data per halaman
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -1204,14 +1216,14 @@ paths:
         - name: page
           in: query
           description: Page number
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
           description: Jumlah data per halaman
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -1247,14 +1259,14 @@ paths:
         - name: page
           in: query
           description: Page number
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
           description: Jumlah data per halaman
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -1471,13 +1483,13 @@ paths:
       parameters:
         - name: page
           in: query
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -1639,13 +1651,13 @@ paths:
       parameters:
         - name: page
           in: query
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
-          required: false
+          required: true
           schema:
             type: integer
             default: 10
@@ -1716,13 +1728,13 @@ paths:
       parameters:
         - name: page
           in: query
-          required: false
+          required: true
           schema:
             type: integer
             default: 1
         - name: limit
           in: query
-          required: false
+          required: true
           schema:
             type: integer
             default: 10

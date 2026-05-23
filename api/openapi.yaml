@@ -164,17 +164,7 @@ components:
               items:
                 $ref: "#/components/schemas/UserRes"
             meta:
-              type: object
-              properties:
-                current_page:
-                  type: integer
-                  example: 1
-                total_pages:
-                  type: integer
-                  example: 5
-                total_items:
-                  type: integer
-                  example: 50
+              $ref: "#/components/schemas/PaginationMeta"
     #--------------- USER END ---------------
     #--------------- WALLET BEGIN -------------
     WalletRes:
@@ -227,17 +217,7 @@ components:
               items:
                 $ref: "#/components/schemas/WalletRes"
             meta:
-              type: object
-              properties:
-                current_page:
-                  type: integer
-                  example: 1
-                total_pages:
-                  type: integer
-                  example: 5
-                total_items:
-                  type: integer
-                  example: 50
+              $ref: "#/components/schemas/PaginationMeta"
 
     CreateWalletReq:
       type: object
@@ -322,17 +302,7 @@ components:
                 $ref: "#/components/schemas/TransactionRes"
 
             meta:
-              type: object
-              properties:
-                current_page:
-                  type: integer
-                  example: 1
-                total_pages:
-                  type: integer
-                  example: 5
-                total_items:
-                  type: integer
-                  example: 50
+              $ref: "#/components/schemas/PaginationMeta"
 
     TxWithWalletBaseRes:
       allOf:
@@ -442,17 +412,7 @@ components:
               items:
                 $ref: "#/components/schemas/CategoryRes"
             meta:
-              type: object
-              properties:
-                current_page:
-                  type: integer
-                  example: 1
-                total_pages:
-                  type: integer
-                  example: 5
-                total_items:
-                  type: integer
-                  example: 50
+              $ref: "#/components/schemas/PaginationMeta"
 
     UpdateCategoryReq:
       type: object
@@ -604,7 +564,24 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/GroupBaseRes"
+            meta:
+              $ref: "#/components/schemas/PaginationMeta"
     #--------------- GROUP END -----------------
+    #--------------- Meta Start -----------------
+        # Tambahkan ini di deretan komponen lu
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        total_pages:
+          type: integer
+          example: 5
+        total_items:
+          type: integer
+          example: 50
+    #--------------- Meta END -----------------
 paths:
   # ==========================================
   # AUTH DOMAIN
@@ -1262,8 +1239,8 @@ paths:
     get:
       tags:
         - Categories
-      summary: Get Default Categories
-      operationId: getDefaultCategories
+      summary: Get system Categories
+      operationId: getSystemCategories
       security:
         - BearerAuth: []
       responses:
@@ -1289,8 +1266,8 @@ paths:
     post:
       tags:
         - Categories
-      summary: Create Default Categories
-      operationId: createDefaultCategories
+      summary: Create System Categories
+      operationId: createSystemCategories
       security:
         - BearerAuth: []
       requestBody:

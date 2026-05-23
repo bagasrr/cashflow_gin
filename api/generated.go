@@ -72,14 +72,10 @@ type CategoryBaseRes struct {
 
 // CategoryListBaseRes defines model for CategoryListBaseRes.
 type CategoryListBaseRes struct {
-	Data    *[]CategoryRes `json:"data,omitempty"`
-	Message *string        `json:"message,omitempty"`
-	Meta    *struct {
-		CurrentPage *int `json:"current_page,omitempty"`
-		TotalItems  *int `json:"total_items,omitempty"`
-		TotalPages  *int `json:"total_pages,omitempty"`
-	} `json:"meta,omitempty"`
-	Status *bool `json:"status,omitempty"`
+	Data    *[]CategoryRes  `json:"data,omitempty"`
+	Message *string         `json:"message,omitempty"`
+	Meta    *PaginationMeta `json:"meta,omitempty"`
+	Status  *bool           `json:"status,omitempty"`
 }
 
 // CategoryRes defines model for CategoryRes.
@@ -141,6 +137,7 @@ type GroupBaseRes struct {
 type GroupListBaseRes struct {
 	Data    *[]GroupBaseRes `json:"data,omitempty"`
 	Message *string         `json:"message,omitempty"`
+	Meta    *PaginationMeta `json:"meta,omitempty"`
 	Status  *bool           `json:"status,omitempty"`
 }
 
@@ -156,6 +153,13 @@ type GroupMembersRes struct {
 type LoginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+// PaginationMeta defines model for PaginationMeta.
+type PaginationMeta struct {
+	CurrentPage *int `json:"current_page,omitempty"`
+	TotalItems  *int `json:"total_items,omitempty"`
+	TotalPages  *int `json:"total_pages,omitempty"`
 }
 
 // RegisterReq defines model for RegisterReq.
@@ -182,12 +186,8 @@ type TransactionBaseRes struct {
 type TransactionListRes struct {
 	Data    *[]TransactionRes `json:"data,omitempty"`
 	Message *string           `json:"message,omitempty"`
-	Meta    *struct {
-		CurrentPage *int `json:"current_page,omitempty"`
-		TotalItems  *int `json:"total_items,omitempty"`
-		TotalPages  *int `json:"total_pages,omitempty"`
-	} `json:"meta,omitempty"`
-	Status *bool `json:"status,omitempty"`
+	Meta    *PaginationMeta   `json:"meta,omitempty"`
+	Status  *bool             `json:"status,omitempty"`
 }
 
 // TransactionRes defines model for TransactionRes.
@@ -249,14 +249,10 @@ type UserBaseRes struct {
 
 // UserListRes defines model for UserListRes.
 type UserListRes struct {
-	Data    *[]UserRes `json:"data,omitempty"`
-	Message *string    `json:"message,omitempty"`
-	Meta    *struct {
-		CurrentPage *int `json:"current_page,omitempty"`
-		TotalItems  *int `json:"total_items,omitempty"`
-		TotalPages  *int `json:"total_pages,omitempty"`
-	} `json:"meta,omitempty"`
-	Status *bool `json:"status,omitempty"`
+	Data    *[]UserRes      `json:"data,omitempty"`
+	Message *string         `json:"message,omitempty"`
+	Meta    *PaginationMeta `json:"meta,omitempty"`
+	Status  *bool           `json:"status,omitempty"`
 }
 
 // UserRes defines model for UserRes.
@@ -277,14 +273,10 @@ type WalletBaseRes struct {
 
 // WalletListBaseRes defines model for WalletListBaseRes.
 type WalletListBaseRes struct {
-	Data    *[]WalletRes `json:"data,omitempty"`
-	Message *string      `json:"message,omitempty"`
-	Meta    *struct {
-		CurrentPage *int `json:"current_page,omitempty"`
-		TotalItems  *int `json:"total_items,omitempty"`
-		TotalPages  *int `json:"total_pages,omitempty"`
-	} `json:"meta,omitempty"`
-	Status *bool `json:"status,omitempty"`
+	Data    *[]WalletRes    `json:"data,omitempty"`
+	Message *string         `json:"message,omitempty"`
+	Meta    *PaginationMeta `json:"meta,omitempty"`
+	Status  *bool           `json:"status,omitempty"`
 }
 
 // WalletRes defines model for WalletRes.
@@ -357,8 +349,8 @@ type RegisterJSONRequestBody = RegisterReq
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
 type CreateCategoryJSONRequestBody = CreateCategoryReq
 
-// CreateDefaultCategoriesJSONRequestBody defines body for CreateDefaultCategories for application/json ContentType.
-type CreateDefaultCategoriesJSONRequestBody = CreateCategoryReq
+// CreateSystemCategoriesJSONRequestBody defines body for CreateSystemCategories for application/json ContentType.
+type CreateSystemCategoriesJSONRequestBody = CreateCategoryReq
 
 // UpdateCategoryJSONRequestBody defines body for UpdateCategory for application/json ContentType.
 type UpdateCategoryJSONRequestBody = UpdateCategoryReq
@@ -404,12 +396,12 @@ type ServerInterface interface {
 	// Buat Kategori Baru
 	// (POST /categories)
 	CreateCategory(c *gin.Context)
-	// Get Default Categories
+	// Get system Categories
 	// (GET /categories/default)
-	GetDefaultCategories(c *gin.Context)
-	// Create Default Categories
+	GetSystemCategories(c *gin.Context)
+	// Create System Categories
 	// (POST /categories/default)
-	CreateDefaultCategories(c *gin.Context)
+	CreateSystemCategories(c *gin.Context)
 	// Get all the user categories
 	// (GET /categories/me)
 	GetMyCategories(c *gin.Context, params GetMyCategoriesParams)
@@ -583,8 +575,8 @@ func (siw *ServerInterfaceWrapper) CreateCategory(c *gin.Context) {
 	siw.Handler.CreateCategory(c)
 }
 
-// GetDefaultCategories operation middleware
-func (siw *ServerInterfaceWrapper) GetDefaultCategories(c *gin.Context) {
+// GetSystemCategories operation middleware
+func (siw *ServerInterfaceWrapper) GetSystemCategories(c *gin.Context) {
 
 	c.Set(BearerAuthScopes, []string{})
 
@@ -595,11 +587,11 @@ func (siw *ServerInterfaceWrapper) GetDefaultCategories(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetDefaultCategories(c)
+	siw.Handler.GetSystemCategories(c)
 }
 
-// CreateDefaultCategories operation middleware
-func (siw *ServerInterfaceWrapper) CreateDefaultCategories(c *gin.Context) {
+// CreateSystemCategories operation middleware
+func (siw *ServerInterfaceWrapper) CreateSystemCategories(c *gin.Context) {
 
 	c.Set(BearerAuthScopes, []string{})
 
@@ -610,7 +602,7 @@ func (siw *ServerInterfaceWrapper) CreateDefaultCategories(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.CreateDefaultCategories(c)
+	siw.Handler.CreateSystemCategories(c)
 }
 
 // GetMyCategories operation middleware
@@ -1262,8 +1254,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/auth/register", wrapper.Register)
 	router.GET(options.BaseURL+"/categories", wrapper.GetCategories)
 	router.POST(options.BaseURL+"/categories", wrapper.CreateCategory)
-	router.GET(options.BaseURL+"/categories/default", wrapper.GetDefaultCategories)
-	router.POST(options.BaseURL+"/categories/default", wrapper.CreateDefaultCategories)
+	router.GET(options.BaseURL+"/categories/default", wrapper.GetSystemCategories)
+	router.POST(options.BaseURL+"/categories/default", wrapper.CreateSystemCategories)
 	router.GET(options.BaseURL+"/categories/me", wrapper.GetMyCategories)
 	router.DELETE(options.BaseURL+"/categories/:id", wrapper.DeleteCategory)
 	router.GET(options.BaseURL+"/categories/:id", wrapper.GetCategoryById)
@@ -1474,69 +1466,69 @@ func (response CreateCategory500JSONResponse) VisitCreateCategoryResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetDefaultCategoriesRequestObject struct {
+type GetSystemCategoriesRequestObject struct {
 }
 
-type GetDefaultCategoriesResponseObject interface {
-	VisitGetDefaultCategoriesResponse(w http.ResponseWriter) error
+type GetSystemCategoriesResponseObject interface {
+	VisitGetSystemCategoriesResponse(w http.ResponseWriter) error
 }
 
-type GetDefaultCategories200JSONResponse CategoryListBaseRes
+type GetSystemCategories200JSONResponse CategoryListBaseRes
 
-func (response GetDefaultCategories200JSONResponse) VisitGetDefaultCategoriesResponse(w http.ResponseWriter) error {
+func (response GetSystemCategories200JSONResponse) VisitGetSystemCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetDefaultCategories401JSONResponse N400BaseRes
+type GetSystemCategories401JSONResponse N400BaseRes
 
-func (response GetDefaultCategories401JSONResponse) VisitGetDefaultCategoriesResponse(w http.ResponseWriter) error {
+func (response GetSystemCategories401JSONResponse) VisitGetSystemCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetDefaultCategories500JSONResponse N500BaseRes
+type GetSystemCategories500JSONResponse N500BaseRes
 
-func (response GetDefaultCategories500JSONResponse) VisitGetDefaultCategoriesResponse(w http.ResponseWriter) error {
+func (response GetSystemCategories500JSONResponse) VisitGetSystemCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateDefaultCategoriesRequestObject struct {
-	Body *CreateDefaultCategoriesJSONRequestBody
+type CreateSystemCategoriesRequestObject struct {
+	Body *CreateSystemCategoriesJSONRequestBody
 }
 
-type CreateDefaultCategoriesResponseObject interface {
-	VisitCreateDefaultCategoriesResponse(w http.ResponseWriter) error
+type CreateSystemCategoriesResponseObject interface {
+	VisitCreateSystemCategoriesResponse(w http.ResponseWriter) error
 }
 
-type CreateDefaultCategories201JSONResponse CategoryBaseRes
+type CreateSystemCategories201JSONResponse CategoryBaseRes
 
-func (response CreateDefaultCategories201JSONResponse) VisitCreateDefaultCategoriesResponse(w http.ResponseWriter) error {
+func (response CreateSystemCategories201JSONResponse) VisitCreateSystemCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateDefaultCategories401JSONResponse N400BaseRes
+type CreateSystemCategories401JSONResponse N400BaseRes
 
-func (response CreateDefaultCategories401JSONResponse) VisitCreateDefaultCategoriesResponse(w http.ResponseWriter) error {
+func (response CreateSystemCategories401JSONResponse) VisitCreateSystemCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateDefaultCategories500JSONResponse N500BaseRes
+type CreateSystemCategories500JSONResponse N500BaseRes
 
-func (response CreateDefaultCategories500JSONResponse) VisitCreateDefaultCategoriesResponse(w http.ResponseWriter) error {
+func (response CreateSystemCategories500JSONResponse) VisitCreateSystemCategoriesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -2566,12 +2558,12 @@ type StrictServerInterface interface {
 	// Buat Kategori Baru
 	// (POST /categories)
 	CreateCategory(ctx context.Context, request CreateCategoryRequestObject) (CreateCategoryResponseObject, error)
-	// Get Default Categories
+	// Get system Categories
 	// (GET /categories/default)
-	GetDefaultCategories(ctx context.Context, request GetDefaultCategoriesRequestObject) (GetDefaultCategoriesResponseObject, error)
-	// Create Default Categories
+	GetSystemCategories(ctx context.Context, request GetSystemCategoriesRequestObject) (GetSystemCategoriesResponseObject, error)
+	// Create System Categories
 	// (POST /categories/default)
-	CreateDefaultCategories(ctx context.Context, request CreateDefaultCategoriesRequestObject) (CreateDefaultCategoriesResponseObject, error)
+	CreateSystemCategories(ctx context.Context, request CreateSystemCategoriesRequestObject) (CreateSystemCategoriesResponseObject, error)
 	// Get all the user categories
 	// (GET /categories/me)
 	GetMyCategories(ctx context.Context, request GetMyCategoriesRequestObject) (GetMyCategoriesResponseObject, error)
@@ -2817,15 +2809,15 @@ func (sh *strictHandler) CreateCategory(ctx *gin.Context) {
 	}
 }
 
-// GetDefaultCategories operation middleware
-func (sh *strictHandler) GetDefaultCategories(ctx *gin.Context) {
-	var request GetDefaultCategoriesRequestObject
+// GetSystemCategories operation middleware
+func (sh *strictHandler) GetSystemCategories(ctx *gin.Context) {
+	var request GetSystemCategoriesRequestObject
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetDefaultCategories(ctx, request.(GetDefaultCategoriesRequestObject))
+		return sh.ssi.GetSystemCategories(ctx, request.(GetSystemCategoriesRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetDefaultCategories")
+		handler = middleware(handler, "GetSystemCategories")
 	}
 
 	response, err := handler(ctx, request)
@@ -2833,8 +2825,8 @@ func (sh *strictHandler) GetDefaultCategories(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetDefaultCategoriesResponseObject); ok {
-		if err := validResponse.VisitGetDefaultCategoriesResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(GetSystemCategoriesResponseObject); ok {
+		if err := validResponse.VisitGetSystemCategoriesResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -2842,11 +2834,11 @@ func (sh *strictHandler) GetDefaultCategories(ctx *gin.Context) {
 	}
 }
 
-// CreateDefaultCategories operation middleware
-func (sh *strictHandler) CreateDefaultCategories(ctx *gin.Context) {
-	var request CreateDefaultCategoriesRequestObject
+// CreateSystemCategories operation middleware
+func (sh *strictHandler) CreateSystemCategories(ctx *gin.Context) {
+	var request CreateSystemCategoriesRequestObject
 
-	var body CreateDefaultCategoriesJSONRequestBody
+	var body CreateSystemCategoriesJSONRequestBody
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.Status(http.StatusBadRequest)
 		ctx.Error(err)
@@ -2855,10 +2847,10 @@ func (sh *strictHandler) CreateDefaultCategories(ctx *gin.Context) {
 	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateDefaultCategories(ctx, request.(CreateDefaultCategoriesRequestObject))
+		return sh.ssi.CreateSystemCategories(ctx, request.(CreateSystemCategoriesRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateDefaultCategories")
+		handler = middleware(handler, "CreateSystemCategories")
 	}
 
 	response, err := handler(ctx, request)
@@ -2866,8 +2858,8 @@ func (sh *strictHandler) CreateDefaultCategories(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(CreateDefaultCategoriesResponseObject); ok {
-		if err := validResponse.VisitCreateDefaultCategoriesResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(CreateSystemCategoriesResponseObject); ok {
+		if err := validResponse.VisitCreateSystemCategoriesResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

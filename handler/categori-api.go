@@ -78,12 +78,12 @@ func (c *CategoryAPI) GetSystemCategories(ctx context.Context, request api.GetSy
 	limitValue := 10
 	pageValue := 1
 
-	if request.Params.Limit != nil {
-		limitValue = *request.Params.Limit
+	if request.Params.Limit != 0 {
+		limitValue = request.Params.Limit
 	}
 
-	if request.Params.Page != nil {
-		pageValue = *request.Params.Page
+	if request.Params.Page != 0 {
+		pageValue = request.Params.Page
 	}
 	_, err := utils.GetUserID(ctx)
 	if err != nil {
@@ -132,12 +132,12 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 	limitValue := 10
 	pageValue := 1
 
-	if request.Params.Limit != nil {
-		limitValue = *request.Params.Limit
+	if request.Params.Limit != 0 {
+		limitValue = request.Params.Limit
 	}
 
-	if request.Params.Page != nil {
-		pageValue = *request.Params.Page
+	if request.Params.Page != 0 {
+		pageValue = request.Params.Page
 	}
 
 	cat, totalItems, err := c.Service.GetAllCategories(ctx, role, limitValue, pageValue)
@@ -216,12 +216,12 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 	pageValue := 1
 	limitValue := 10
 
-	if request.Params.Limit != nil {
-		limitValue = *request.Params.Limit
+	if request.Params.Limit != 0 {
+		limitValue = request.Params.Limit
 	}
 
-	if request.Params.Page != nil {
-		pageValue = *request.Params.Page
+	if request.Params.Page != 0 {
+		pageValue = request.Params.Page
 	}
 	cat, err := c.Service.GetMine(ctx, userID, pageValue, limitValue)
 	if err != nil {

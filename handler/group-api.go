@@ -88,7 +88,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 	}, nil
 }
 
-func (c *GroupAPI) GetMyGroup(ctx context.Context, request api.GetMyGroupsRequestObject) (api.GetMyGroupsResponseObject, error) {
+func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) (api.GetMyGroupsResponseObject, error) {
 
 	return api.GetMyGroups201JSONResponse{}, nil
 }

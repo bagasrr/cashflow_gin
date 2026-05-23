@@ -4,6 +4,7 @@ import (
 	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
+	"cashflow_gin/utils"
 	"context"
 	"errors"
 
@@ -12,7 +13,7 @@ import (
 
 type GroupService interface {
 	CreateGroup(ctx context.Context, ownerID uuid.UUID, input *api.CreateGroupReq) (*models.Group, error)
-	GetAllGroups(ctx context.Context) (*[]models.Group, error)
+	GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, error)
 
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
 	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error)
@@ -97,9 +98,10 @@ func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input
 	return &newGroup, nil
 }
 
-func (s *groupService) GetAllGroups(ctx context.Context) (*[]models.Group, error) {
+func (s *groupService) GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, error) {
 	// Implementasi logika untuk mendapatkan semua grup
-	groups, err := s.repo.GetAllGroups(ctx)
+	_, validLimit, offset := utils.ValidatePagination(page, limit)
+	groups, err := s.repo.GetAllGroups(ctx, validLimit, offset)
 	if err != nil {
 		return nil, err
 	}

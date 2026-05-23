@@ -11,7 +11,7 @@ import (
 
 type GroupRepository interface {
 	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) error
-	GetAllGroups(ctx context.Context) (*[]models.Group, error)
+	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, error)
 
 	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error)
 	IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
@@ -37,7 +37,7 @@ func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, g
 	// GORM akan otomatis menjalankan transaksi ACID untuk semuanya.
 	return r.db.WithContext(ctx).Create(group).Error
 }
-func (r *groupRepository) GetAllGroups(ctx context.Context) (*[]models.Group, error) {
+func (r *groupRepository) GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, error) {
 	var groups []models.Group
 
 	err := r.db.WithContext(ctx).
@@ -48,7 +48,11 @@ func (r *groupRepository) GetAllGroups(ctx context.Context) (*[]models.Group, er
 				FROM group_members
 				WHERE group_members.group_id = groups.id
 			) AS member_count
-		`).Preload("Wallet").Find(&groups).Error
+		`).
+		Preload("Wallet").
+		Preload("Member").
+		Limit(limit).Offset(offset).
+		Find(&groups).Error
 
 	return &groups, err
 }

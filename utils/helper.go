@@ -129,3 +129,22 @@ func UUIDPtrToStringPtr(u *uuid.UUID) *string {
 func IntPtr(i int) *int {
 	return &i
 }
+
+func ValidatePagination(page, limit int) (validPage int, validLimit int, offset int) {
+	// 1. Sanitasi Limit
+	if limit <= 0 {
+		limit = 10 // Default
+	} else if limit > 100 {
+		limit = 100 // Hard-cap maksimal biar server gak jebol
+	}
+
+	// 2. Sanitasi Page
+	if page <= 0 {
+		page = 1
+	}
+
+	// 3. Kalkulasi Offset
+	offset = (page - 1) * limit
+
+	return page, limit, offset
+}

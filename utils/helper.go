@@ -124,3 +124,8 @@ func UUIDPtrToStringPtr(u *uuid.UUID) *string {
 	s := u.String()
 	return &s
 }
+
+// Taruh di utils/helper.go
+func IntPtr(i int) *int {
+	return &i
+}

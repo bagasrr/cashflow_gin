@@ -2,6 +2,7 @@ package handler
 
 import (
 	"cashflow_gin/api" // Ini manggil hasil generate YAML (sesuaikan path kalau salah)
+	"cashflow_gin/models"
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
@@ -73,8 +74,49 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 	}, nil
 }
 
-func (c *CategoryAPI) GetDefaultCategories(ctx context.Context, request api.GetDefaultCategoriesRequestObject) (api.GetDefaultCategoriesResponseObject, error) {
-	return api.GetDefaultCategories200JSONResponse{}, nil
+func (c *CategoryAPI) GetSystemCategories(ctx context.Context, request api.GetSystemCategoriesRequestObject) (api.GetSystemCategoriesResponseObject, error) {
+	limitValue := 10
+	pageValue := 1
+
+	if request.Params.Limit != nil {
+		limitValue = *request.Params.Limit
+	}
+
+	if request.Params.Page != nil {
+		pageValue = *request.Params.Page
+	}
+	_, err := utils.GetUserID(ctx)
+	if err != nil {
+		return api.GetSystemCategories500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
+		}, err
+	}
+	cat, totalItems, err := c.Service.GetSystemCategories(ctx, limitValue, pageValue)
+
+	var res []api.CategoryRes
+	for _, v := range *cat {
+		res = append(res, api.CategoryRes{
+			Id:      v.ID.String(),
+			GroupId: utils.UUIDPtrToStringPtr(v.GroupID),
+			UserId:  utils.UUIDPtrToStringPtr(v.UserID),
+			Name:    v.Name,
+			Type:    v.Type,
+		})
+	}
+
+	totalPages := (int(totalItems) + limitValue - 1) / limitValue
+
+	return api.GetSystemCategories200JSONResponse{
+		Data:    &res,
+		Message: utils.StringPtr("Get Categories Success"),
+		Status:  utils.BoolPtr(true),
+		Meta: &api.PaginationMeta{
+			CurrentPage: utils.IntPtr(pageValue),
+			TotalItems:  utils.IntPtr(int(totalItems)),
+			TotalPages:  utils.IntPtr(totalPages),
+		},
+	}, nil
 }
 
 func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategoriesRequestObject) (api.GetCategoriesResponseObject, error) {
@@ -97,12 +139,14 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 	if request.Params.Page != nil {
 		pageValue = *request.Params.Page
 	}
-	cat, err := c.Service.GetAllCategories(ctx, role, limitValue, pageValue)
+
+	cat, totalItems, err := c.Service.GetAllCategories(ctx, role, limitValue, pageValue)
 	if err != nil {
 		status := false
 		msg := "Gagal Database: " + err.Error()
 		return api.GetCategories500JSONResponse{Status: &status, Message: &msg}, nil
 	}
+
 	var res []api.CategoryRes
 	for _, v := range *cat {
 		res = append(res, api.CategoryRes{
@@ -112,16 +156,50 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 			Name:    v.Name,
 			Type:    v.Type,
 		})
-
 	}
+
+	totalPages := (int(totalItems) + limitValue - 1) / limitValue
+
 	log.Println("✅ Get Categories Success")
+
+	// CARA INISIALISASI ANONYMOUS STRUCT POINTER
 	return api.GetCategories200JSONResponse{
-		Data: &res,
+		Data:    &res,
+		Message: utils.StringPtr("Get Categories Success"),
+		Status:  utils.BoolPtr(true),
+		Meta: &api.PaginationMeta{
+			CurrentPage: utils.IntPtr(pageValue),
+			TotalItems:  utils.IntPtr(int(totalItems)),
+			TotalPages:  utils.IntPtr(totalPages),
+		},
 	}, nil
 }
 
-func (c *CategoryAPI) CreateSystemCategories(ctx context.Context, request api.CreateDefaultCategoriesRequestObject) (api.CreateDefaultCategoriesResponseObject, error) {
-	return api.CreateDefaultCategories201JSONResponse{}, nil
+func (c *CategoryAPI) CreateSystemCategories(ctx context.Context, request api.CreateSystemCategoriesRequestObject) (api.CreateSystemCategoriesResponseObject, error) {
+	_, role, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.CreateSystemCategories401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
+		}, err
+	}
+	if role != models.RoleAdmin {
+		return api.CreateSystemCategories401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Access Denied : Only System Admin can run this endpoint"),
+		}, err
+	}
+	err = c.Service.CreateSystemCategories(ctx)
+	if err != nil {
+		return api.CreateSystemCategories500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
+		}, err
+	}
+	return api.CreateSystemCategories201JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Create Default System Categories Success"),
+	}, nil
 }
 
 func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCategoriesRequestObject) (api.GetMyCategoriesResponseObject, error) {
@@ -239,8 +317,15 @@ func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCate
 			Status:  utils.BoolPtr(false),
 		}, err
 	}
+	catId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.UpdateCategory400JSONResponse{
+			Message: utils.StringPtr("Tidak Bisa Mendapatkan :id " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
 	inputBody := *request.Body
-	cat, err := c.Service.UpdateById(ctx, userId, inputBody)
+	cat, err := c.Service.UpdateById(ctx, userId, catId, inputBody)
 	if err != nil {
 		return api.UpdateCategory500JSONResponse{
 			Message: utils.StringPtr("Gagal Auth: " + err.Error()),

@@ -322,6 +322,12 @@ type GetGroupsParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// GetMyGroupsParams defines parameters for GetMyGroups.
+type GetMyGroupsParams struct {
+	Page  *int `form:"page,omitempty" json:"page,omitempty"`
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // GetTransactionsParams defines parameters for GetTransactions.
 type GetTransactionsParams struct {
 	// Page Page number
@@ -357,9 +363,6 @@ type RegisterJSONRequestBody = RegisterReq
 
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
 type CreateCategoryJSONRequestBody = CreateCategoryReq
-
-// CreateSystemCategoriesJSONRequestBody defines body for CreateSystemCategories for application/json ContentType.
-type CreateSystemCategoriesJSONRequestBody = CreateCategoryReq
 
 // UpdateCategoryJSONRequestBody defines body for UpdateCategory for application/json ContentType.
 type UpdateCategoryJSONRequestBody = UpdateCategoryReq
@@ -429,6 +432,9 @@ type ServerInterface interface {
 	// Create New Group
 	// (POST /groups)
 	CreateGroup(c *gin.Context)
+	// Get My Groups by login user
+	// (GET /groups/me)
+	GetMyGroups(c *gin.Context, params GetMyGroupsParams)
 	// Delete Group By ID (soft)
 	// (DELETE /groups/{id})
 	DeleteGroup(c *gin.Context, id string)
@@ -796,6 +802,42 @@ func (siw *ServerInterfaceWrapper) CreateGroup(c *gin.Context) {
 	}
 
 	siw.Handler.CreateGroup(c)
+}
+
+// GetMyGroups operation middleware
+func (siw *ServerInterfaceWrapper) GetMyGroups(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMyGroupsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMyGroups(c, params)
 }
 
 // DeleteGroup operation middleware
@@ -1292,6 +1334,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/categories/:id", wrapper.UpdateCategory)
 	router.GET(options.BaseURL+"/groups", wrapper.GetGroups)
 	router.POST(options.BaseURL+"/groups", wrapper.CreateGroup)
+	router.GET(options.BaseURL+"/groups/me", wrapper.GetMyGroups)
 	router.DELETE(options.BaseURL+"/groups/:id", wrapper.DeleteGroup)
 	router.GET(options.BaseURL+"/groups/:id", wrapper.GetGroupById)
 	router.PUT(options.BaseURL+"/groups/:id", wrapper.UpdateGroup)
@@ -1532,7 +1575,6 @@ func (response GetSystemCategories500JSONResponse) VisitGetSystemCategoriesRespo
 }
 
 type CreateSystemCategoriesRequestObject struct {
-	Body *CreateSystemCategoriesJSONRequestBody
 }
 
 type CreateSystemCategoriesResponseObject interface {
@@ -1798,6 +1840,41 @@ func (response CreateGroup401JSONResponse) VisitCreateGroupResponse(w http.Respo
 type CreateGroup500JSONResponse N500BaseRes
 
 func (response CreateGroup500JSONResponse) VisitCreateGroupResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyGroupsRequestObject struct {
+	Params GetMyGroupsParams
+}
+
+type GetMyGroupsResponseObject interface {
+	VisitGetMyGroupsResponse(w http.ResponseWriter) error
+}
+
+type GetMyGroups201JSONResponse GroupListBaseRes
+
+func (response GetMyGroups201JSONResponse) VisitGetMyGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyGroups401JSONResponse N400BaseRes
+
+func (response GetMyGroups401JSONResponse) VisitGetMyGroupsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyGroups500JSONResponse N500BaseRes
+
+func (response GetMyGroups500JSONResponse) VisitGetMyGroupsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -2613,6 +2690,9 @@ type StrictServerInterface interface {
 	// Create New Group
 	// (POST /groups)
 	CreateGroup(ctx context.Context, request CreateGroupRequestObject) (CreateGroupResponseObject, error)
+	// Get My Groups by login user
+	// (GET /groups/me)
+	GetMyGroups(ctx context.Context, request GetMyGroupsRequestObject) (GetMyGroupsResponseObject, error)
 	// Delete Group By ID (soft)
 	// (DELETE /groups/{id})
 	DeleteGroup(ctx context.Context, request DeleteGroupRequestObject) (DeleteGroupResponseObject, error)
@@ -2871,14 +2951,6 @@ func (sh *strictHandler) GetSystemCategories(ctx *gin.Context, params GetSystemC
 func (sh *strictHandler) CreateSystemCategories(ctx *gin.Context) {
 	var request CreateSystemCategoriesRequestObject
 
-	var body CreateSystemCategoriesJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.CreateSystemCategories(ctx, request.(CreateSystemCategoriesRequestObject))
 	}
@@ -3069,6 +3141,33 @@ func (sh *strictHandler) CreateGroup(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(CreateGroupResponseObject); ok {
 		if err := validResponse.VisitCreateGroupResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyGroups operation middleware
+func (sh *strictHandler) GetMyGroups(ctx *gin.Context, params GetMyGroupsParams) {
+	var request GetMyGroupsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyGroups(ctx, request.(GetMyGroupsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyGroups")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMyGroupsResponseObject); ok {
+		if err := validResponse.VisitGetMyGroupsResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

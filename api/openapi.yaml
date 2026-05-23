@@ -1285,12 +1285,6 @@ paths:
       operationId: createSystemCategories
       security:
         - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateCategoryReq"
       responses:
         "201":
           description: Created
@@ -1713,6 +1707,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
+  /groups/me:
+    get:
+      tags:
+        - Groups
+      summary: Get My Groups by login user
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      operationId: getMyGroups
+      security:
+        - BearerAuth: [ ]
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupListBaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
   /groups/{id}:
     get:
       tags:

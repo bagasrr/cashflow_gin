@@ -12,15 +12,16 @@ import (
 
 type CategoryService interface {
 	CreateMyDefault(ctx context.Context, userId uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
-	CreateSystemCategories(ctx context.Context) (*[]models.Category, error)
-	GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, error)
+	CreateSystemCategories(ctx context.Context) error
+	GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, int64, error)
+	GetSystemCategories(ctx context.Context, limit, page int) (*[]models.Category, int64, error)
 
 	Create(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
 	CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
 	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error)
 
 	GetById(ctx context.Context, categoryID uuid.UUID) (*models.Category, error)
-	UpdateById(ctx context.Context, userID uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error)
+	UpdateById(ctx context.Context, userID, catId uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error)
 	DeleteById(ctx context.Context, userID, categoryID uuid.UUID) error
 }
 
@@ -136,20 +137,21 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input ap
 	return &res, nil
 }
 
-func (s *categoryService) CreateSystemCategories(ctx context.Context) (*[]models.Category, error) {
-	newCategory, err := s.repo.CreateSystemCategories(ctx)
-	return newCategory, err
+func (s *categoryService) CreateSystemCategories(ctx context.Context) error {
+	err := s.repo.CreateSystemCategories(ctx)
+	return err
 }
 
-func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, error) {
+// Tanda tangan fungsi berubah: nambahin return 'int64' buat totalItems
+func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.UserRole, limit, page int) (*[]models.Category, int64, error) {
 	if userRole > models.RoleModerator {
-		return nil, errors.New("forbidden: access is denied")
+		return nil, 0, errors.New("forbidden: access is denied")
 	}
 
-	if limit == 0 {
+	if limit <= 0 { // Langsung tangkap angka minus juga pakai <=
 		limit = 10
 	}
-	if page == 0 {
+	if page <= 0 {
 		page = 1
 	}
 	if limit > 100 {
@@ -157,25 +159,29 @@ func (s *categoryService) GetAllCategories(ctx context.Context, userRole models.
 	}
 	offset := (page - 1) * limit
 
-	cat, err := s.repo.FindAll(ctx, limit, offset)
+	// Panggil Repo yang sekarang mengembalikan 3 nilai
+	cat, totalItems, err := s.repo.FindAll(ctx, limit, offset)
 	if err != nil {
-		return nil, err
-	}
-	var res []models.Category
-	for _, category := range *cat {
-		r := models.Category{
-			Base: models.Base{
-				ID: category.ID,
-			},
-			UserID:  category.UserID,
-			GroupID: category.GroupID,
-			Name:    category.Name,
-			Type:    category.Type,
-		}
-		res = append(res, r)
+		return nil, 0, err
 	}
 
-	return &res, err
+	// RETURN LANGSUNG. Jangan pakai looping sampah.
+	return cat, totalItems, nil
+}
+
+func (s *categoryService) GetSystemCategories(ctx context.Context, limit, page int) (*[]models.Category, int64, error) {
+	if limit <= 0 { // Langsung tangkap angka minus juga pakai <=
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := (page - 1) * limit
+	cat, totalItems, err := s.repo.GetSystemCategories(ctx, limit, offset)
+	return cat, totalItems, err
 }
 
 func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
@@ -197,17 +203,7 @@ func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input 
 	if err != nil {
 		return nil, err
 	}
-
-	res := models.Category{
-		Base: models.Base{
-			ID: createdCategory.ID,
-		},
-		UserID:  createdCategory.UserID,
-		GroupID: createdCategory.GroupID,
-		Name:    createdCategory.Name,
-		Type:    createdCategory.Type,
-	}
-	return &res, nil
+	return createdCategory, nil
 }
 
 func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error) {
@@ -239,7 +235,7 @@ func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*m
 	return &res, nil
 }
 
-func (s *categoryService) UpdateById(ctx context.Context, userID uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error) {
+func (s *categoryService) UpdateById(ctx context.Context, userID, catId uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error) {
 	// category, err := s.repo.FindByIDAndUserID(ctx, categoryID, userID)
 	// if err != nil {
 	// 	return nil, errors.New("category not found or unauthorized")
@@ -255,12 +251,8 @@ func (s *categoryService) UpdateById(ctx context.Context, userID uuid.UUID, inpu
 	//   		- Jika ya, boleh mendelete category tersebut
 	//   		- Jika tidak, return error unauthorized
 	// 3. Jika salah satu kondisi di atas terpenuhi, lakukan update pada category tersebut.
-	categoryID, err := uuid.Parse(input.Id)
-	if err != nil {
-		return nil, errors.New("invalid category id")
-	}
 
-	category, err := s.repo.FindByID(ctx, categoryID)
+	category, err := s.repo.FindByID(ctx, catId)
 	if err != nil {
 		return nil, errors.New("category not found")
 	}
@@ -333,7 +325,7 @@ func (s *categoryService) DeleteById(ctx context.Context, userID, categoryID uui
 		}
 	}
 
-	if cat.UserID != userID {
+	if cat.UserID != &userID {
 		return errors.New("unauthorized: user is not the owner of the category")
 	}
 

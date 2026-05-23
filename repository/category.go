@@ -9,10 +9,12 @@ import (
 )
 
 type CategoryRepository interface {
+	CreateSystemCategories(ctx context.Context) error
+	GetSystemCategories(ctx context.Context, limit, offset int) (*[]models.Category, int64, error)
+
 	Create(ctx context.Context, category *models.Category) (*models.Category, error)
 	CreateMyDefault(ctx context.Context, cat *models.Category) error
-	CreateSystemCategories(ctx context.Context) (*[]models.Category, error)
-	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, error)
+	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, int64, error)
 
 	FindByName(ctx context.Context, name string) (*models.Category, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Category, error)
@@ -43,7 +45,29 @@ func (r *categoryRepository) CreateMyDefault(ctx context.Context, cat *models.Ca
 	return r.db.WithContext(ctx).Create(&cat).Error
 }
 
-func (r *categoryRepository) CreateSystemCategories(ctx context.Context) (*[]models.Category, error) {
+func (r *categoryRepository) CreateSystemCategories(ctx context.Context) error {
+	var count int64
+
+	// 1. GERBANG PENGECEKAN (O(1) Query)
+	// Cek apakah tabel sudah punya kategori sistem (user_id IS NULL)
+	err := r.db.WithContext(ctx).
+		Model(&models.Category{}).
+		Where("user_id IS NULL").
+		Count(&count).Error
+
+	if err != nil {
+		return err
+	}
+
+	// 2. LOGIKA PENANGKAL
+	// Kalau datanya udah ada (count > 0), langsung keluar. Jangan lanjut insert.
+	if count > 0 {
+		// Lu bisa return nil (menganggap seeding sudah sukses di masa lalu)
+		// atau return error kalau lu emang mau ngasih warning keras.
+		return nil
+	}
+
+	// 3. EKSEKUSI INSERT
 	categories := []models.Category{
 		{Name: "Salary", Type: "INCOME"},
 		{Name: "Freelance", Type: "INCOME"},
@@ -59,16 +83,59 @@ func (r *categoryRepository) CreateSystemCategories(ctx context.Context) (*[]mod
 		{Name: "Transport", Type: "EXPENSE"},
 		{Name: "Entertainment", Type: "EXPENSE"},
 	}
-	return &categories, r.db.WithContext(ctx).Create(&categories).Error
+
+	// Gunakan pointer nil untuk UserID dan GroupID (karena ini kategori sistem)
+	for i := range categories {
+		categories[i].UserID = nil
+		categories[i].GroupID = nil
+	}
+
+	return r.db.WithContext(ctx).Create(&categories).Error
 }
 
-func (r *categoryRepository) FindAll(ctx context.Context, limit int, offset int) (*[]models.Category, error) {
+// Tanda tangan fungsi WAJIB diubah untuk me-return totalItems (int64)
+func (r *categoryRepository) GetSystemCategories(ctx context.Context, limit, offset int) (*[]models.Category, int64, error) {
 	var categories []models.Category
-	err := r.db.WithContext(ctx).
-		Limit(limit).
-		Offset(offset).
-		Find(&categories).Error
-	return &categories, err
+	var totalItems int64
+
+	// 1. Definisikan tabel dan filter utama terlebih dahulu (Sebelum dieksekusi!)
+	// Gunakan "IS NULL" karena Kategori Sistem/Default tidak punya pemilik.
+	query := r.db.WithContext(ctx).Model(&models.Category{}).Where("user_id IS NULL")
+
+	// 2. Eksekusi COUNT untuk mendapatkan total keseluruhan data (wajib untuk paginasi Meta)
+	if err := query.Count(&totalItems).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 3. Eksekusi FIND dengan Limit dan Offset untuk mengambil data di halaman ini saja
+	if err := query.Limit(limit).Offset(offset).Find(&categories).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Kembalikan 3 nilai: Data, Total Data, dan Error
+	return &categories, totalItems, nil
+}
+
+// Tanda tangan fungsi berubah: nambahin return 'int64' buat totalItems
+func (r *categoryRepository) FindAll(ctx context.Context, limit int, offset int) (*[]models.Category, int64, error) {
+	var categories []models.Category
+	var totalItems int64
+
+	// 1. Definisikan tabel base-nya (Model)
+	query := r.db.WithContext(ctx).Model(&models.Category{})
+
+	// 2. Eksekusi perhitungan TOTAL KESELURUHAN (tanpa limit/offset)
+	if err := query.Count(&totalItems).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 3. Eksekusi pencarian data untuk HALAMAN INI (dengan limit/offset)
+	if err := query.Limit(limit).Offset(offset).Find(&categories).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Kembalikan datanya dan angka totalItems-nya
+	return &categories, totalItems, nil
 }
 
 func (r *categoryRepository) FindByName(ctx context.Context, name string) (*models.Category, error) {

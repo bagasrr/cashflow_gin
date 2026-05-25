@@ -26,8 +26,8 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			Status:  utils.BoolPtr(false),
 		}, err
 	}
-	limit, page, offset := utils.ValidatePagination()
-	groups, err := c.Service.GetAllGroups(ctx, limit, offset)
+	limit, page, offset := utils.ValidatePagination(request.Params.Limit, request.Params.Page)
+	groups, totalItem, err := c.Service.GetAllGroups(ctx, limit, offset)
 	if err != nil {
 		return api.GetGroups500JSONResponse{
 			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
@@ -79,16 +79,22 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 		})
 	}
 
+	totalPages := (int(totalItem) + limit - 1) / limit
 	// 5. KEMBALIKAN RESPONSE 200 (Bukan 201, GET itu 200 Success)
 	return api.GetGroups201JSONResponse{
 		Data:    &res,
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Get Group Success"),
+		Meta: &api.PaginationMeta{
+			CurrentPage: utils.IntPtr(page),
+			TotalPages:  utils.IntPtr(totalPages),
+			TotalItems:  utils.IntPtr(int(totalItem)),
+		},
 	}, nil
 }
 
 func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) (api.GetMyGroupsResponseObject, error) {
-	userId, userRole, err := utils.GetUserInfo(ctx)
+	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.GetMyGroups401JSONResponse{
 			Message: utils.StringPtr("Failed to get user info : " + err.Error()),
@@ -115,13 +121,15 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 			Members:     []api.GroupMembersRes{},
 		})
 	}
+	totalPages := (int(totalData) + limit - 1) / limit
+
 	return api.GetMyGroups201JSONResponse{
 		Message: utils.StringPtr("Get Group Success"),
 		Data:    &res,
 		Status:  utils.BoolPtr(true),
 		Meta: &api.PaginationMeta{
-			CurrentPage: utils.IntPtr(int(limit)),
-			TotalPages:  utils.IntPtr(int(totalData)),
+			CurrentPage: utils.IntPtr(limit),
+			TotalPages:  utils.IntPtr(totalPages),
 			TotalItems:  utils.IntPtr(int(totalData)),
 		},
 	}, nil

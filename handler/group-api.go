@@ -26,9 +26,8 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			Status:  utils.BoolPtr(false),
 		}, err
 	}
-	page := request.Params.Page
-	limit := request.Params.Limit
-	groups, err := c.Service.GetAllGroups(ctx, limit, page)
+	limit, page, offset := utils.ValidatePagination()
+	groups, err := c.Service.GetAllGroups(ctx, limit, offset)
 	if err != nil {
 		return api.GetGroups500JSONResponse{
 			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
@@ -89,8 +88,43 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 }
 
 func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) (api.GetMyGroupsResponseObject, error) {
+	userId, userRole, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.GetMyGroups401JSONResponse{
+			Message: utils.StringPtr("Failed to get user info : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
+	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
 
-	return api.GetMyGroups201JSONResponse{}, nil
+	myGroups, totalData, err := c.Service.GetMyGroups(ctx, page, offset, userId)
+
+	if err != nil {
+		return api.GetMyGroups500JSONResponse{
+			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}, err
+	}
+	var res []api.GroupBaseRes
+	for _, group := range *myGroups {
+		res = append(res, api.GroupBaseRes{
+			Id:          group.ID.String(),
+			Name:        group.Name,
+			Description: utils.StringPtr(group.Description),
+			Wallet:      []api.WalletRes{},
+			Members:     []api.GroupMembersRes{},
+		})
+	}
+	return api.GetMyGroups201JSONResponse{
+		Message: utils.StringPtr("Get Group Success"),
+		Data:    &res,
+		Status:  utils.BoolPtr(true),
+		Meta: &api.PaginationMeta{
+			CurrentPage: utils.IntPtr(int(limit)),
+			TotalPages:  utils.IntPtr(int(totalData)),
+			TotalItems:  utils.IntPtr(int(totalData)),
+		},
+	}, nil
 }
 
 func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) (api.CreateGroupResponseObject, error) {

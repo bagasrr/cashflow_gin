@@ -11,7 +11,8 @@ import (
 
 type GroupRepository interface {
 	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) error
-	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, error)
+	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error)
+	GetMyGroups(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Group, int64, error)
 
 	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error)
 	IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
@@ -37,24 +38,58 @@ func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, g
 	// GORM akan otomatis menjalankan transaksi ACID untuk semuanya.
 	return r.db.WithContext(ctx).Create(group).Error
 }
-func (r *groupRepository) GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, error) {
+func (r *groupRepository) GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error) {
 	var groups []models.Group
+	var totalData int64
 
-	err := r.db.WithContext(ctx).
-		Table("groups").
-		Select(`
-			groups.*,(
-				SELECT COUNT(*)
-				FROM group_members
-				WHERE group_members.group_id = groups.id
-			) AS member_count
-		`).
+	// 1. Bangun fondasi query
+	query := r.db.WithContext(ctx).Model(&models.Group{})
+
+	// 2. Eksekusi Count
+	if err := query.Count(&totalData).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 3. Eksekusi pencarian dengan Select, Preload (perbaiki typo), dan Limit
+	err := query.
+		Select(`groups.*, (SELECT COUNT(*) FROM group_members WHERE group_members.group_id = groups.id) AS member_count`).
 		Preload("Wallet").
-		Preload("Member").
+		Preload("Members"). // UBAH KE "Members"
 		Limit(limit).Offset(offset).
 		Find(&groups).Error
 
-	return &groups, err
+	return &groups, totalData, err
+}
+
+// Pastikan lu me-return int64 untuk totalItems demi paginasi Handler lu
+func (r *groupRepository) GetMyGroups(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Group, int64, error) {
+	var groups []models.Group
+	var totalItems int64
+
+	// 1. BANGUN JEMBATAN QUERY (INNER JOIN)
+	// Kita menyuruh Postgres menggabungkan tabel groups dan group_members
+	// lalu memfilternya berdasarkan user_id yang ada di group_members.
+	query := r.db.WithContext(ctx).
+		Model(&models.Group{}).
+		Joins("JOIN group_members ON group_members.group_id = groups.id").
+		Where("group_members.user_id = ?", userID)
+
+	// 2. HITUNG TOTAL DATA (Sebelum kena Limit/Offset)
+	if err := query.Count(&totalItems).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 3. TARIK DATA HALAMAN INI + PRELOAD
+	// Preload "Wallet" lu panggil KALAU API List Groups lu butuh nampilin dompet.
+	// Jangan Preload "Members" di daftar List Groups, itu bakal bikin query berat
+	// (N+1 problem). Detail member cukup dipanggil di API GetGroupByID.
+	if err := query.Limit(limit).Offset(offset).
+		Find(&groups).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 4. KEMBALIKAN ALAMAT MEMORI DAN TOTAL DATA
+	return &groups, totalItems, nil
 }
 
 func (r *groupRepository) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error) {

@@ -13,8 +13,9 @@ import (
 
 type GroupService interface {
 	CreateGroup(ctx context.Context, ownerID uuid.UUID, input *api.CreateGroupReq) (*models.Group, error)
-	GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, error)
+	GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, int64, error)
 
+	GetMyGroups(ctx context.Context, limit, offset int, userId uuid.UUID) (*[]models.Group, int64, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
 	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error)
 	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
@@ -98,15 +99,27 @@ func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input
 	return &newGroup, nil
 }
 
-func (s *groupService) GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, error) {
-	// Implementasi logika untuk mendapatkan semua grup
+// UBAH TANDA TANGAN: kembalikan int64 murni untuk diserahkan ke Handler
+func (s *groupService) GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, int64, error) {
 	_, validLimit, offset := utils.ValidatePagination(page, limit)
-	groups, err := s.repo.GetAllGroups(ctx, validLimit, offset)
+
+	// Tarik data dan total baris dari Repo
+	groups, totalData, err := s.repo.GetAllGroups(ctx, validLimit, offset)
 	if err != nil {
-		return nil, err
+		// KEMBALIKAN 3 NILAI: nil untuk struct, 0 untuk angka, dan err
+		return nil, 0, err
 	}
 
-	return groups, nil
+	// KEMBALIKAN LANGSUNG. Biarkan Handler yang pusing ngurusin kalkulasi halaman UI.
+	return groups, totalData, nil
+}
+
+func (s *groupService) GetMyGroups(ctx context.Context, limit, offset int, userId uuid.UUID) (*[]models.Group, int64, error) {
+	groups, totalData, err := s.repo.GetMyGroups(ctx, userId, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return groups, totalData, nil
 }
 
 func (s *groupService) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error) {

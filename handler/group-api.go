@@ -101,8 +101,8 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 			Status:  utils.BoolPtr(false),
 		}, err
 	}
-	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
 
+	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
 	myGroups, totalData, err := c.Service.GetMyGroups(ctx, page, offset, userId)
 
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
-	"cashflow_gin/utils"
 	"context"
 	"errors"
 
@@ -13,7 +12,7 @@ import (
 
 type GroupService interface {
 	CreateGroup(ctx context.Context, ownerID uuid.UUID, input *api.CreateGroupReq) (*models.Group, error)
-	GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, int64, error)
+	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error)
 
 	GetMyGroups(ctx context.Context, limit, offset int, userId uuid.UUID) (*[]models.Group, int64, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
@@ -100,11 +99,9 @@ func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input
 }
 
 // UBAH TANDA TANGAN: kembalikan int64 murni untuk diserahkan ke Handler
-func (s *groupService) GetAllGroups(ctx context.Context, page, limit int) (*[]models.Group, int64, error) {
-	_, validLimit, offset := utils.ValidatePagination(page, limit)
-
+func (s *groupService) GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error) {
 	// Tarik data dan total baris dari Repo
-	groups, totalData, err := s.repo.GetAllGroups(ctx, validLimit, offset)
+	groups, totalData, err := s.repo.GetAllGroups(ctx, limit, offset)
 	if err != nil {
 		// KEMBALIKAN 3 NILAI: nil untuk struct, 0 untuk angka, dan err
 		return nil, 0, err

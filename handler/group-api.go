@@ -160,21 +160,18 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 	res.Id = createdGroup.ID.String()
 	res.Name = createdGroup.Name
 	res.Description = utils.StringPtr(createdGroup.Description)
-
-	// 2. MAPPING WALLET (Jembatan dari Array DB ke Single Object API)
-	// Validasi panjang array untuk menghindari Panic jika DB gagal insert Wallet
-	if len(createdGroup.Wallet) > 0 {
-		w := createdGroup.Wallet[0] // Ambil index pertama secara mutlak
-		res.Wallet = api.WalletRes{
+	var walletRes []api.WalletRes
+	for _, w := range createdGroup.Wallet {
+		walletRes = append(walletRes, api.WalletRes{
 			Id:               w.ID.String(),
 			Name:             w.Name,
 			Balance:          w.Balance,
 			TransactionCount: w.TransactionCount,
 			GroupId:          utils.UUIDPtrToStringPtr(w.GroupID),
-			Transactions:     []api.TransactionRes{}, // Dompet baru pastinya nol transaksi
-		}
+			// Set array kosong biar response JSON lu gak ngeluarin 'null'
+			Transactions: []api.TransactionRes{},
+		})
 	}
-
 	// 3. MAPPING MEMBERS
 	var membersRes []api.GroupMembersRes
 	for _, m := range createdGroup.Members {

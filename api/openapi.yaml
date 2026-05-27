@@ -1863,7 +1863,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GroupBaseRes"
+                $ref: "#/components/schemas/SuccessBaseRes"
         "400":
           description: Bad Request
           content:

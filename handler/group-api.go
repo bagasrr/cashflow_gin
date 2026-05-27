@@ -6,33 +6,38 @@ import (
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type GroupAPI struct {
 	Service services.GroupService
 }
 
-func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestObject) (api.GetGroupsResponseObject, error) {
+func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestObject) api.GetGroupsResponseObject {
 	_, role, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.GetGroups401JSONResponse{
+			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get user info : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}
 	}
 	if role != models.RoleAdmin {
 		return api.GetGroups401JSONResponse{
+			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("You do not have access to this resource"),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}
 	}
 	limit, page, offset := utils.ValidatePagination(request.Params.Limit, request.Params.Page)
 	groups, totalItem, err := c.Service.GetAllGroups(ctx, limit, offset)
 	if err != nil {
 		return api.GetGroups500JSONResponse{
+			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}
 	}
 	var res []api.GroupBaseRes
 
@@ -90,16 +95,17 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			TotalPages:  utils.IntPtr(totalPages),
 			TotalItems:  utils.IntPtr(int(totalItem)),
 		},
-	}, nil
+	}
 }
 
-func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) (api.GetMyGroupsResponseObject, error) {
+func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) api.GetMyGroupsResponseObject {
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.GetMyGroups401JSONResponse{
+			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get user info : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}
 	}
 
 	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
@@ -107,9 +113,10 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 
 	if err != nil {
 		return api.GetMyGroups500JSONResponse{
+			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}
 	}
 	var res []api.GroupBaseRes
 	for _, group := range *myGroups {
@@ -132,31 +139,28 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 			TotalPages:  utils.IntPtr(totalPages),
 			TotalItems:  utils.IntPtr(int(totalData)),
 		},
-	}, nil
+	}
 }
 
-func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) (api.CreateGroupResponseObject, error) {
+func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) api.CreateGroupResponseObject {
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.CreateGroup400JSONResponse{
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed Parsing User Info | User Info Not Found"),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}
 	}
-	createdGroup, err := c.Service.CreateGroup(ctx, userId, *request.Body)
+	createdGroup, err := c.Service.CreateGroup(ctx, userId, request.Body)
 	if err != nil {
 		return api.CreateGroup500JSONResponse{
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed to create Group"),
 			Status:  utils.BoolPtr(false),
-		}, nil // MUTLAK: Return nil di sini, bukan err!
+		}
 	}
 
 	var res api.GroupBaseRes
-
-	// (Asumsi: Jika di YAML lu field ini tidak ada di daftar 'required',
-	// lu harus membungkusnya pakai utils.StringPtr)
 	res.Id = createdGroup.ID.String()
 	res.Name = createdGroup.Name
 	res.Description = utils.StringPtr(createdGroup.Description)
@@ -168,8 +172,7 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 			Balance:          w.Balance,
 			TransactionCount: w.TransactionCount,
 			GroupId:          utils.UUIDPtrToStringPtr(w.GroupID),
-			// Set array kosong biar response JSON lu gak ngeluarin 'null'
-			Transactions: []api.TransactionRes{},
+			Transactions:     []api.TransactionRes{},
 		})
 	}
 	// 3. MAPPING MEMBERS
@@ -184,21 +187,45 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 	}
 	res.Members = membersRes
 
-	// 4. KEMBALIKAN KE FRONTEND
-	// Tergantung oapi-codegen lu, kalau GroupBaseRes bukan wrapper utama,
-	// sesuaikan dengan struct 201 lu.
-	return api.CreateGroup201JSONResponse(res), nil
+	return api.CreateGroup201JSONResponse(res)
 
 }
 
-func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) (api.DeleteGroupResponseObject, error) {
-	return api.DeleteGroup200JSONResponse{}, nil
+func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) api.DeleteGroupResponseObject {
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.DeleteGroup400JSONResponse{
+			Errors:  utils.StringPtr("Err Message : " + err.Error()),
+			Message: utils.StringPtr("Failed Parsing User Info | User Info Not Found"),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+	groupId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.DeleteGroup400JSONResponse{
+			Errors:  utils.StringPtr("Err Message : " + err.Error()),
+			Message: utils.StringPtr("Failed to get group id : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+	delErr := c.Service.DeleteGroup(ctx, groupId)
+	if delErr != nil {
+		return api.DeleteGroup500JSONResponse{
+			Errors:  utils.StringPtr("ERR MESSAGE : " + delErr.Error()),
+			Message: utils.StringPtr("Failed to delete Group : " + delErr.Error()),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+	return api.DeleteGroup200JSONResponse{
+		Message: utils.StringPtr("Delete Group Success"),
+		Status:  utils.BoolPtr(true),
+	}
 }
 
-func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdRequestObject) (api.GetGroupByIdResponseObject, error) {
-	return api.GetGroupById200JSONResponse{}, nil
+func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdRequestObject) api.GetGroupByIdResponseObject {
+	return api.GetGroupById200JSONResponse{}
 }
 
-func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestObject) (api.UpdateGroupResponseObject, error) {
-	return api.UpdateGroup201JSONResponse{}, nil
+func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestObject) api.UpdateGroupResponseObject {
+	return api.UpdateGroup201JSONResponse{}
 }

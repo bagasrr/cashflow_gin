@@ -2001,7 +2001,7 @@ type DeleteGroupResponseObject interface {
 	VisitDeleteGroupResponse(w http.ResponseWriter) error
 }
 
-type DeleteGroup200JSONResponse GroupBaseRes
+type DeleteGroup200JSONResponse SuccessBaseRes
 
 func (response DeleteGroup200JSONResponse) VisitDeleteGroupResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")

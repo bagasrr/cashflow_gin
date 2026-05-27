@@ -10,7 +10,7 @@ import (
 )
 
 type GroupRepository interface {
-	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) error
+	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) (*models.Group, error)
 	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error)
 	GetMyGroups(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Group, int64, error)
 
@@ -33,11 +33,31 @@ func NewGroupRepository(db *gorm.DB) GroupRepository {
 	return &groupRepository{db: db}
 }
 
-func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) error {
-	// Karena Wallet dan Members sudah di-embed di dalam struct Group oleh Service,
-	// GORM akan otomatis menjalankan transaksi ACID untuk semuanya.
-	return r.db.WithContext(ctx).Create(group).Error
+func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) (*models.Group, error) {
+	// 1. Eksekusi Create (Insert ke DB)
+	// Ingat, 'group' adalah pointer. Setelah ini sukses, group.ID akan terisi.
+	if err := r.db.WithContext(ctx).Create(group).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. RELOAD DATA UTUH (The Enterprise Way)
+	// Tarik ulang dari database berdasarkan ID yang baru saja terbentuk.
+	// Ini menjamin semua relasi dan nilai default DB terbaca sempurna.
+	var createdGroup models.Group
+	err := r.db.WithContext(ctx).
+		Preload("Wallet").
+		Preload("Members").      // Pastikan nama relasi sesuai dengan struct GORM lu
+		Preload("Members.User"). // Tarik juga data user kalau butuh username di response
+		First(&createdGroup, "id = ?", group.ID).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Kembalikan data yang sudah matang
+	return &createdGroup, nil
 }
+
 func (r *groupRepository) GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error) {
 	var groups []models.Group
 	var totalData int64

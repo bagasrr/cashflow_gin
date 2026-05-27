@@ -88,14 +88,14 @@ func (s *groupService) CreateGroup(ctx context.Context, ownerID uuid.UUID, input
 	}
 
 	// 2. SAVE KE DB (Satu pemanggilan saja)
-	err := s.repo.CreateGroupWithWalletAndMembers(ctx, &newGroup)
+	createdGroup, err := s.repo.CreateGroupWithWalletAndMembers(ctx, &newGroup)
 	if err != nil {
 		return nil, err
 	}
 
 	// 3. KEMBALIKAN MODEL ASLINYA
 	// Jangan mapping DTO di sini! Biarkan Handler yang mengurusnya.
-	return &newGroup, nil
+	return createdGroup, nil
 }
 
 // UBAH TANDA TANGAN: kembalikan int64 murni untuk diserahkan ke Handler

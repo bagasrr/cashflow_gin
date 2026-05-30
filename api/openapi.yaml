@@ -513,13 +513,18 @@ components:
 
     UpdateGroupReq:
       type: object
+      required:
+        - name
+        - description
       properties:
         name:
           type: string
           example: "Group Utama Baru"
+          default: "Lorem Ipsum"
         description:
           type: string
           example: "Deskripsi group yang diupdate"
+          default: "This Is Description"
 
     GroupMembersRes:
       type: object
@@ -541,7 +546,8 @@ components:
         userId:
           type: string
           example: "123e4567-e89b-12d3-a456-426655440000"
-    GroupBaseRes:
+
+    GroupRes:
       type: object
       required:
         - id
@@ -567,6 +573,13 @@ components:
           items:
             $ref: "#/components/schemas/GroupMembersRes"
 
+    GroupBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/GroupRes"
     GroupListBaseRes:
       allOf:
         - $ref: "#/components/schemas/SuccessBaseRes"
@@ -575,7 +588,7 @@ components:
             data:
               type: array
               items:
-                $ref: "#/components/schemas/GroupBaseRes"
+                $ref: "#/components/schemas/GroupRes"
             meta:
               $ref: "#/components/schemas/PaginationMeta"
     #--------------- GROUP END -----------------
@@ -784,7 +797,7 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdateUserReq"
       responses:
-        "201":
+        "200":
           description: Update Success
           content:
             application/json:
@@ -874,7 +887,7 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdateUserReq"
       responses:
-        "201":
+        "200":
           description: Update Success
           content:
             application/json:
@@ -1054,7 +1067,7 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdateTransactionReq"
       responses:
-        "201":
+        "200":
           description: Success
           content:
             application/json:
@@ -1376,7 +1389,7 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdateCategoryReq"
       responses:
-        "201":
+        "200":
           description: Update Success
           content:
             application/json:
@@ -1820,7 +1833,7 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdateGroupReq"
       responses:
-        "201":
+        "200":
           description: Update Success
           content:
             application/json:

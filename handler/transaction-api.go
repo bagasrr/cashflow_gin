@@ -234,7 +234,7 @@ func (c *TransactionAPI) UpdateTransaction(ctx context.Context, request api.Upda
 
 	status := true
 	msgStr := "Success Update Transaction"
-	return api.UpdateTransaction201JSONResponse{
+	return api.UpdateTransaction200JSONResponse{
 		Data:    &res,
 		Status:  &status,
 		Message: &msgStr,

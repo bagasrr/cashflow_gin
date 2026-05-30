@@ -18,7 +18,7 @@ type GroupRepository interface {
 	IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
 	IsGroupAdmin(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
-	UpdateGroup(ctx context.Context, group *models.Group) error
+	UpdateGroup(ctx context.Context, group *models.Group) (*models.Group, error)
 	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
 
 	CreateMembers(ctx context.Context, members []models.GroupMember) error
@@ -118,8 +118,22 @@ func (r *groupRepository) GetGroupByID(ctx context.Context, groupID uuid.UUID) (
 	return &group, err
 }
 
-func (r *groupRepository) UpdateGroup(ctx context.Context, group *models.Group) error {
-	return r.db.WithContext(ctx).Save(group).Error
+func (r *groupRepository) UpdateGroup(ctx context.Context, group *models.Group) (*models.Group, error) {
+	// 1. SAVE: Timpa data ke database.
+	// GORM otomatis ngebaca ID dari 'group' dan ngelakuin UPDATE query.
+	if err := r.db.WithContext(ctx).Save(group).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. RELOAD: Tarik ulang beserta anak-anaknya (Wallet & Members)
+	var updatedGroup models.Group
+	err := r.db.WithContext(ctx).
+		Preload("Wallet").
+		Preload("Members").
+		Preload("Members.User").
+		First(&updatedGroup, "id = ?", group.ID).Error
+
+	return &updatedGroup, err
 }
 
 func (r *groupRepository) DeleteGroup(ctx context.Context, groupID uuid.UUID) error {

@@ -126,16 +126,14 @@ type ForgotPassword struct {
 
 // GroupBaseRes defines model for GroupBaseRes.
 type GroupBaseRes struct {
-	Description *string           `json:"description,omitempty"`
-	Id          string            `json:"id"`
-	Members     []GroupMembersRes `json:"members"`
-	Name        string            `json:"name"`
-	Wallet      []WalletRes       `json:"wallet"`
+	Data    *GroupRes `json:"data,omitempty"`
+	Message *string   `json:"message,omitempty"`
+	Status  *bool     `json:"status,omitempty"`
 }
 
 // GroupListBaseRes defines model for GroupListBaseRes.
 type GroupListBaseRes struct {
-	Data    *[]GroupBaseRes `json:"data,omitempty"`
+	Data    *[]GroupRes     `json:"data,omitempty"`
 	Message *string         `json:"message,omitempty"`
 	Meta    *PaginationMeta `json:"meta,omitempty"`
 	Status  *bool           `json:"status,omitempty"`
@@ -147,6 +145,15 @@ type GroupMembersRes struct {
 	Role     string `json:"role"`
 	UserId   string `json:"userId"`
 	Username string `json:"username"`
+}
+
+// GroupRes defines model for GroupRes.
+type GroupRes struct {
+	Description *string           `json:"description,omitempty"`
+	Id          string            `json:"id"`
+	Members     []GroupMembersRes `json:"members"`
+	Name        string            `json:"name"`
+	Wallet      []WalletRes       `json:"wallet"`
 }
 
 // LoginReq defines model for LoginReq.
@@ -211,8 +218,8 @@ type UpdateCategoryReq struct {
 
 // UpdateGroupReq defines model for UpdateGroupReq.
 type UpdateGroupReq struct {
-	Description *string `json:"description,omitempty"`
-	Name        *string `json:"name,omitempty"`
+	Description string `json:"description"`
+	Name        string `json:"name"`
 }
 
 // UpdateTransactionReq defines model for UpdateTransactionReq.
@@ -1843,11 +1850,11 @@ type UpdateCategoryResponseObject interface {
 	VisitUpdateCategoryResponse(w http.ResponseWriter) error
 }
 
-type UpdateCategory201JSONResponse CategoryBaseRes
+type UpdateCategory200JSONResponse CategoryBaseRes
 
-func (response UpdateCategory201JSONResponse) VisitUpdateCategoryResponse(w http.ResponseWriter) error {
+func (response UpdateCategory200JSONResponse) VisitUpdateCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2090,11 +2097,11 @@ type UpdateGroupResponseObject interface {
 	VisitUpdateGroupResponse(w http.ResponseWriter) error
 }
 
-type UpdateGroup201JSONResponse GroupBaseRes
+type UpdateGroup200JSONResponse GroupBaseRes
 
-func (response UpdateGroup201JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
+func (response UpdateGroup200JSONResponse) VisitUpdateGroupResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2311,11 +2318,11 @@ type UpdateTransactionResponseObject interface {
 	VisitUpdateTransactionResponse(w http.ResponseWriter) error
 }
 
-type UpdateTransaction201JSONResponse TransactionBaseRes
+type UpdateTransaction200JSONResponse TransactionBaseRes
 
-func (response UpdateTransaction201JSONResponse) VisitUpdateTransactionResponse(w http.ResponseWriter) error {
+func (response UpdateTransaction200JSONResponse) VisitUpdateTransactionResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2424,11 +2431,11 @@ type UpdateMyProfileResponseObject interface {
 	VisitUpdateMyProfileResponse(w http.ResponseWriter) error
 }
 
-type UpdateMyProfile201JSONResponse UserBaseRes
+type UpdateMyProfile200JSONResponse UserBaseRes
 
-func (response UpdateMyProfile201JSONResponse) VisitUpdateMyProfileResponse(w http.ResponseWriter) error {
+func (response UpdateMyProfile200JSONResponse) VisitUpdateMyProfileResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2513,11 +2520,11 @@ type UpdateUserResponseObject interface {
 	VisitUpdateUserResponse(w http.ResponseWriter) error
 }
 
-type UpdateUser201JSONResponse UserBaseRes
+type UpdateUser200JSONResponse UserBaseRes
 
-func (response UpdateUser201JSONResponse) VisitUpdateUserResponse(w http.ResponseWriter) error {
+func (response UpdateUser200JSONResponse) VisitUpdateUserResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }

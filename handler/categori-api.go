@@ -339,7 +339,7 @@ func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCate
 		Type:    cat.Type,
 		UserId:  utils.UUIDPtrToStringPtr(cat.UserID),
 	}
-	return api.UpdateCategory201JSONResponse{
+	return api.UpdateCategory200JSONResponse{
 		Data:    &res,
 		Message: utils.StringPtr("Update Category Success"),
 		Status:  utils.BoolPtr(true),

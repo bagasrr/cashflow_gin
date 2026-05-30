@@ -195,7 +195,7 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 		}, nil
 	}
 
-	return api.UpdateUser201JSONResponse{
+	return api.UpdateUser200JSONResponse{
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Success update user profile"),
 		Data: &api.UserRes{
@@ -232,7 +232,7 @@ func (u *UserAPI) UpdateMyProfile(ctx context.Context, req api.UpdateMyProfileRe
 		}, nil
 	}
 
-	return api.UpdateMyProfile201JSONResponse{
+	return api.UpdateMyProfile200JSONResponse{
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Update Success bosQ"),
 		Data: &api.UserRes{

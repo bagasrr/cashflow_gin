@@ -16,7 +16,7 @@ type GroupService interface {
 
 	GetMyGroups(ctx context.Context, limit, offset int, userId uuid.UUID) (*[]models.Group, int64, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
-	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error)
+	UpdateGroup(ctx context.Context, userID, groupID uuid.UUID, input *api.UpdateGroupReq) (*models.Group, error)
 	DeleteGroup(ctx context.Context, userId, groupID uuid.UUID) error
 
 	AddUserToGroup(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) error
@@ -128,11 +128,29 @@ func (s *groupService) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*mo
 	return group, nil
 }
 
-func (s *groupService) UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error) {
-	// Implementasi logika untuk memperbarui nama grup
-	return &models.Group{}, nil
-}
+func (s *groupService) UpdateGroup(ctx context.Context, userID, groupID uuid.UUID, input *api.UpdateGroupReq) (*models.Group, error) {
+	// 1. OTORISASI MUTLAK: Pastikan user ini adalah Admin di grup tersebut
+	isAdmin, err := s.repo.IsGroupAdmin(ctx, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !isAdmin {
+		return nil, errors.New("forbidden: only group admin can update this group")
+	}
 
+	// 2. FETCH (Tarik data lama dari database)
+	existingGroup, err := s.repo.GetGroupByID(ctx, groupID)
+	if err != nil {
+		return nil, errors.New("group not found")
+	}
+
+	// 3. MODIFY (Timpa HANYA field yang diizinkan)
+	existingGroup.Name = input.Name
+	existingGroup.Description = input.Description // Asumsi ini string murni karena required di YAML
+
+	// 4. SAVE & RELOAD (Lempar ke Repo)
+	return s.repo.UpdateGroup(ctx, existingGroup)
+}
 func (s *groupService) DeleteGroup(ctx context.Context, userId, groupID uuid.UUID) error {
 	isGroupAdmin, err := s.repo.IsGroupAdmin(ctx, userId, groupID)
 	if err != nil {

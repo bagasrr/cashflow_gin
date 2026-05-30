@@ -14,21 +14,21 @@ type GroupAPI struct {
 	Service services.GroupService
 }
 
-func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestObject) api.GetGroupsResponseObject {
+func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestObject) (api.GetGroupsResponseObject, error) {
 	_, role, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.GetGroups401JSONResponse{
 			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get user info : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	if role != models.RoleAdmin {
 		return api.GetGroups401JSONResponse{
 			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("You do not have access to this resource"),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	limit, page, offset := utils.ValidatePagination(request.Params.Limit, request.Params.Page)
 	groups, totalItem, err := c.Service.GetAllGroups(ctx, limit, offset)
@@ -37,7 +37,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	var res []api.GroupRes
 
@@ -95,17 +95,17 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			TotalPages:  utils.IntPtr(totalPages),
 			TotalItems:  utils.IntPtr(int(totalItem)),
 		},
-	}
+	}, nil
 }
 
-func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) api.GetMyGroupsResponseObject {
+func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsRequestObject) (api.GetMyGroupsResponseObject, error) {
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.GetMyGroups401JSONResponse{
 			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get user info : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 
 	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
@@ -116,7 +116,7 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("Failed to get groups : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	var res []api.GroupRes
 	for _, group := range *myGroups {
@@ -139,17 +139,17 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 			TotalPages:  utils.IntPtr(totalPages),
 			TotalItems:  utils.IntPtr(int(totalData)),
 		},
-	}
+	}, nil
 }
 
-func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) api.CreateGroupResponseObject {
+func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupRequestObject) (api.CreateGroupResponseObject, error) {
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.CreateGroup400JSONResponse{
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed Parsing User Info | User Info Not Found"),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	createdGroup, err := c.Service.CreateGroup(ctx, userId, request.Body)
 	if err != nil {
@@ -157,7 +157,7 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed to create Group"),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 
 	var res api.GroupRes
@@ -191,18 +191,18 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 		Message: utils.StringPtr("Create Group Success"),
 		Data:    &res,
 		Status:  utils.BoolPtr(true),
-	}
+	}, nil
 
 }
 
-func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) api.DeleteGroupResponseObject {
+func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupRequestObject) (api.DeleteGroupResponseObject, error) {
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.DeleteGroup400JSONResponse{
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed Parsing User Info | User Info Not Found"),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	groupId, err := uuid.Parse(request.Id)
 	if err != nil {
@@ -210,7 +210,7 @@ func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupReque
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed to get group id : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	delErr := c.Service.DeleteGroup(ctx, userId, groupId)
 	if delErr != nil {
@@ -218,22 +218,22 @@ func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupReque
 			Errors:  utils.StringPtr("ERR MESSAGE : " + delErr.Error()),
 			Message: utils.StringPtr("Failed to delete Group : " + delErr.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	return api.DeleteGroup200JSONResponse{
 		Message: utils.StringPtr("Delete Group Success"),
 		Status:  utils.BoolPtr(true),
-	}
+	}, nil
 }
 
-func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdRequestObject) api.GetGroupByIdResponseObject {
+func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdRequestObject) (api.GetGroupByIdResponseObject, error) {
 	groupId, err := uuid.Parse(request.Id)
 	if err != nil {
 		return api.GetGroupById400JSONResponse{
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed to get group id : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	group, err := c.Service.GetGroupByID(ctx, groupId)
 	if err != nil {
@@ -241,7 +241,7 @@ func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdReq
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed to get group : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 	var res api.GroupRes
 	res.Id = group.ID.String()
@@ -262,17 +262,17 @@ func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdReq
 		Message: utils.StringPtr("Get Group Success"),
 		Status:  utils.BoolPtr(true),
 		Data:    &res,
-	}
+	}, nil
 }
 
-func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestObject) api.UpdateGroupResponseObject {
+func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestObject) (api.UpdateGroupResponseObject, error) {
 	// 1. Tarik User ID dari JWT Token
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.UpdateGroup401JSONResponse{
 			Message: utils.StringPtr("Err Message : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 
 	// 2. Validasi Group ID
@@ -281,7 +281,7 @@ func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupReque
 		return api.UpdateGroup400JSONResponse{
 			Message: utils.StringPtr("Err Message : " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 
 	// 3. Lempar TIGA parameter ke Service (ctx, userID, groupID)
@@ -291,7 +291,7 @@ func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupReque
 			Errors:  utils.StringPtr("Err Message : " + err.Error()),
 			Message: utils.StringPtr("Failed to update Group"),
 			Status:  utils.BoolPtr(false),
-		}
+		}, nil
 	}
 
 	// 4. MAPPING RESPONSE
@@ -324,5 +324,5 @@ func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupReque
 		Message: utils.StringPtr("Update Group Success"),
 		Status:  utils.BoolPtr(true),
 		Data:    &res,
-	}
+	}, nil
 }

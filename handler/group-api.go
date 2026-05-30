@@ -39,7 +39,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			Status:  utils.BoolPtr(false),
 		}
 	}
-	var res []api.GroupBaseRes
+	var res []api.GroupRes
 
 	// LOOPING PARENT (Group)
 	for _, group := range *groups {
@@ -74,7 +74,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 		}
 
 		// 4. BUNGKUS DAN GABUNGKAN KE PARENT
-		res = append(res, api.GroupBaseRes{
+		res = append(res, api.GroupRes{
 			Id:   group.ID.String(),
 			Name: group.Name,
 			// Karena description itu opsional di YAML, bungkus pake pointer
@@ -118,9 +118,9 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 			Status:  utils.BoolPtr(false),
 		}
 	}
-	var res []api.GroupBaseRes
+	var res []api.GroupRes
 	for _, group := range *myGroups {
-		res = append(res, api.GroupBaseRes{
+		res = append(res, api.GroupRes{
 			Id:          group.ID.String(),
 			Name:        group.Name,
 			Description: utils.StringPtr(group.Description),
@@ -160,7 +160,7 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 		}
 	}
 
-	var res api.GroupBaseRes
+	var res api.GroupRes
 	res.Id = createdGroup.ID.String()
 	res.Name = createdGroup.Name
 	res.Description = utils.StringPtr(createdGroup.Description)
@@ -187,7 +187,11 @@ func (c *GroupAPI) CreateGroup(ctx context.Context, request api.CreateGroupReque
 	}
 	res.Members = membersRes
 
-	return api.CreateGroup201JSONResponse(res)
+	return api.CreateGroup201JSONResponse{
+		Message: utils.StringPtr("Create Group Success"),
+		Data:    &res,
+		Status:  utils.BoolPtr(true),
+	}
 
 }
 
@@ -223,9 +227,102 @@ func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupReque
 }
 
 func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdRequestObject) api.GetGroupByIdResponseObject {
-	return api.GetGroupById200JSONResponse{}
+	groupId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.GetGroupById400JSONResponse{
+			Errors:  utils.StringPtr("Err Message : " + err.Error()),
+			Message: utils.StringPtr("Failed to get group id : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+	group, err := c.Service.GetGroupByID(ctx, groupId)
+	if err != nil {
+		return api.GetGroupById500JSONResponse{
+			Errors:  utils.StringPtr("Err Message : " + err.Error()),
+			Message: utils.StringPtr("Failed to get group : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+	var res api.GroupRes
+	res.Id = group.ID.String()
+	res.Name = group.Name
+	res.Description = utils.StringPtr(group.Description)
+	var walletRes []api.WalletRes
+	for _, w := range group.Wallet {
+		walletRes = append(walletRes, api.WalletRes{
+			Id:               w.ID.String(),
+			Name:             w.Name,
+			Balance:          w.Balance,
+			TransactionCount: w.TransactionCount,
+			GroupId:          utils.UUIDPtrToStringPtr(w.GroupID),
+			Transactions:     []api.TransactionRes{},
+		})
+	}
+	return api.GetGroupById200JSONResponse{
+		Message: utils.StringPtr("Get Group Success"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+	}
 }
 
 func (c *GroupAPI) UpdateGroup(ctx context.Context, request api.UpdateGroupRequestObject) api.UpdateGroupResponseObject {
-	return api.UpdateGroup201JSONResponse{}
+	// 1. Tarik User ID dari JWT Token
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.UpdateGroup401JSONResponse{
+			Message: utils.StringPtr("Err Message : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+
+	// 2. Validasi Group ID
+	groupId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.UpdateGroup400JSONResponse{
+			Message: utils.StringPtr("Err Message : " + err.Error()),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+
+	// 3. Lempar TIGA parameter ke Service (ctx, userID, groupID)
+	updatedGroup, err := c.Service.UpdateGroup(ctx, userId, groupId, request.Body)
+	if err != nil {
+		return api.UpdateGroup500JSONResponse{
+			Errors:  utils.StringPtr("Err Message : " + err.Error()),
+			Message: utils.StringPtr("Failed to update Group"),
+			Status:  utils.BoolPtr(false),
+		}
+	}
+
+	// 4. MAPPING RESPONSE
+	var res api.GroupRes
+	res.Id = updatedGroup.ID.String()
+	res.Name = updatedGroup.Name
+	res.Description = utils.StringPtr(updatedGroup.Description)
+
+	// Mapping Wallet (Pakai pola multi-wallet yang aman)
+	var walletRes []api.WalletRes
+	for _, w := range updatedGroup.Wallet {
+		walletRes = append(walletRes, api.WalletRes{
+			Id:               w.ID.String(),
+			Name:             w.Name,
+			Balance:          w.Balance,
+			TransactionCount: w.TransactionCount,
+			GroupId:          utils.UUIDPtrToStringPtr(w.GroupID),
+			Transactions:     []api.TransactionRes{},
+		})
+	}
+	if walletRes == nil {
+		walletRes = []api.WalletRes{}
+	}
+	res.Wallet = walletRes
+
+	// Jangan lupa mapping Members juga kalau YAML lu minta (res.Members = ...)
+
+	// KEMBALIKAN STATUS 200 OK (Ganti di YAML lu kalau masih 201)
+	return api.UpdateGroup200JSONResponse{
+		Message: utils.StringPtr("Update Group Success"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+	}
 }

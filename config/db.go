@@ -3,21 +3,22 @@ package config
 import (
 	"cashflow_gin/models"
 	"fmt"
-	"os"
+	"log"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func NewDatabaseConnection() (*gorm.DB, error) {
-	// Ambil data dari .env
-	host := os.Getenv("DB_HOST")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	port := os.Getenv("DB_PORT")
+	// 1. LANGSUNG PANGGIL AppConfig. Gak perlu import package config lagi.
+	host := AppConfig.Database.Host
+	user := AppConfig.Database.User
+	password := AppConfig.Database.Password
+	dbName := AppConfig.Database.Name
+	port := AppConfig.Database.Port // Ini tipe datanya int
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Jakarta",
+	// 2. Perhatikan %d untuk port
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Jakarta",
 		host, user, password, dbName, port)
 
 	con, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -33,17 +34,17 @@ func NewDatabaseConnection() (*gorm.DB, error) {
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 
-	// Automigrate (opsional, tapi buat dev enak)
+	// Automigrate
 	err = con.AutoMigrate(
 		&models.User{},
-		&models.Category{}, // Jangan lupa Category juga harus ada
+		&models.Category{},
 		&models.Group{},
 		&models.GroupMember{},
 		&models.Wallet{},
 		&models.Transaction{},
 	)
 	if err != nil {
-		fmt.Println("Gagal AutoMigrate:", err)
+		log.Println("Gagal AutoMigrate:", err)
 		return nil, err
 	}
 

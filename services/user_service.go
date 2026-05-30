@@ -1,16 +1,22 @@
 package services
 
 import (
-	"cashflow_gin/dto/response"
+	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
 
 type UserService interface {
-	FindAllUser(ctx context.Context) (*[]response.UserResponse, error)
-	GetMyProfile(ctx context.Context, id uuid.UUID) (*response.UserResponse, error)
+	FindAllUser(ctx context.Context) (*[]models.User, error)
+	GetMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error)
+
+	FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*models.User, error)
+	UpdateUserByAdmin(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error)
+	UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user models.User) (*models.User, error)
 }
 
 type userService struct {
@@ -21,56 +27,68 @@ func NewUserService(r repository.UserRepository) UserService {
 	return &userService{repo: r}
 }
 
-func (s *userService) FindAllUser(ctx context.Context) (*[]response.UserResponse, error) {
+func (s *userService) FindAllUser(ctx context.Context) (*[]models.User, error) {
 	users, err := s.repo.FindAllUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var userRes []response.UserResponse
-	for _, u := range users {
-		var WalletRes []response.WalletResponse
-		for _, w := range u.Wallets {
-			WalletRes = append(WalletRes, response.WalletResponse{
-				ID:               w.ID,
-				Name:             w.Name,
-				Balance:          w.Balance,
-				TransactionCount: w.TransactionCount,
-			})
-		}
-		userRes = append(userRes, response.UserResponse{
-			ID:       u.ID.String(),
-			Username: u.Username,
-			Email:    u.Email,
-			UserRole: u.UserRole.String(),
-			Wallets:  WalletRes,
-		})
-	}
-	return &userRes, nil
+	return users, nil
 }
 
-func (s *userService) GetMyProfile(ctx context.Context, id uuid.UUID) (*response.UserResponse, error) {
+func (s *userService) GetMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	user, err := s.repo.FindMyProfile(ctx, id)
+	fmt.Println(user)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *userService) FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*models.User, error) {
+	if requestorRole != models.RoleAdmin {
+		return nil, errors.New("forbidden: acces denied")
+	}
+
+	user, err := s.repo.FindUserByID(ctx, targetID)
 	if err != nil {
 		return nil, err
 	}
-	var UserRes *response.UserResponse
-	var WalletRes []response.WalletResponse
 
-	for _, w := range user.Wallets {
-		WalletRes = append(WalletRes, response.WalletResponse{
-			ID:               w.ID,
-			Name:             w.Name,
-			Balance:          w.Balance,
-			TransactionCount: w.TransactionCount,
-		})
+	return user, nil
+}
+
+func (s *userService) UpdateUserByAdmin(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error) {
+	requestor, err := s.repo.FindUserByID(ctx, requestorID)
+	if err != nil {
+		return nil, err
 	}
 
-	UserRes = &response.UserResponse{
-		ID:       user.ID.String(),
-		Username: user.Username,
-		Email:    user.Email,
-		UserRole: user.UserRole.String(),
-		Wallets:  WalletRes,
+	if requestor.UserRole != models.RoleAdmin && requestor.ID != targetUser.ID {
+		return nil, errors.New("forbidden: access denied")
 	}
-	return UserRes, nil
+	//fmt.Println("TargetUser : ", targetUser)
+	//fmt.Println("Requestor : ", requestor)
+
+	fmt.Println("Password: ", targetUser.Password)
+
+	updatedUser, err := s.repo.UpdateUserByAdmin(ctx, targetUser)
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedUser, nil
+}
+
+func (s *userService) UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user models.User) (*models.User, error) {
+	if reqId != user.ID {
+		return nil, errors.New("forbidden: access denied")
+	}
+	profileUpdate, err := s.repo.UpdateUser(ctx, user)
+	if err != nil {
+		return nil, err
+
+	}
+	return profileUpdate, nil
 }

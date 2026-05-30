@@ -10,13 +10,15 @@ import (
 )
 
 type GroupRepository interface {
-	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group, wallet *models.Wallet, members *[]models.GroupMember) error
-	GetAllGroups(ctx context.Context) (*[]models.Group, error)
+	CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) (*models.Group, error)
+	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error)
+	GetMyGroups(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Group, int64, error)
 
 	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error)
 	IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
+	IsGroupAdmin(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
-	UpdateGroup(ctx context.Context, group *models.Group) error
+	UpdateGroup(ctx context.Context, group *models.Group) (*models.Group, error)
 	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
 
 	CreateMembers(ctx context.Context, members []models.GroupMember) error
@@ -31,47 +33,83 @@ func NewGroupRepository(db *gorm.DB) GroupRepository {
 	return &groupRepository{db: db}
 }
 
-func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group, wallet *models.Wallet, members *[]models.GroupMember) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// A. Create Group dulu (biar dapet ID Group)
-		if err := tx.Create(group).Error; err != nil {
-			return err
-		}
+func (r *groupRepository) CreateGroupWithWalletAndMembers(ctx context.Context, group *models.Group) (*models.Group, error) {
+	// 1. Eksekusi Create (Insert ke DB)
+	// Ingat, 'group' adalah pointer. Setelah ini sukses, group.ID akan terisi.
+	if err := r.db.WithContext(ctx).Create(group).Error; err != nil {
+		return nil, err
+	}
 
-		// B. Assign GroupID ke Wallet & Create Wallet
-		wallet.GroupID = &group.ID // Asumsi di model Wallet pake pointer *uuid.UUID
-		if err := tx.Create(wallet).Error; err != nil {
-			return err
-		}
+	// 2. RELOAD DATA UTUH (The Enterprise Way)
+	// Tarik ulang dari database berdasarkan ID yang baru saja terbentuk.
+	// Ini menjamin semua relasi dan nilai default DB terbaca sempurna.
+	var createdGroup models.Group
+	err := r.db.WithContext(ctx).
+		Preload("Wallet").
+		Preload("Members").      // Pastikan nama relasi sesuai dengan struct GORM lu
+		Preload("Members.User"). // Tarik juga data user kalau butuh username di response
+		First(&createdGroup, "id = ?", group.ID).Error
 
-		// C. Assign GroupID ke semua Member & Create Members
-		for i := range *members {
-			(*members)[i].GroupID = group.ID
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		// Batch Insert Members
-		if err := tx.Create(members).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
+	// 3. Kembalikan data yang sudah matang
+	return &createdGroup, nil
 }
 
-func (r *groupRepository) GetAllGroups(ctx context.Context) (*[]models.Group, error) {
+func (r *groupRepository) GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error) {
 	var groups []models.Group
+	var totalData int64
 
-	err := r.db.WithContext(ctx).
-		Table("groups").
-		Select(`
-			groups.*,(
-				SELECT COUNT(*)
-				FROM group_members
-				WHERE group_members.group_id = groups.id
-			) AS member_count
-		`).Preload("Wallet").Find(&groups).Error
+	// 1. Bangun fondasi query
+	query := r.db.WithContext(ctx).Model(&models.Group{})
 
-	return &groups, err
+	// 2. Eksekusi Count
+	if err := query.Count(&totalData).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 3. Eksekusi pencarian dengan Select, Preload (perbaiki typo), dan Limit
+	err := query.
+		Select(`groups.*, (SELECT COUNT(*) FROM group_members WHERE group_members.group_id = groups.id) AS member_count`).
+		Preload("Wallet").
+		Preload("Members"). // UBAH KE "Members"
+		Limit(limit).Offset(offset).
+		Find(&groups).Error
+
+	return &groups, totalData, err
+}
+
+// Pastikan lu me-return int64 untuk totalItems demi paginasi Handler lu
+func (r *groupRepository) GetMyGroups(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Group, int64, error) {
+	var groups []models.Group
+	var totalItems int64
+
+	// 1. BANGUN JEMBATAN QUERY (INNER JOIN)
+	// Kita menyuruh Postgres menggabungkan tabel groups dan group_members
+	// lalu memfilternya berdasarkan user_id yang ada di group_members.
+	query := r.db.WithContext(ctx).
+		Model(&models.Group{}).
+		Joins("JOIN group_members ON group_members.group_id = groups.id").
+		Where("group_members.user_id = ?", userID)
+
+	// 2. HITUNG TOTAL DATA (Sebelum kena Limit/Offset)
+	if err := query.Count(&totalItems).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 3. TARIK DATA HALAMAN INI + PRELOAD
+	// Preload "Wallet" lu panggil KALAU API List Groups lu butuh nampilin dompet.
+	// Jangan Preload "Members" di daftar List Groups, itu bakal bikin query berat
+	// (N+1 problem). Detail member cukup dipanggil di API GetGroupByID.
+	if err := query.Limit(limit).Offset(offset).
+		Find(&groups).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 4. KEMBALIKAN ALAMAT MEMORI DAN TOTAL DATA
+	return &groups, totalItems, nil
 }
 
 func (r *groupRepository) GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error) {
@@ -80,8 +118,22 @@ func (r *groupRepository) GetGroupByID(ctx context.Context, groupID uuid.UUID) (
 	return &group, err
 }
 
-func (r *groupRepository) UpdateGroup(ctx context.Context, group *models.Group) error {
-	return r.db.WithContext(ctx).Save(group).Error
+func (r *groupRepository) UpdateGroup(ctx context.Context, group *models.Group) (*models.Group, error) {
+	// 1. SAVE: Timpa data ke database.
+	// GORM otomatis ngebaca ID dari 'group' dan ngelakuin UPDATE query.
+	if err := r.db.WithContext(ctx).Save(group).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. RELOAD: Tarik ulang beserta anak-anaknya (Wallet & Members)
+	var updatedGroup models.Group
+	err := r.db.WithContext(ctx).
+		Preload("Wallet").
+		Preload("Members").
+		Preload("Members.User").
+		First(&updatedGroup, "id = ?", group.ID).Error
+
+	return &updatedGroup, err
 }
 
 func (r *groupRepository) DeleteGroup(ctx context.Context, groupID uuid.UUID) error {
@@ -109,5 +161,11 @@ func (r *groupRepository) IsGroupMember(ctx context.Context, groupID, userID uui
 	var count int64
 	err := r.db.WithContext(ctx).Model(&models.GroupMember{}).Where("group_id = ? AND user_id = ?", groupID, userID).Count(&count).Error
 	fmt.Println("Count : ", count)
+	return count > 0, err
+}
+
+func (r *groupRepository) IsGroupAdmin(ctx context.Context, groupID, userID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.GroupMember{}).Where("group_id = ? AND user_id = ? AND members_role = ?", groupID, userID, models.GroupAdmin).Count(&count).Error
 	return count > 0, err
 }

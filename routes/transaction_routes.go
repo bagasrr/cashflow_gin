@@ -12,6 +12,7 @@ func TransactionRoutes(r *gin.RouterGroup, controller *controllers.TransactionCo
 	transactions.Use(middlewares.AuthMiddleware()) // Middleware dipasang di sini
 	{
 		transactions.POST("/", controller.Create)
+		
 		transactions.GET("/", controller.FindAll)
 		transactions.GET("/:id/detail", controller.GetTransactionByID)
 		transactions.PATCH("/:id/update", controller.UpdateTransaction)

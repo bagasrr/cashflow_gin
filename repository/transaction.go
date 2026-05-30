@@ -11,13 +11,15 @@ import (
 
 type TransactionRepository interface {
 	CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction) error
-	FindAll(ctx context.Context) ([]models.Transaction, error)
-	FindAllByUserID(ctx context.Context, userID uuid.UUID) ([]models.Transaction, error)
+	FindAll(ctx context.Context) (*[]models.Transaction, error)
+	FindAllByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Transaction, error)
 	IsOwner(ctx context.Context, userID uuid.UUID, walletID string) bool
 	FindByID(ctx context.Context, transactionID uuid.UUID) (*models.Transaction, error)
 	UpdateTransaction(ctx context.Context, transaction *models.Transaction) error
-	UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta float64) error
-	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta float64, walletID uuid.UUID) error
+	// UBAH MUTLAK: delta sekarang int64
+	UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta int64) error
+	// UBAH MUTLAK: delta sekarang int64
+	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error
 }
 
 type transactionRepository struct {
@@ -28,41 +30,35 @@ func NewTransactionRepository(db *gorm.DB) TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-// INI LOGIC PENTING: Transaction Database (ACID)
 func (r *transactionRepository) CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction) error {
-	// Mulai DB Transaction
-	return r.db.WithContext(ctx).Exec("SELECT pg_sleep(5)").Transaction(func(tx *gorm.DB) error {
-		// 1. Create Transaction Record
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(transaction).Error; err != nil {
-			return err // Rollback otomatis kalau error
+			return err
 		}
 
-		// 2. Update Wallet Balance
-		// Logic matematika (tambah/kurang) sudah ditentukan di Service lewat field Amount
-		// Kita pakai gorm.Expr biar aman dari race condition
 		if err := tx.Model(&models.Wallet{}).
 			Where("id = ?", transaction.WalletID).
 			Updates(map[string]interface{}{
-				"balance":    gorm.Expr("balance + ?", transaction.Amount), // Aman
+				"balance":    gorm.Expr("balance + ?", transaction.Amount),
 				"updated_at": time.Now(),
 			}).Error; err != nil {
-			return err // Rollback otomatis
+			return err
 		}
 
-		return nil // Commit
+		return nil
 	})
 }
 
-func (r *transactionRepository) FindAll(ctx context.Context) ([]models.Transaction, error) {
+func (r *transactionRepository) FindAll(ctx context.Context) (*[]models.Transaction, error) {
 	var transactions []models.Transaction
-	err := r.db.WithContext(ctx).Preload("Category").Preload("Wallet").Find(&transactions).Error
-	return transactions, err
+	err := r.db.WithContext(ctx).Preload("Category").Preload("User").Find(&transactions).Error
+	return &transactions, err
 }
 
-func (r *transactionRepository) FindAllByUserID(ctx context.Context, userID uuid.UUID) ([]models.Transaction, error) {
+func (r *transactionRepository) FindAllByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Transaction, error) {
 	var transactions []models.Transaction
-	err := r.db.WithContext(ctx).Preload("Category").Preload("Wallet").Where("user_id = ?", userID).Find(&transactions).Error
-	return transactions, err
+	err := r.db.WithContext(ctx).Preload("Category").Preload("User").Where("user_id = ?", userID).Find(&transactions).Error
+	return &transactions, err // UBAH MUTLAK: Tambahkan & agar jadi pointer
 }
 
 func (r *transactionRepository) IsOwner(ctx context.Context, userID uuid.UUID, walletID string) bool {
@@ -73,7 +69,7 @@ func (r *transactionRepository) IsOwner(ctx context.Context, userID uuid.UUID, w
 
 func (r *transactionRepository) FindByID(ctx context.Context, transactionID uuid.UUID) (*models.Transaction, error) {
 	var transaction models.Transaction
-	err := r.db.WithContext(ctx).Preload("Category").Preload("Wallet").First(&transaction, "id = ?", transactionID).Error
+	err := r.db.WithContext(ctx).Preload("Category").Preload("User").First(&transaction, "id = ?", transactionID).Error
 	return &transaction, err
 }
 
@@ -81,40 +77,28 @@ func (r *transactionRepository) UpdateTransaction(ctx context.Context, transacti
 	return r.db.WithContext(ctx).Save(transaction).Error
 }
 
-func (r *transactionRepository) UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta float64) error {
+func (r *transactionRepository) UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. Update Transaction Record
 		if err := tx.Save(transaction).Error; err != nil {
-			return err // Rollback otomatis kalau error
+			return err
 		}
 
-		// 2. Update Wallet Balance
-		// Logic matematika (tambah/kurang) sudah ditentukan di Service lewat field Amount
-		// Kita pakai gorm.Expr biar aman dari race condition
 		if err := tx.Model(&models.Wallet{}).
 			Where("id = ?", transaction.WalletID).
 			Update("balance", gorm.Expr("balance + ?", delta)).Error; err != nil {
-			return err // Rollback otomatis
+			return err
 		}
 
-		return nil // Commit
+		return nil
 	})
 }
 
-func (r *transactionRepository) SoftDeleteTransaction(ctx context.Context, transactionId uuid.UUID, delta float64, walletID uuid.UUID) error {
+func (r *transactionRepository) SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. Soft Delete Transaction Record
-		if err := tx.Where("id = ?", transactionId).Delete(&models.Transaction{}).Error; err != nil {
-			return err // Rollback otomatis kalau error
+		if err := tx.Save(transactionID).Error; err != nil {
+			return err
 		}
 
-		// 2. Update Wallet Balance (kembalikan ke kondisi sebelum transaksi)
-		if err := tx.Model(&models.Wallet{}).
-			Where("id = ?", walletID). // Asumsi kita punya walletID di transactionID, bisa juga lewat join
-			Update("balance", gorm.Expr("balance + ?", delta)).Error; err != nil {
-			return err // Rollback otomatis
-		}
-
-		return nil // Commit
+		return nil
 	})
 }

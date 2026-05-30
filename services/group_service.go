@@ -17,7 +17,7 @@ type GroupService interface {
 	GetMyGroups(ctx context.Context, limit, offset int, userId uuid.UUID) (*[]models.Group, int64, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
 	UpdateGroup(ctx context.Context, groupID uuid.UUID, name string) (*models.Group, error)
-	DeleteGroup(ctx context.Context, groupID uuid.UUID) error
+	DeleteGroup(ctx context.Context, userId, groupID uuid.UUID) error
 
 	AddUserToGroup(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) error
 	RemoveUserFromGroup(ctx context.Context, groupID, userID uuid.UUID) error
@@ -133,7 +133,14 @@ func (s *groupService) UpdateGroup(ctx context.Context, groupID uuid.UUID, name 
 	return &models.Group{}, nil
 }
 
-func (s *groupService) DeleteGroup(ctx context.Context, groupID uuid.UUID) error {
+func (s *groupService) DeleteGroup(ctx context.Context, userId, groupID uuid.UUID) error {
+	isGroupAdmin, err := s.repo.IsGroupAdmin(ctx, userId, groupID)
+	if err != nil {
+		return err
+	}
+	if !isGroupAdmin {
+		return errors.New("Cant delete this, youre not group admin")
+	}
 	return s.repo.DeleteGroup(ctx, groupID)
 }
 

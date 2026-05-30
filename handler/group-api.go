@@ -208,7 +208,7 @@ func (c *GroupAPI) DeleteGroup(ctx context.Context, request api.DeleteGroupReque
 			Status:  utils.BoolPtr(false),
 		}
 	}
-	delErr := c.Service.DeleteGroup(ctx, groupId)
+	delErr := c.Service.DeleteGroup(ctx, userId, groupId)
 	if delErr != nil {
 		return api.DeleteGroup500JSONResponse{
 			Errors:  utils.StringPtr("ERR MESSAGE : " + delErr.Error()),

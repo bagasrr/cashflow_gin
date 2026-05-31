@@ -3,6 +3,7 @@ package repository
 import (
 	"cashflow_gin/models"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -14,7 +15,7 @@ type GroupRepository interface {
 	GetAllGroups(ctx context.Context, limit, offset int) (*[]models.Group, int64, error)
 	GetMyGroups(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Group, int64, error)
 
-	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error)
+	IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, uuid.UUID, error)
 	IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
 	IsGroupAdmin(ctx context.Context, groupID, userID uuid.UUID) (bool, error)
 	GetGroupByID(ctx context.Context, groupID uuid.UUID) (*models.Group, error)
@@ -151,10 +152,29 @@ func (r *groupRepository) RemoveUserFromGroup(ctx context.Context, groupID, user
 	return r.db.WithContext(ctx).Where("group_id = ? AND user_id = ?", groupID, userID).Delete(&models.GroupMember{}).Error
 }
 
-func (r *groupRepository) IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&models.Wallet{}).Where("id = ? AND group_id IS NOT NULL", walletID).Count(&count).Error
-	return count > 0, err
+func (r *groupRepository) IsGroupWallet(ctx context.Context, walletID uuid.UUID) (bool, uuid.UUID, error) {
+	var wallet models.Wallet
+
+	// 1. SELECT & FETCH: Suruh Postgres mengambil nilai "group_id" dari baris pertama yang cocok
+	err := r.db.WithContext(ctx).
+		Select("group_id").
+		Where("id = ? AND group_id IS NOT NULL", walletID).
+		First(&wallet).Error
+
+	if err != nil {
+		// 2. GERBANG VALIDASI: Kalau error karena tidak ketemu, berarti bukan dompet grup
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, uuid.Nil, nil
+		}
+		// 3. ERROR FATAL: Kalau error karena putus koneksi/sistem
+		return false, uuid.Nil, err
+	}
+
+	// 4. KEMBALIKAN DATA
+	// CATATAN MUTLAK: Kalau di models.Wallet lu field GroupID itu bertipe pointer (*uuid.UUID),
+	// lu wajib nge-dereference-nya dengan menulis *wallet.GroupID di bawah ini.
+	// Tapi kalau tipe datanya murni (uuid.UUID), cukup tulis seperti ini:
+	return true, *wallet.GroupID, nil
 }
 
 func (r *groupRepository) IsGroupMember(ctx context.Context, groupID, userID uuid.UUID) (bool, error) {

@@ -87,7 +87,34 @@ func (c *WalletAPI) CreateGroupWallet(ctx context.Context, request api.CreatePer
 	}, nil
 }
 func (c *WalletAPI) DeleteWallet(ctx context.Context, request api.DeleteWalletRequestObject) (api.DeleteWalletResponseObject, error) {
-	return api.DeleteWallet200JSONResponse{}, nil
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.DeleteWallet400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get Context"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	walletId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.DeleteWallet400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get Params"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	err = c.Service.DeleteWallet(ctx, walletId, userId)
+	if err != nil {
+		return api.DeleteWallet500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Delete Failed"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	return api.DeleteWallet200JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Delete Successfully"),
+	}, nil
 }
 
 func (c *WalletAPI) GetWalletById(ctx context.Context, request api.GetWalletByIdRequestObject) (api.GetWalletByIdResponseObject, error) {

@@ -13,6 +13,7 @@ type WalletRepository interface {
 	FindAll(ctx context.Context, offset int, limit int) (*[]models.Wallet, error)
 	FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
 	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
+	SoftDeleteWallet(ctx context.Context, wallet uuid.UUID) error
 }
 
 type walletRepository struct {
@@ -73,4 +74,8 @@ func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, li
 func (r *walletRepository) CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {
 	err := r.db.WithContext(ctx).Create(&wallet).Error
 	return &wallet, err
+}
+func (r *walletRepository) SoftDeleteWallet(ctx context.Context, walletId uuid.UUID) error {
+	err := r.db.WithContext(ctx).Delete(&models.Wallet{}, "id = ?", walletId).Error
+	return err
 }

@@ -15,6 +15,8 @@ type WalletService interface {
 	GetAll(ctx context.Context) (*[]models.Wallet, error)
 	GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*models.Wallet, error)
 	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
+
+	DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error
 }
 
 type walletService struct {
@@ -107,4 +109,27 @@ func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, lim
 	}
 
 	return wallets, nil
+}
+
+func (s *walletService) DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error {
+	isGroupWallet, groupId, err := s.groupRepo.IsGroupWallet(ctx, walletId)
+	if err != nil {
+		return err
+	}
+	if isGroupWallet {
+		isGroupAdmin, err := s.groupRepo.IsGroupAdmin(ctx, groupId, userId)
+		if err != nil || !isGroupAdmin {
+			return err
+		}
+		err = s.walletRepo.SoftDeleteWallet(ctx, walletId)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = s.walletRepo.SoftDeleteWallet(ctx, walletId)
+	if err != nil {
+		return err
+	}
+	return nil
 }

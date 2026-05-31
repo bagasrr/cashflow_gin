@@ -63,7 +63,7 @@ func (s *transactionService) Create(ctx context.Context, userID uuid.UUID, input
 		return nil, errors.New("wallet not found")
 	}
 
-	isGroupWallet, err := s.groupRepo.IsGroupWallet(ctx, walletUUID)
+	isGroupWallet, _, err := s.groupRepo.IsGroupWallet(ctx, walletUUID)
 	if err != nil {
 		return nil, errors.New("failed to check wallet type")
 	}

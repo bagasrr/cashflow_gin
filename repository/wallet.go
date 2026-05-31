@@ -9,6 +9,7 @@ import (
 )
 
 type WalletRepository interface {
+	CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
 	FindAll(ctx context.Context, offset int, limit int) (*[]models.Wallet, error)
 	FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
 	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
@@ -67,4 +68,9 @@ func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, li
 		Find(&wallets).Error
 
 	return &wallets, err
+}
+
+func (r *walletRepository) CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {
+	err := r.db.WithContext(ctx).Create(&wallet).Error
+	return &wallet, err
 }

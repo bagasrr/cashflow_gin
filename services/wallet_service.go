@@ -10,6 +10,8 @@ import (
 )
 
 type WalletService interface {
+	CreatePersonalWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
+	CreateGroupWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
 	GetAll(ctx context.Context) (*[]models.Wallet, error)
 	GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*models.Wallet, error)
 	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
@@ -23,6 +25,26 @@ type walletService struct {
 
 func NewWalletService(wRepo repository.WalletRepository, gRepo repository.GroupRepository) WalletService {
 	return &walletService{walletRepo: wRepo, groupRepo: gRepo}
+}
+
+func (s *walletService) CreatePersonalWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {
+
+	createdWallet, err := s.walletRepo.CreateWallet(ctx, wallet)
+	if err != nil {
+		return nil, err
+	}
+	return createdWallet, nil
+
+}
+
+func (s *walletService) CreateGroupWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {
+
+	createdWallet, err := s.walletRepo.CreateWallet(ctx, wallet)
+	if err != nil {
+		return nil, err
+	}
+	return createdWallet, nil
+
 }
 
 func (s *walletService) GetAll(ctx context.Context) (*[]models.Wallet, error) {

@@ -223,14 +223,18 @@ components:
       type: object
       required:
         - name
-        - type
+        - currency
       properties:
         name:
           type: string
           example: "Wallet Utama"
-        type:
+        currency:
           type: string
-          example: "Income"
+          example: "IDR"
+          default: "IDR"
+        groupId:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426655440000"
 
     UpdateWalletReq:
       type: object
@@ -1454,8 +1458,8 @@ paths:
     post:
       tags:
         - Wallets
-      summary: Create Wallet
-      operationId: createWallet
+      summary: Create Personal Wallet
+      operationId: createPersonalWallet
       security:
         - BearerAuth: []
       requestBody:
@@ -1528,7 +1532,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-
+  /wallets/group:
+    post:
+      tags:
+        - Wallets
+      summary: Create Group Wallet
+      operationId: createGroupWallet
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWalletReq"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
   /wallets/{id}:
     get:
       tags:

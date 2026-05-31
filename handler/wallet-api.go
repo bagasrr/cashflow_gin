@@ -118,7 +118,52 @@ func (c *WalletAPI) DeleteWallet(ctx context.Context, request api.DeleteWalletRe
 }
 
 func (c *WalletAPI) GetWalletById(ctx context.Context, request api.GetWalletByIdRequestObject) (api.GetWalletByIdResponseObject, error) {
-	return api.GetWalletById200JSONResponse{}, nil
+	userId, _, err := utils.GetUserInfo(ctx)
+	walletId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.GetWalletById400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot parse Params"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	wallet, err := c.Service.GetWalletByID(ctx, userId, walletId)
+	if err != nil {
+		return api.GetWalletById500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Get Wallet Failed"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	var walletTransac []api.TransactionRes
+	for _, v := range wallet.Transactions {
+		walletTransac = append(walletTransac, api.TransactionRes{
+			Id:     v.ID.String(),
+			Title:  v.Title,
+			Amount: v.Amount,
+			Category: api.CategoryRes{
+				Name: v.Category.Name,
+				Type: v.Category.Type,
+			},
+			User: api.UserRes{
+				Id:       v.User.ID.String(),
+				Username: v.User.Username,
+			},
+		})
+	}
+	var res api.WalletRes
+	res.Id = wallet.ID.String()
+	res.Name = wallet.Name
+	res.GroupId = utils.UUIDPtrToStringPtr(wallet.GroupID)
+	res.Balance = wallet.Balance
+	res.TransactionCount = wallet.TransactionCount
+	res.Transactions = walletTransac
+
+	return api.GetWalletById200JSONResponse{
+		Message: utils.StringPtr("Get Wallet Successfully"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+	}, nil
 }
 
 func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRequestObject) (api.GetMyWalletsResponseObject, error) {

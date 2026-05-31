@@ -14,8 +14,9 @@ type WalletService interface {
 	CreateGroupWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
 	GetAll(ctx context.Context) (*[]models.Wallet, error)
 	GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*models.Wallet, error)
-	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
+	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, int64, error)
 
+	UpdateWalletName(ctx context.Context, userID, walletID uuid.UUID, newName string) (*models.Wallet, error)
 	DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error
 }
 
@@ -90,7 +91,7 @@ func (s *walletService) GetWalletByID(ctx context.Context, userID, walletID uuid
 }
 
 // services/wallet_service.go
-func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Wallet, error) {
+func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Wallet, int64, error) {
 	// 1. Validasi cegah angka minus atau nol (Hacker/Bug Frontend)
 	if page < 1 {
 		page = 1
@@ -103,12 +104,12 @@ func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, lim
 	offset := (page - 1) * limit
 
 	// 3. Panggil Repository dengan parameter yang udah matang
-	wallets, err := s.walletRepo.FindAllMine(ctx, userID, limit, offset)
+	wallets, totalItems, err := s.walletRepo.FindAllMine(ctx, userID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return wallets, nil
+	return wallets, totalItems, nil
 }
 
 func (s *walletService) DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error {
@@ -132,4 +133,34 @@ func (s *walletService) DeleteWallet(ctx context.Context, walletId, userId uuid.
 		return err
 	}
 	return nil
+}
+
+// Tanda tangan wajib menerima userID pembawa request
+func (s *walletService) UpdateWalletName(ctx context.Context, userID, walletID uuid.UUID, newName string) (*models.Wallet, error) {
+	// 1. FETCH: Tarik dompet aslinya
+	wallet, err := s.walletRepo.GetWalletByID(ctx, walletID)
+	if err != nil {
+		return nil, errors.New("wallet not found")
+	}
+
+	// 2. OTORISASI MUTLAK
+	if wallet.GroupID != nil {
+		// SKENARIO A: Dompet Grup
+		// Panggil fungsi IsGroupAdmin dari GroupRepo lu
+		isAdmin, err := s.groupRepo.IsGroupAdmin(ctx, *wallet.GroupID, userID)
+		if err != nil || !isAdmin {
+			return nil, errors.New("forbidden: only group admin can update this wallet")
+		}
+	} else {
+		// SKENARIO B: Dompet Personal
+		if wallet.UserID == nil || *wallet.UserID != userID {
+			return nil, errors.New("forbidden: you do not own this personal wallet")
+		}
+	}
+
+	// 3. MODIFY: Ubah namanya
+	wallet.Name = newName
+
+	// 4. SAVE: Lempar ke Repo
+	return s.walletRepo.UpdateWallet(ctx, wallet)
 }

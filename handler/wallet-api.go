@@ -167,9 +167,98 @@ func (c *WalletAPI) GetWalletById(ctx context.Context, request api.GetWalletById
 }
 
 func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRequestObject) (api.GetMyWalletsResponseObject, error) {
-	return api.GetMyWallets200JSONResponse{}, nil
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.GetMyWallets401JSONResponse{
+			Message: utils.StringPtr("Cannot get Context"),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	limit, page, offset := utils.ValidatePagination(request.Params.Limit, request.Params.Page)
+	myWallets, totalItems, err := c.Service.GetMine(ctx, userId, limit, offset)
+	if err != nil {
+		return api.GetMyWallets500JSONResponse{
+			Message: utils.StringPtr("Get Wallets Failed"),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	var res []api.WalletRes
+	for _, v := range *myWallets {
+		res = append(res, api.WalletRes{
+			Id:               v.ID.String(),
+			Name:             v.Name,
+			GroupId:          utils.UUIDPtrToStringPtr(v.GroupID),
+			Balance:          v.Balance,
+			TransactionCount: v.TransactionCount,
+		})
+	}
+	totalPages := (int(totalItems) + limit - 1) / limit
+	return api.GetMyWallets200JSONResponse{
+		Message: utils.StringPtr("Get Wallets Successfully"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+		Meta: &api.PaginationMeta{
+			CurrentPage: utils.IntPtr(page),
+			TotalPages:  utils.IntPtr(totalPages),
+			TotalItems:  utils.IntPtr(int(totalItems)),
+		},
+	}, nil
 }
 
 func (c *WalletAPI) UpdateWallet(ctx context.Context, request api.UpdateWalletRequestObject) (api.UpdateWalletResponseObject, error) {
-	return api.UpdateWallet201JSONResponse{}, nil
+	// 1. Ambil KTP User (ID)
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.UpdateWallet401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Unauthorized"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+
+	// 2. Parsing Wallet ID dari URL (Ubah string ke UUID)
+	walletId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.UpdateWallet400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Invalid wallet ID format"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+
+	// 3. Lempar ke Service (Asumsi field di JSON body lu namanya 'Name')
+	updatedWallet, err := c.Service.UpdateWalletName(ctx, userId, walletId, request.Body.Name)
+	if err != nil {
+		return api.UpdateWallet500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Failed to update wallet"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+
+	// 4. MAPPING RESPONSE
+	var res api.WalletRes
+	res.Id = updatedWallet.ID.String()
+	res.Name = updatedWallet.Name
+	res.Balance = updatedWallet.Balance
+	res.TransactionCount = updatedWallet.TransactionCount
+
+	// Gunakan helper/manual check biar gak kena Nil Pointer Panic
+	if updatedWallet.GroupID != nil {
+		res.GroupId = utils.StringPtr(updatedWallet.GroupID.String())
+	} else {
+		res.GroupId = nil
+	}
+
+	// Set transaksi kosong karena kita gak nge-preload transaksi pas update
+	res.Transactions = []api.TransactionRes{}
+
+	// RETURN 200 OK
+	return api.UpdateWallet200JSONResponse{
+		Message: utils.StringPtr("Wallet updated successfully"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+	}, nil
 }

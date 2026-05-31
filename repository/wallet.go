@@ -12,8 +12,10 @@ type WalletRepository interface {
 	CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
 	FindAll(ctx context.Context, offset int, limit int) (*[]models.Wallet, error)
 	FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
-	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, error)
+	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, int64, error)
 	SoftDeleteWallet(ctx context.Context, wallet uuid.UUID) error
+	GetWalletByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
+	UpdateWallet(ctx context.Context, wallet *models.Wallet) (*models.Wallet, error)
 }
 
 type walletRepository struct {
@@ -58,17 +60,22 @@ func (r *walletRepository) FindAll(ctx context.Context, offset int, limit int) (
 }
 
 // repository/wallet.go
-func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) (*[]models.Wallet, error) {
+func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) (*[]models.Wallet, int64, error) {
 	var wallets []models.Wallet
-
-	err := r.db.WithContext(ctx).
+	var totalItems int64
+	query := r.db.WithContext(ctx).
 		Select("wallets.*, "+countQuery+" as transaction_count").
-		Where("user_id = ?", userID).
-		Limit(limit).
-		Offset(offset).
-		Find(&wallets).Error
+		Where("user_id = ?", userID)
 
-	return &wallets, err
+	if err := query.Count(&totalItems).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := query.Limit(limit).Offset(offset).
+		Find(&wallets).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return &wallets, totalItems, nil
 }
 
 func (r *walletRepository) CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {
@@ -78,4 +85,18 @@ func (r *walletRepository) CreateWallet(ctx context.Context, wallet models.Walle
 func (r *walletRepository) SoftDeleteWallet(ctx context.Context, walletId uuid.UUID) error {
 	err := r.db.WithContext(ctx).Delete(&models.Wallet{}, "id = ?", walletId).Error
 	return err
+}
+
+// 1. Tarik data lama
+func (r *walletRepository) GetWalletByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error) {
+	var wallet models.Wallet
+	// Gak perlu Preload transaksi, kita cuma mau ngedit nama
+	err := r.db.WithContext(ctx).First(&wallet, "id = ?", walletID).Error
+	return &wallet, err
+}
+
+// 2. Timpa data
+func (r *walletRepository) UpdateWallet(ctx context.Context, wallet *models.Wallet) (*models.Wallet, error) {
+	err := r.db.WithContext(ctx).Save(wallet).Error
+	return wallet, err
 }

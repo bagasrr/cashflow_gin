@@ -244,7 +244,7 @@ type UpdateUserReqUserRole string
 
 // UpdateWalletReq defines model for UpdateWalletReq.
 type UpdateWalletReq struct {
-	Name *string `json:"name,omitempty"`
+	Name string  `json:"name"`
 	Type *string `json:"type,omitempty"`
 }
 
@@ -1917,11 +1917,11 @@ type GetGroupsResponseObject interface {
 	VisitGetGroupsResponse(w http.ResponseWriter) error
 }
 
-type GetGroups201JSONResponse GroupListBaseRes
+type GetGroups200JSONResponse GroupListBaseRes
 
-func (response GetGroups201JSONResponse) VisitGetGroupsResponse(w http.ResponseWriter) error {
+func (response GetGroups200JSONResponse) VisitGetGroupsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -1996,11 +1996,11 @@ type GetMyGroupsResponseObject interface {
 	VisitGetMyGroupsResponse(w http.ResponseWriter) error
 }
 
-type GetMyGroups201JSONResponse GroupListBaseRes
+type GetMyGroups200JSONResponse GroupListBaseRes
 
-func (response GetMyGroups201JSONResponse) VisitGetMyGroupsResponse(w http.ResponseWriter) error {
+func (response GetMyGroups200JSONResponse) VisitGetMyGroupsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2799,11 +2799,11 @@ type UpdateWalletResponseObject interface {
 	VisitUpdateWalletResponse(w http.ResponseWriter) error
 }
 
-type UpdateWallet201JSONResponse WalletBaseRes
+type UpdateWallet200JSONResponse WalletBaseRes
 
-func (response UpdateWallet201JSONResponse) VisitUpdateWalletResponse(w http.ResponseWriter) error {
+func (response UpdateWallet200JSONResponse) VisitUpdateWalletResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }

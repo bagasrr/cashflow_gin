@@ -19,27 +19,6 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
-// Defines values for UpdateUserReqUserRole.
-const (
-	Admin     UpdateUserReqUserRole = "admin"
-	Moderator UpdateUserReqUserRole = "moderator"
-	User      UpdateUserReqUserRole = "user"
-)
-
-// Valid indicates whether the value is a known member of the UpdateUserReqUserRole enum.
-func (e UpdateUserReqUserRole) Valid() bool {
-	switch e {
-	case Admin:
-		return true
-	case Moderator:
-		return true
-	case User:
-		return true
-	default:
-		return false
-	}
-}
-
 // N400BaseRes defines model for 400BaseRes.
 type N400BaseRes struct {
 	Errors  *string `json:"errors,omitempty"`
@@ -223,6 +202,12 @@ type UpdateGroupReq struct {
 	Name        string `json:"name"`
 }
 
+// UpdateSystemUserReq defines model for UpdateSystemUserReq.
+type UpdateSystemUserReq struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+}
+
 // UpdateTransactionReq defines model for UpdateTransactionReq.
 type UpdateTransactionReq struct {
 	Amount      int64     `json:"amount"`
@@ -231,16 +216,6 @@ type UpdateTransactionReq struct {
 	Description string    `json:"description"`
 	Title       string    `json:"title"`
 }
-
-// UpdateUserReq defines model for UpdateUserReq.
-type UpdateUserReq struct {
-	Email    string                `json:"email"`
-	UserRole UpdateUserReqUserRole `json:"user_role"`
-	Username string                `json:"username"`
-}
-
-// UpdateUserReqUserRole defines model for UpdateUserReq.UserRole.
-type UpdateUserReqUserRole string
 
 // UpdateWalletReq defines model for UpdateWalletReq.
 type UpdateWalletReq struct {
@@ -388,10 +363,10 @@ type CreateTransactionJSONRequestBody = CreateTransactionReq
 type UpdateTransactionJSONRequestBody = UpdateTransactionReq
 
 // UpdateMyProfileJSONRequestBody defines body for UpdateMyProfile for application/json ContentType.
-type UpdateMyProfileJSONRequestBody = UpdateUserReq
+type UpdateMyProfileJSONRequestBody = UpdateSystemUserReq
 
 // UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
-type UpdateUserJSONRequestBody = UpdateUserReq
+type UpdateUserJSONRequestBody = UpdateSystemUserReq
 
 // CreatePersonalWalletJSONRequestBody defines body for CreatePersonalWallet for application/json ContentType.
 type CreatePersonalWalletJSONRequestBody = CreateWalletReq
@@ -485,6 +460,9 @@ type ServerInterface interface {
 	// Update User By ID
 	// (PUT /users/{id})
 	UpdateUser(c *gin.Context, id string)
+	// Chage system role to admin
+	// (PUT /users/{id}/change-role-to-admin)
+	PutUsersIdChangeRoleToAdmin(c *gin.Context, id string)
 	// Get all the user wallets
 	// (GET /wallets)
 	GetMyWallets(c *gin.Context, params GetMyWalletsParams)
@@ -1277,6 +1255,32 @@ func (siw *ServerInterfaceWrapper) UpdateUser(c *gin.Context) {
 	siw.Handler.UpdateUser(c, id)
 }
 
+// PutUsersIdChangeRoleToAdmin operation middleware
+func (siw *ServerInterfaceWrapper) PutUsersIdChangeRoleToAdmin(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutUsersIdChangeRoleToAdmin(c, id)
+}
+
 // GetMyWallets operation middleware
 func (siw *ServerInterfaceWrapper) GetMyWallets(c *gin.Context) {
 
@@ -1489,6 +1493,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/users/me", wrapper.UpdateMyProfile)
 	router.GET(options.BaseURL+"/users/:id", wrapper.FindUserById)
 	router.PUT(options.BaseURL+"/users/:id", wrapper.UpdateUser)
+	router.PUT(options.BaseURL+"/users/:id/change-role-to-admin", wrapper.PutUsersIdChangeRoleToAdmin)
 	router.GET(options.BaseURL+"/wallets", wrapper.GetMyWallets)
 	router.POST(options.BaseURL+"/wallets", wrapper.CreatePersonalWallet)
 	router.POST(options.BaseURL+"/wallets/group", wrapper.CreateGroupWallet)
@@ -2579,6 +2584,50 @@ func (response UpdateUser500JSONResponse) VisitUpdateUserResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type PutUsersIdChangeRoleToAdminRequestObject struct {
+	Id string `json:"id"`
+}
+
+type PutUsersIdChangeRoleToAdminResponseObject interface {
+	VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error
+}
+
+type PutUsersIdChangeRoleToAdmin200JSONResponse UserBaseRes
+
+func (response PutUsersIdChangeRoleToAdmin200JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutUsersIdChangeRoleToAdmin400JSONResponse N400BaseRes
+
+func (response PutUsersIdChangeRoleToAdmin400JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutUsersIdChangeRoleToAdmin401JSONResponse N400BaseRes
+
+func (response PutUsersIdChangeRoleToAdmin401JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutUsersIdChangeRoleToAdmin500JSONResponse N500BaseRes
+
+func (response PutUsersIdChangeRoleToAdmin500JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetMyWalletsRequestObject struct {
 	Params GetMyWalletsParams
 }
@@ -2918,6 +2967,9 @@ type StrictServerInterface interface {
 	// Update User By ID
 	// (PUT /users/{id})
 	UpdateUser(ctx context.Context, request UpdateUserRequestObject) (UpdateUserResponseObject, error)
+	// Chage system role to admin
+	// (PUT /users/{id}/change-role-to-admin)
+	PutUsersIdChangeRoleToAdmin(ctx context.Context, request PutUsersIdChangeRoleToAdminRequestObject) (PutUsersIdChangeRoleToAdminResponseObject, error)
 	// Get all the user wallets
 	// (GET /wallets)
 	GetMyWallets(ctx context.Context, request GetMyWalletsRequestObject) (GetMyWalletsResponseObject, error)
@@ -3742,6 +3794,33 @@ func (sh *strictHandler) UpdateUser(ctx *gin.Context, id string) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(UpdateUserResponseObject); ok {
 		if err := validResponse.VisitUpdateUserResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutUsersIdChangeRoleToAdmin operation middleware
+func (sh *strictHandler) PutUsersIdChangeRoleToAdmin(ctx *gin.Context, id string) {
+	var request PutUsersIdChangeRoleToAdminRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutUsersIdChangeRoleToAdmin(ctx, request.(PutUsersIdChangeRoleToAdminRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutUsersIdChangeRoleToAdmin")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PutUsersIdChangeRoleToAdminResponseObject); ok {
+		if err := validResponse.VisitPutUsersIdChangeRoleToAdminResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

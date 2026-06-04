@@ -95,12 +95,11 @@ components:
           items:
             $ref: "#/components/schemas/WalletRes"
 
-    UpdateUserReq:
+    UpdateSystemUserReq:
       type: object
       required:
         - username
         - email
-        - user_role
       properties:
         username:
           type: string
@@ -108,13 +107,13 @@ components:
         email:
           type: string
           example: "john.doe@example.com"
-        user_role:
-          type: string
-          enum:
-            - admin
-            - moderator
-            - user
-          example: "user"
+#        user_role:
+#          type: string
+#          enum:
+#            - admin
+#            - moderator
+#            - user
+#          example: "user"
 
     ChangePassword:
       type: object
@@ -759,7 +758,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-
   /users/me:
     get:
       tags:
@@ -801,7 +799,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateUserReq"
+              $ref: "#/components/schemas/UpdateSystemUserReq"
       responses:
         "200":
           description: Update Success
@@ -878,7 +876,6 @@ paths:
       operationId: updateUser
       security:
         - BearerAuth: []
-
       parameters:
         - name: id
           in: path
@@ -891,7 +888,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateUserReq"
+              $ref: "#/components/schemas/UpdateSystemUserReq"
       responses:
         "200":
           description: Update Success
@@ -918,6 +915,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
+  /users/{id}/change-role-to-admin:
+    put:
+      tags:
+        - Users
+      summary: Chage system role to admin
+      description: Endpoint untuk mengganti userRole = 3 ke userRole = 1, admin only can change
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
   # ==========================================
   # Transaction DOMAIN
   # ==========================================

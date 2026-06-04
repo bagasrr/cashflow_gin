@@ -166,15 +166,15 @@ func (u *UserAPI) FindUserById(ctx context.Context, request api.FindUserByIdRequ
 }
 
 func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestObject) (api.UpdateUserResponseObject, error) {
-	requestor, err := utils.GetUserID(ctx)
+	requestorId, requestorRole, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.UpdateUser500JSONResponse{
 			Status:  utils.BoolPtr(false),
-			Message: utils.StringPtr(err.Error()),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+			Message: utils.StringPtr("Cannot get context"),
 		}, nil
 	}
 
-	req := request.Body
 	targetID, err := uuid.Parse(request.Id) //ambil dari param
 	if err != nil {
 		status := false
@@ -184,8 +184,8 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 			Message: &msg,
 		}, nil
 	}
-
-	userRole := models.ParseUserRole(string(req.UserRole))
+	req := request.Body
+	userRole := requestorRole
 	targetUser := models.User{
 		Base: models.Base{
 			ID: targetID,
@@ -195,7 +195,7 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 		UserRole: userRole,
 	}
 
-	res, err := u.Service.UpdateUserByAdmin(ctx, requestor, targetUser)
+	res, err := u.Service.UpdateUserByAdmin(ctx, requestorId, targetUser)
 	if err != nil {
 		return api.UpdateUser500JSONResponse{
 			Status:  utils.BoolPtr(false),
@@ -216,7 +216,7 @@ func (u *UserAPI) UpdateUser(ctx context.Context, request api.UpdateUserRequestO
 }
 
 func (u *UserAPI) UpdateMyProfile(ctx context.Context, req api.UpdateMyProfileRequestObject) (api.UpdateMyProfileResponseObject, error) {
-	reqId, err := utils.GetUserID(ctx)
+	reqId, reqRole, err := utils.GetUserInfo(ctx)
 	if err != nil {
 		return api.UpdateMyProfile400JSONResponse{
 			Status:  utils.BoolPtr(false),
@@ -224,13 +224,14 @@ func (u *UserAPI) UpdateMyProfile(ctx context.Context, req api.UpdateMyProfileRe
 		}, nil
 	}
 
+	userRole := reqRole
 	user := models.User{
 		Base: models.Base{
 			ID: reqId,
 		},
 		Username: req.Body.Username,
 		Email:    req.Body.Email,
-		UserRole: models.ParseUserRole(string(req.Body.UserRole)),
+		UserRole: userRole,
 	}
 	profileUpdate, err := u.Service.UpdateMyProfile(ctx, reqId, user)
 	if err != nil {

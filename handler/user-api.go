@@ -16,7 +16,15 @@ type UserAPI struct {
 }
 
 func (u *UserAPI) FindAllUsers(ctx context.Context, req api.FindAllUsersRequestObject) (api.FindAllUsersResponseObject, error) {
-	users, err := u.Service.FindAllUser(ctx)
+	_, userRole, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.FindAllUsers400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot Get Context"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+	users, err := u.Service.FindAllUser(ctx, userRole)
 	if err != nil {
 		errStr := err.Error()
 		status := false

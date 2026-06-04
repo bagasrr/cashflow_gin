@@ -11,7 +11,7 @@ import (
 )
 
 type UserService interface {
-	FindAllUser(ctx context.Context) (*[]models.User, error)
+	FindAllUser(ctx context.Context, userRole models.UserRole) (*[]models.User, error)
 	GetMyProfile(ctx context.Context, id uuid.UUID) (*models.User, error)
 
 	FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*models.User, error)
@@ -27,7 +27,11 @@ func NewUserService(r repository.UserRepository) UserService {
 	return &userService{repo: r}
 }
 
-func (s *userService) FindAllUser(ctx context.Context) (*[]models.User, error) {
+func (s *userService) FindAllUser(ctx context.Context, userRole models.UserRole) (*[]models.User, error) {
+	if userRole != models.RoleAdmin {
+		return nil, errors.New("Access Denied : Only Role Admin can get all users")
+	}
+
 	users, err := s.repo.FindAllUser(ctx)
 	if err != nil {
 		return nil, err

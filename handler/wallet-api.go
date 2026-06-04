@@ -50,10 +50,10 @@ func (c *WalletAPI) CreatePersonalWallet(ctx context.Context, request api.Create
 	}, nil
 }
 
-func (c *WalletAPI) CreateGroupWallet(ctx context.Context, request api.CreatePersonalWalletRequestObject) (api.CreatePersonalWalletResponseObject, error) {
+func (c *WalletAPI) CreateGroupWallet(ctx context.Context, request api.CreateGroupWalletRequestObject) (api.CreateGroupWalletResponseObject, error) {
 	groupId, err := uuid.Parse(*request.Body.GroupId)
 	if err != nil {
-		return api.CreatePersonalWallet400JSONResponse{
+		return api.CreateGroupWallet400JSONResponse{
 			Message: utils.StringPtr("Cannot get Context"),
 			Status:  utils.BoolPtr(false),
 			Errors:  utils.StringPtr("Err : " + err.Error()),
@@ -67,9 +67,9 @@ func (c *WalletAPI) CreateGroupWallet(ctx context.Context, request api.CreatePer
 	wallet.Balance = 0
 	wallet.Currency = "IDR"
 
-	createWallet, err := c.Service.CreatePersonalWallet(ctx, wallet)
+	createWallet, err := c.Service.CreateGroupWallet(ctx, wallet)
 	if err != nil {
-		return api.CreatePersonalWallet500JSONResponse{
+		return api.CreateGroupWallet500JSONResponse{
 			Message: utils.StringPtr("Cannot Create Wallet"),
 			Status:  utils.BoolPtr(false),
 			Errors:  utils.StringPtr("Err : " + err.Error()),
@@ -80,7 +80,7 @@ func (c *WalletAPI) CreateGroupWallet(ctx context.Context, request api.CreatePer
 	res.Name = createWallet.Name
 	res.GroupId = nil
 	res.Balance = createWallet.Balance
-	return api.CreatePersonalWallet201JSONResponse{
+	return api.CreateGroupWallet201JSONResponse{
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Create Wallet Successfully"),
 		Data:    &res,

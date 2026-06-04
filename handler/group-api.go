@@ -86,7 +86,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 
 	totalPages := (int(totalItem) + limit - 1) / limit
 	// 5. KEMBALIKAN RESPONSE 200 (Bukan 201, GET itu 200 Success)
-	return api.GetGroups201JSONResponse{
+	return api.GetGroups200JSONResponse{
 		Data:    &res,
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Get Group Success"),
@@ -130,7 +130,7 @@ func (c *GroupAPI) GetMyGroups(ctx context.Context, request api.GetMyGroupsReque
 	}
 	totalPages := (int(totalData) + limit - 1) / limit
 
-	return api.GetMyGroups201JSONResponse{
+	return api.GetMyGroups200JSONResponse{
 		Message: utils.StringPtr("Get Group Success"),
 		Data:    &res,
 		Status:  utils.BoolPtr(true),

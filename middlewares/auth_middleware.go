@@ -17,16 +17,17 @@ import (
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		publicRoutes := []string{
+			"/docs", // Biar Swagger UI tetep bisa dibuka
 			"/api/auth/login",
 			"/api/auth/register",
 			"/api/auth/forgot-password",
-			"/docs",         // Biar Swagger UI tetep bisa dibuka
 			"/openapi.yaml", // Biar file dokumentasinya tetep bisa dibaca
 		}
 
 		// 2. CEK APAKAH USER MENUJU JALUR VIP
 		currentPath := c.Request.URL.Path
 		for _, route := range publicRoutes {
+
 			// Kalau URL awalan-nya cocok dengan whitelist, langsung loloskan
 			if strings.HasPrefix(currentPath, route) {
 				c.Next()
@@ -36,7 +37,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// PASANG RADAR INI SEMENTARA BUAT DEBUGGING
 		fmt.Println("\n=== DEBUG MIDDLEWARE ===")
 		fmt.Println("Path yang ditembak Postman :", currentPath)
-		fmt.Println("Apakah ada di Whitelist?   :", publicRoutes[2])
+		//fmt.Println("Apakah ada di Whitelist?   :", publicRoutes[2])
 		fmt.Println("========================\n")
 
 		authHeader := c.GetHeader("Authorization")

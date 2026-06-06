@@ -17,6 +17,8 @@ type UserService interface {
 	FindUserByID(ctx context.Context, targetID uuid.UUID, requestorRole models.UserRole) (*models.User, error)
 	UpdateUserByAdmin(ctx context.Context, requestorID uuid.UUID, targetUser models.User) (*models.User, error)
 	UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user models.User) (*models.User, error)
+	ChangeRoleToAdmin(ctx context.Context, targetId uuid.UUID, requestorRole models.UserRole) (*models.User, error)
+	ChangeRoleToUser(ctx context.Context, targetId uuid.UUID, requestorRole models.UserRole) (*models.User, error)
 }
 
 type userService struct {
@@ -95,4 +97,45 @@ func (s *userService) UpdateMyProfile(ctx context.Context, reqId uuid.UUID, user
 
 	}
 	return profileUpdate, nil
+}
+
+func (s *userService) ChangeRoleToAdmin(ctx context.Context, targetId uuid.UUID, requestorRole models.UserRole) (*models.User, error) {
+	if requestorRole != models.RoleAdmin {
+		return nil, errors.New("forbidden: access denied")
+	}
+	user, err := s.repo.FindUserByID(ctx, targetId)
+	if err != nil {
+		return nil, err
+	}
+	var targetUser models.User
+	targetUser.ID = user.ID
+	targetUser.UserRole = models.RoleAdmin
+	targetUser.Email = user.Email
+	targetUser.Username = user.Username
+	updatedUser, err := s.repo.ChangeRole(ctx, targetUser)
+	if err != nil {
+		return nil, err
+
+	}
+	return updatedUser, nil
+}
+func (s *userService) ChangeRoleToUser(ctx context.Context, targetId uuid.UUID, requestorRole models.UserRole) (*models.User, error) {
+	if requestorRole != models.RoleAdmin {
+		return nil, errors.New("forbidden: access denied")
+	}
+	user, err := s.repo.FindUserByID(ctx, targetId)
+	if err != nil {
+		return nil, err
+	}
+	var targetUser models.User
+	targetUser.ID = user.ID
+	targetUser.UserRole = models.RoleUser
+	targetUser.Email = user.Email
+	targetUser.Username = user.Username
+	updatedUser, err := s.repo.ChangeRole(ctx, targetUser)
+	if err != nil {
+		return nil, err
+
+	}
+	return updatedUser, nil
 }

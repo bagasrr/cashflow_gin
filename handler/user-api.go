@@ -252,3 +252,79 @@ func (u *UserAPI) UpdateMyProfile(ctx context.Context, req api.UpdateMyProfileRe
 		},
 	}, nil
 }
+
+func (u *UserAPI) ChangeRoleToAdmin(ctx context.Context, req api.ChangeRoleToAdminRequestObject) (api.ChangeRoleToAdminResponseObject, error) {
+	_, requestorRole, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.ChangeRoleToAdmin401JSONResponse{
+			Message: utils.StringPtr("Unauthorize, Cant Get Context"),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+	targetId, err := uuid.Parse(req.Id)
+	if err != nil {
+		return api.ChangeRoleToAdmin400JSONResponse{
+			Message: utils.StringPtr("Failed to parse target user ID "),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+	targetUser, err := u.Service.ChangeRoleToAdmin(ctx, targetId, requestorRole)
+	if err != nil {
+		return api.ChangeRoleToAdmin500JSONResponse{
+			Message: utils.StringPtr("Cannot Update Role"),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+	var res api.UserRes
+	res.Id = targetUser.ID.String()
+	res.Email = targetUser.Email
+	res.Username = targetUser.Username
+	res.UserRole = targetUser.UserRole.String()
+
+	return api.ChangeRoleToAdmin200JSONResponse{
+		Message: utils.StringPtr("Change Role To Admin Successfully"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+	}, nil
+}
+
+func (u *UserAPI) ChangeRoleToUser(ctx context.Context, req api.ChangeRoleToUserRequestObject) (api.ChangeRoleToUserResponseObject, error) {
+	_, requestorRole, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.ChangeRoleToUser401JSONResponse{
+			Message: utils.StringPtr("Unauthorize, Cant Get Context"),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+	targetId, err := uuid.Parse(req.Id)
+	if err != nil {
+		return api.ChangeRoleToUser400JSONResponse{
+			Message: utils.StringPtr("Failed to parse target user ID "),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+	targetUser, err := u.Service.ChangeRoleToUser(ctx, targetId, requestorRole)
+	if err != nil {
+		return api.ChangeRoleToUser500JSONResponse{
+			Message: utils.StringPtr("Cannot Update Role"),
+			Status:  utils.BoolPtr(false),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+	var res api.UserRes
+	res.Id = targetUser.ID.String()
+	res.Email = targetUser.Email
+	res.Username = targetUser.Username
+	res.UserRole = targetUser.UserRole.String()
+
+	return api.ChangeRoleToUser200JSONResponse{
+		Message: utils.StringPtr("Change Role To Admin Successfully"),
+		Status:  utils.BoolPtr(true),
+		Data:    &res,
+	}, nil
+}

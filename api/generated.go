@@ -462,7 +462,10 @@ type ServerInterface interface {
 	UpdateUser(c *gin.Context, id string)
 	// Chage system role to admin
 	// (PUT /users/{id}/change-role-to-admin)
-	PutUsersIdChangeRoleToAdmin(c *gin.Context, id string)
+	ChangeRoleToAdmin(c *gin.Context, id string)
+	// Chage system role to admin
+	// (PUT /users/{id}/change-role-to-user)
+	ChangeRoleToUser(c *gin.Context, id string)
 	// Get all the user wallets
 	// (GET /wallets)
 	GetMyWallets(c *gin.Context, params GetMyWalletsParams)
@@ -1255,8 +1258,8 @@ func (siw *ServerInterfaceWrapper) UpdateUser(c *gin.Context) {
 	siw.Handler.UpdateUser(c, id)
 }
 
-// PutUsersIdChangeRoleToAdmin operation middleware
-func (siw *ServerInterfaceWrapper) PutUsersIdChangeRoleToAdmin(c *gin.Context) {
+// ChangeRoleToAdmin operation middleware
+func (siw *ServerInterfaceWrapper) ChangeRoleToAdmin(c *gin.Context) {
 
 	var err error
 
@@ -1278,7 +1281,33 @@ func (siw *ServerInterfaceWrapper) PutUsersIdChangeRoleToAdmin(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.PutUsersIdChangeRoleToAdmin(c, id)
+	siw.Handler.ChangeRoleToAdmin(c, id)
+}
+
+// ChangeRoleToUser operation middleware
+func (siw *ServerInterfaceWrapper) ChangeRoleToUser(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ChangeRoleToUser(c, id)
 }
 
 // GetMyWallets operation middleware
@@ -1493,7 +1522,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/users/me", wrapper.UpdateMyProfile)
 	router.GET(options.BaseURL+"/users/:id", wrapper.FindUserById)
 	router.PUT(options.BaseURL+"/users/:id", wrapper.UpdateUser)
-	router.PUT(options.BaseURL+"/users/:id/change-role-to-admin", wrapper.PutUsersIdChangeRoleToAdmin)
+	router.PUT(options.BaseURL+"/users/:id/change-role-to-admin", wrapper.ChangeRoleToAdmin)
+	router.PUT(options.BaseURL+"/users/:id/change-role-to-user", wrapper.ChangeRoleToUser)
 	router.GET(options.BaseURL+"/wallets", wrapper.GetMyWallets)
 	router.POST(options.BaseURL+"/wallets", wrapper.CreatePersonalWallet)
 	router.POST(options.BaseURL+"/wallets/group", wrapper.CreateGroupWallet)
@@ -2584,44 +2614,88 @@ func (response UpdateUser500JSONResponse) VisitUpdateUserResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutUsersIdChangeRoleToAdminRequestObject struct {
+type ChangeRoleToAdminRequestObject struct {
 	Id string `json:"id"`
 }
 
-type PutUsersIdChangeRoleToAdminResponseObject interface {
-	VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error
+type ChangeRoleToAdminResponseObject interface {
+	VisitChangeRoleToAdminResponse(w http.ResponseWriter) error
 }
 
-type PutUsersIdChangeRoleToAdmin200JSONResponse UserBaseRes
+type ChangeRoleToAdmin200JSONResponse UserBaseRes
 
-func (response PutUsersIdChangeRoleToAdmin200JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+func (response ChangeRoleToAdmin200JSONResponse) VisitChangeRoleToAdminResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutUsersIdChangeRoleToAdmin400JSONResponse N400BaseRes
+type ChangeRoleToAdmin400JSONResponse N400BaseRes
 
-func (response PutUsersIdChangeRoleToAdmin400JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+func (response ChangeRoleToAdmin400JSONResponse) VisitChangeRoleToAdminResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutUsersIdChangeRoleToAdmin401JSONResponse N400BaseRes
+type ChangeRoleToAdmin401JSONResponse N400BaseRes
 
-func (response PutUsersIdChangeRoleToAdmin401JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+func (response ChangeRoleToAdmin401JSONResponse) VisitChangeRoleToAdminResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PutUsersIdChangeRoleToAdmin500JSONResponse N500BaseRes
+type ChangeRoleToAdmin500JSONResponse N500BaseRes
 
-func (response PutUsersIdChangeRoleToAdmin500JSONResponse) VisitPutUsersIdChangeRoleToAdminResponse(w http.ResponseWriter) error {
+func (response ChangeRoleToAdmin500JSONResponse) VisitChangeRoleToAdminResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ChangeRoleToUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ChangeRoleToUserResponseObject interface {
+	VisitChangeRoleToUserResponse(w http.ResponseWriter) error
+}
+
+type ChangeRoleToUser200JSONResponse UserBaseRes
+
+func (response ChangeRoleToUser200JSONResponse) VisitChangeRoleToUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ChangeRoleToUser400JSONResponse N400BaseRes
+
+func (response ChangeRoleToUser400JSONResponse) VisitChangeRoleToUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ChangeRoleToUser401JSONResponse N400BaseRes
+
+func (response ChangeRoleToUser401JSONResponse) VisitChangeRoleToUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ChangeRoleToUser500JSONResponse N500BaseRes
+
+func (response ChangeRoleToUser500JSONResponse) VisitChangeRoleToUserResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -2969,7 +3043,10 @@ type StrictServerInterface interface {
 	UpdateUser(ctx context.Context, request UpdateUserRequestObject) (UpdateUserResponseObject, error)
 	// Chage system role to admin
 	// (PUT /users/{id}/change-role-to-admin)
-	PutUsersIdChangeRoleToAdmin(ctx context.Context, request PutUsersIdChangeRoleToAdminRequestObject) (PutUsersIdChangeRoleToAdminResponseObject, error)
+	ChangeRoleToAdmin(ctx context.Context, request ChangeRoleToAdminRequestObject) (ChangeRoleToAdminResponseObject, error)
+	// Chage system role to admin
+	// (PUT /users/{id}/change-role-to-user)
+	ChangeRoleToUser(ctx context.Context, request ChangeRoleToUserRequestObject) (ChangeRoleToUserResponseObject, error)
 	// Get all the user wallets
 	// (GET /wallets)
 	GetMyWallets(ctx context.Context, request GetMyWalletsRequestObject) (GetMyWalletsResponseObject, error)
@@ -3801,17 +3878,17 @@ func (sh *strictHandler) UpdateUser(ctx *gin.Context, id string) {
 	}
 }
 
-// PutUsersIdChangeRoleToAdmin operation middleware
-func (sh *strictHandler) PutUsersIdChangeRoleToAdmin(ctx *gin.Context, id string) {
-	var request PutUsersIdChangeRoleToAdminRequestObject
+// ChangeRoleToAdmin operation middleware
+func (sh *strictHandler) ChangeRoleToAdmin(ctx *gin.Context, id string) {
+	var request ChangeRoleToAdminRequestObject
 
 	request.Id = id
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PutUsersIdChangeRoleToAdmin(ctx, request.(PutUsersIdChangeRoleToAdminRequestObject))
+		return sh.ssi.ChangeRoleToAdmin(ctx, request.(ChangeRoleToAdminRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PutUsersIdChangeRoleToAdmin")
+		handler = middleware(handler, "ChangeRoleToAdmin")
 	}
 
 	response, err := handler(ctx, request)
@@ -3819,8 +3896,35 @@ func (sh *strictHandler) PutUsersIdChangeRoleToAdmin(ctx *gin.Context, id string
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PutUsersIdChangeRoleToAdminResponseObject); ok {
-		if err := validResponse.VisitPutUsersIdChangeRoleToAdminResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(ChangeRoleToAdminResponseObject); ok {
+		if err := validResponse.VisitChangeRoleToAdminResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ChangeRoleToUser operation middleware
+func (sh *strictHandler) ChangeRoleToUser(ctx *gin.Context, id string) {
+	var request ChangeRoleToUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangeRoleToUser(ctx, request.(ChangeRoleToUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangeRoleToUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(ChangeRoleToUserResponseObject); ok {
+		if err := validResponse.VisitChangeRoleToUserResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

@@ -20,6 +20,7 @@ type UserRepository interface {
 	FindUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	UpdateUser(ctx context.Context, user models.User) (*models.User, error)
 	UpdateUserByAdmin(ctx context.Context, user models.User) (*models.User, error)
+	ChangeRole(ctx context.Context, user models.User) (*models.User, error)
 }
 
 type userRepository struct {
@@ -116,6 +117,12 @@ func (r *userRepository) UpdateUser(ctx context.Context, user models.User) (*mod
 }
 
 func (r *userRepository) UpdateUserByAdmin(ctx context.Context, user models.User) (*models.User, error) {
+	err := r.db.WithContext(ctx).Model(user).Omit("id").Save(&user).Error
+	return &user, err
+}
+
+// untuk ganti role dengan cepat ke admin, maupun ke user
+func (r *userRepository) ChangeRole(ctx context.Context, user models.User) (*models.User, error) {
 	err := r.db.WithContext(ctx).Model(user).Omit("id").Save(&user).Error
 	return &user, err
 }

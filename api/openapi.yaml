@@ -921,6 +921,7 @@ paths:
         - Users
       summary: Chage system role to admin
       description: Endpoint untuk mengganti userRole = 3 ke userRole = 1, admin only can change
+      operationId: changeRoleToAdmin
       security:
         - BearerAuth: []
       parameters:
@@ -955,6 +956,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
+  /users/{id}/change-role-to-user:
+    put:
+      tags:
+        - Users
+      summary: Chage system role to admin
+      description: Endpoint untuk mengganti userRole = 1 ke userRole = 3, admin only can change
+      operationId: changeRoleToUser
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
   # ==========================================
   # Transaction DOMAIN
   # ==========================================

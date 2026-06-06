@@ -16,21 +16,21 @@ type TransactionAPI struct {
 func (c *TransactionAPI) GetTransactions(ctx context.Context, request api.GetTransactionsRequestObject) (api.GetTransactionsResponseObject, error) {
 	userID, userRole, err := utils.GetUserInfo(ctx)
 	if err != nil {
-		status := false
-		msg := "Gagal Auth: " + err.Error()
+
 		return api.GetTransactions500JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get context"),
+			Errors:  utils.StringPtr("ERR: " + err.Error()),
 		}, nil
 	}
 
 	transactions, err := c.Service.GetAll(ctx, userID, userRole)
 	if err != nil {
-		status := false
-		msg := "Failed to get transactions: " + err.Error()
+
 		return api.GetTransactions500JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get transactions"),
+			Errors:  utils.StringPtr("ERR: " + err.Error()),
 		}, nil
 	}
 
@@ -75,22 +75,21 @@ func (c *TransactionAPI) GetTransactions(ctx context.Context, request api.GetTra
 func (c *TransactionAPI) CreateTransaction(ctx context.Context, req api.CreateTransactionRequestObject) (api.CreateTransactionResponseObject, error) {
 	userID, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
-		status := false
-		msg := "Gagal Auth: " + err.Error()
+
 		return api.CreateTransaction400JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get context"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
 		}, nil
 	}
 
 	inputData := api.CreateTransactionReq(*req.Body)
 	newTrx, err := c.Service.Create(ctx, userID, inputData)
 	if err != nil {
-		status := false
-		msg := "Gagal Create: " + err.Error()
 		return api.CreateTransaction400JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("failed to create transaction: "),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
 		}, nil
 	}
 
@@ -119,11 +118,9 @@ func (c *TransactionAPI) CreateTransaction(ctx context.Context, req api.CreateTr
 		},
 	}
 
-	status := true
-	message := "Create Transaction Success"
 	return api.CreateTransaction201JSONResponse{
-		Status:  &status,
-		Message: &message,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success Create Transaction"),
 		Data:    &res,
 	}, nil
 }
@@ -131,23 +128,30 @@ func (c *TransactionAPI) CreateTransaction(ctx context.Context, req api.CreateTr
 func (c *TransactionAPI) FindTransactionById(ctx context.Context, request api.FindTransactionByIdRequestObject) (api.FindTransactionByIdResponseObject, error) {
 	userID, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
-		status := false
-		msg := "Gagal Auth: " + err.Error()
-		return api.FindTransactionById401JSONResponse{Status: &status, Message: &msg}, nil
+
+		return api.FindTransactionById401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get context"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	transactionID, err := uuid.Parse(request.Id)
 	if err != nil {
-		status := false
-		msg := "Invalid Transaction ID format"
-		return api.FindTransactionById400JSONResponse{Status: &status, Message: &msg}, nil
+		return api.FindTransactionById400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Invalid transaction ID"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	trx, err := c.Service.GetTransactionByID(ctx, userID, transactionID)
 	if err != nil {
-		status := false
-		msg := "Transaction not found: " + err.Error()
-		return api.FindTransactionById400JSONResponse{Status: &status, Message: &msg}, nil
+		return api.FindTransactionById400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get transaction"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	var desc *string
@@ -175,36 +179,39 @@ func (c *TransactionAPI) FindTransactionById(ctx context.Context, request api.Fi
 		},
 	}
 
-	status := true
-	msgStr := "Success Get Transaction"
 	return api.FindTransactionById200JSONResponse{
 		Data:    &res,
-		Status:  &status,
-		Message: &msgStr,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success Find Transaction"),
 	}, nil
 }
 
 func (c *TransactionAPI) UpdateTransaction(ctx context.Context, request api.UpdateTransactionRequestObject) (api.UpdateTransactionResponseObject, error) {
 	userID, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
-		status := false
-		msg := "Gagal Auth: " + err.Error()
-		return api.UpdateTransaction401JSONResponse{Status: &status, Message: &msg}, nil
+		return api.UpdateTransaction401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get context"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	transactionID, err := uuid.Parse(request.Id)
 	if err != nil {
-		status := false
-		msg := "Invalid Transaction ID format"
-		return api.UpdateTransaction400JSONResponse{Status: &status, Message: &msg}, nil
+		return api.UpdateTransaction400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Invalid transaction ID"),
+		}, nil
 	}
 
 	inputData := api.UpdateTransactionReq(*request.Body)
 	updatedTrx, err := c.Service.UpdateTransaction(ctx, userID, transactionID, inputData)
 	if err != nil {
-		status := false
-		msg := "Failed to update transaction: " + err.Error()
-		return api.UpdateTransaction400JSONResponse{Status: &status, Message: &msg}, nil
+		return api.UpdateTransaction400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("failed to update transaction"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	var desc *string
@@ -232,43 +239,45 @@ func (c *TransactionAPI) UpdateTransaction(ctx context.Context, request api.Upda
 		},
 	}
 
-	status := true
-	msgStr := "Success Update Transaction"
 	return api.UpdateTransaction200JSONResponse{
 		Data:    &res,
-		Status:  &status,
-		Message: &msgStr,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success Update Transaction"),
 	}, nil
 }
 
 func (c *TransactionAPI) DeleteTransaction(ctx context.Context, request api.DeleteTransactionRequestObject) (api.DeleteTransactionResponseObject, error) {
 	userID, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
-		status := false
-		msg := "Gagal Auth: " + err.Error()
-		return api.DeleteTransaction401JSONResponse{Status: &status, Message: &msg}, nil
+		return api.DeleteTransaction401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get context"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	transactionID, err := uuid.Parse(request.Id)
 	if err != nil {
-		status := false
-		msg := "Invalid Transaction ID format"
-		return api.DeleteTransaction400JSONResponse{Status: &status, Message: &msg}, nil
+		return api.DeleteTransaction400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Invalid transaction ID"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
 	// 🛑 TUGAS MUTLAK LU DI SERVICE:
 	// Pastikan fungsi ini di Service TIDAK LAGI meminta parameter walletID.
 	err = c.Service.SoftDeleteTransaction(ctx, userID, transactionID)
 	if err != nil {
-		status := false
-		msg := "Failed to delete transaction: " + err.Error()
-		return api.DeleteTransaction400JSONResponse{Status: &status, Message: &msg}, nil
+		return api.DeleteTransaction400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("failed to delete transaction"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 
-	status := true
-	msgStr := "Success Delete Transaction"
 	return api.DeleteTransaction200JSONResponse{
-		Status:  &status,
-		Message: &msgStr,
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success Delete Transaction"),
 	}, nil
 }

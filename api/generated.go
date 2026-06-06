@@ -81,6 +81,12 @@ type CreateGroupReq struct {
 	Name        string   `json:"name"`
 }
 
+// CreateSystemCategoryReq defines model for CreateSystemCategoryReq.
+type CreateSystemCategoryReq struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
 // CreateTransactionReq defines model for CreateTransactionReq.
 type CreateTransactionReq struct {
 	Amount      int64     `json:"amount"`
@@ -346,6 +352,9 @@ type RegisterJSONRequestBody = RegisterReq
 
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
 type CreateCategoryJSONRequestBody = CreateCategoryReq
+
+// CreateSystemCategoriesJSONRequestBody defines body for CreateSystemCategories for application/json ContentType.
+type CreateSystemCategoriesJSONRequestBody = CreateSystemCategoryReq
 
 // UpdateCategoryJSONRequestBody defines body for UpdateCategory for application/json ContentType.
 type UpdateCategoryJSONRequestBody = UpdateCategoryReq
@@ -1752,6 +1761,7 @@ func (response GetSystemCategories500JSONResponse) VisitGetSystemCategoriesRespo
 }
 
 type CreateSystemCategoriesRequestObject struct {
+	Body *CreateSystemCategoriesJSONRequestBody
 }
 
 type CreateSystemCategoriesResponseObject interface {
@@ -3268,6 +3278,14 @@ func (sh *strictHandler) GetSystemCategories(ctx *gin.Context, params GetSystemC
 // CreateSystemCategories operation middleware
 func (sh *strictHandler) CreateSystemCategories(ctx *gin.Context) {
 	var request CreateSystemCategoriesRequestObject
+
+	var body CreateSystemCategoriesJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.CreateSystemCategories(ctx, request.(CreateSystemCategoriesRequestObject))

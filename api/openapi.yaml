@@ -458,6 +458,18 @@ components:
           type: string
           nullable: true
           example: "123e4567-e89b-12d3-a456-426655440000"
+    CreateSystemCategoryReq:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          example: "Makanan"
+        type:
+          type: string
+          example: "expense"
     #--------------- CATEGORY END -------------
     #--------------- AUTH BEGIN ---------------
     AuthLoginRes:
@@ -1397,6 +1409,12 @@ paths:
       operationId: createSystemCategories
       security:
         - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSystemCategoryReq"
       responses:
         "201":
           description: Created

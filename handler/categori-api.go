@@ -25,11 +25,10 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 	log.Printf("UserID di Context: %s", userID)
 
 	if err != nil {
-		status := false
-		msg := "Gagal Auth: " + err.Error()
 		return api.CreateCategory500JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get user context"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
 		}, nil
 	}
 
@@ -42,13 +41,11 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 			strings.Contains(err.Error(), "SQLSTATE 23505") {
 
 			log.Println("❌ ERROR VALIDASI: Nama Kategori Sudah Ada")
-			status := false
-			msg := "Kategori dengan nama tersebut sudah ada."
 			// WAJIB RETURN 400 (Bad Request), bukan 500.
 			// Pastikan di openapi.yaml lu udah definisiin response 400 untuk endpoint ini.
 			return api.CreateCategory400JSONResponse{
-				Status:  &status,
-				Message: &msg,
+				Status:  utils.BoolPtr(false),
+				Message: utils.StringPtr("Nama Kategori Sudah Ada"),
 			}, nil
 		}
 
@@ -56,13 +53,12 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 		status := false
 		msg := "Gagal membuat kategori: " + err.Error()
 		return api.CreateCategory500JSONResponse{
-			Status:  &status,
-			Message: &msg,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Huhuuu, Cannot Create Category"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
 		}, nil
 	}
 
-	message := "Create Category Success"
-	status := true
 	return api.CreateCategory201JSONResponse{
 		Data: &api.CategoryRes{
 			Id:      res.ID.String(),
@@ -71,8 +67,8 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 			UserId:  utils.UUIDPtrToStringPtr(res.UserID),
 			GroupId: utils.UUIDPtrToStringPtr(res.GroupID),
 		},
-		Message: &message, // Assign the pointer to a string variable
-		Status:  &status,
+		Message: utils.StringPtr("Create Category Success"), // Assign the pointer to a string variable
+		Status:  utils.BoolPtr(true),
 	}, nil
 }
 
@@ -91,8 +87,9 @@ func (c *CategoryAPI) GetSystemCategories(ctx context.Context, request api.GetSy
 	if err != nil {
 		return api.GetSystemCategories500JSONResponse{
 			Status:  utils.BoolPtr(false),
-			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
-		}, err
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+			Message: utils.StringPtr("Cannot Parse User COntext"),
+		}, nil
 	}
 	cat, totalItems, err := c.Service.GetSystemCategories(ctx, limitValue, pageValue)
 
@@ -282,19 +279,21 @@ func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCate
 }
 
 func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCategoryByIdRequestObject) (api.GetCategoryByIdResponseObject, error) {
+	requestorId, requestorRole, err := utils.GetUserInfo(ctx)
 	catId, err := uuid.Parse(request.Id)
 	if err != nil {
 		return api.GetCategoryById400JSONResponse{
 			Status:  utils.BoolPtr(false),
 			Message: utils.StringPtr("Cant Parse Id"),
-		}, err
+		}, nil
 	}
-	cat, err := c.Service.GetById(ctx, catId)
+	cat, err := c.Service.GetById(ctx, catId, requestorId, requestorRole)
 	if err != nil {
 		return api.GetCategoryById500JSONResponse{
 			Status:  utils.BoolPtr(false),
 			Message: utils.StringPtr("Cant Get Category"),
-		}, err
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 	res := api.CategoryRes{
 		Id:      cat.ID.String(),

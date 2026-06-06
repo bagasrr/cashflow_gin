@@ -20,7 +20,7 @@ type CategoryService interface {
 	CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
 	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error)
 
-	GetById(ctx context.Context, categoryID uuid.UUID) (*models.Category, error)
+	GetById(ctx context.Context, categoryID, reqId uuid.UUID, reqRole models.UserRole) (*models.Category, error)
 	UpdateById(ctx context.Context, userID, catId uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error)
 	DeleteById(ctx context.Context, userID, categoryID uuid.UUID) error
 }
@@ -216,10 +216,14 @@ func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, page, l
 	return categories, nil
 }
 
-func (s *categoryService) GetById(ctx context.Context, categoryID uuid.UUID) (*models.Category, error) {
+func (s *categoryService) GetById(ctx context.Context, categoryID, reqId uuid.UUID, reqRole models.UserRole) (*models.Category, error) {
+
 	category, err := s.repo.FindByID(ctx, categoryID)
 	if err != nil {
 		return nil, errors.New("category not found")
+	}
+	if *category.UserID != reqId || reqRole < models.RoleUser {
+		return nil, errors.New("user is not authorized to create category")
 	}
 
 	res := models.Category{

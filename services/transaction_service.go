@@ -119,12 +119,12 @@ func (s *transactionService) Create(ctx context.Context, userID uuid.UUID, input
 		Date:        input.Date,
 	}
 
-	err = s.transactionRepo.CreateWithWalletUpdate(ctx, &transaction)
+	newTrx, err := s.transactionRepo.CreateWithWalletUpdate(ctx, &transaction)
 	if err != nil {
 		return nil, err
 	}
 
-	return &transaction, nil
+	return newTrx, nil
 }
 
 func (s *transactionService) GetAll(ctx context.Context, userID uuid.UUID, role models.UserRole) (*[]models.Transaction, error) {

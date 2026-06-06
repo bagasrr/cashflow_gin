@@ -65,9 +65,11 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 	status := true
 	return api.CreateCategory201JSONResponse{
 		Data: &api.CategoryRes{
-			Id:   res.ID.String(),
-			Name: res.Name,
-			Type: res.Type,
+			Id:      res.ID.String(),
+			Name:    res.Name,
+			Type:    res.Type,
+			UserId:  utils.UUIDPtrToStringPtr(res.UserID),
+			GroupId: utils.UUIDPtrToStringPtr(res.GroupID),
 		},
 		Message: &message, // Assign the pointer to a string variable
 		Status:  &status,
@@ -234,12 +236,11 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 	}
 	var res []api.CategoryRes
 	for _, v := range *cat {
-		uid := v.UserID.String()
-		guid := v.GroupID.String()
+
 		res = append(res, api.CategoryRes{
 			Id:      v.ID.String(),
-			UserId:  &uid,
-			GroupId: &guid,
+			UserId:  utils.UUIDPtrToStringPtr(v.UserID),
+			GroupId: utils.UUIDPtrToStringPtr(v.GroupID),
 			Name:    v.Name,
 			Type:    v.Type,
 		})

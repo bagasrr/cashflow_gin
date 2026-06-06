@@ -117,10 +117,26 @@ func (r *transactionRepository) UpdateTransactionWithWalletBallance(ctx context.
 
 func (r *transactionRepository) SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(transactionID).Error; err != nil {
+
+		// 1. KEMBALIKAN SALDO DOMPET (Reverse Balance)
+		// Lu ngelewatin 'delta' dari Service.
+		// Kalau di Service delta lu adalah negatif (misal: -100000),
+		// maka gorm.Expr("balance + ?", delta) akan menjadi balance + (-100000) alias ngurangin saldo.
+		if err := tx.Model(&models.Wallet{}).
+			Where("id = ?", walletID).
+			Updates(map[string]interface{}{
+				"balance":    gorm.Expr("balance + ?", delta),
+				"updated_at": time.Now(),
+			}).Error; err != nil {
 			return err
 		}
 
-		return nil
+		// 2. SOFT DELETE TRANSAKSI
+		// Kasih tau GORM tabel apa yang mau dituju dengan mengirim pointer &models.Transaction{}
+		if err := tx.Delete(&models.Transaction{}, "id = ?", transactionID).Error; err != nil {
+			return err
+		}
+
+		return nil // Commit transaksi jika kedua operasi di atas sukses
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -248,7 +249,8 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 }
 
 func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCategoryRequestObject) (api.DeleteCategoryResponseObject, error) {
-	userId, err := utils.GetUserID(ctx)
+	userId, _, err := utils.GetUserInfo(ctx)
+	fmt.Println("Requestor ID in handler : " + userId.String())
 	if err != nil {
 		return api.DeleteCategory400JSONResponse{
 			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist"),

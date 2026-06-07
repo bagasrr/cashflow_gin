@@ -321,8 +321,9 @@ func (s *categoryService) DeleteById(ctx context.Context, userID, categoryID uui
 			return errors.New("unauthorized: user is not an admin of the group")
 		}
 	}
-
-	if cat.UserID != &userID {
+	fmt.Println("cat userID : " + cat.UserID.String())
+	fmt.Println("userID From hanlder : " + userID.String())
+	if *cat.UserID != userID {
 		return errors.New("unauthorized: user is not the owner of the category")
 	}
 

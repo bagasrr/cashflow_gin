@@ -107,27 +107,37 @@ func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, limit, of
 
 	return wallets, totalItems, nil
 }
-
 func (s *walletService) DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error {
-	isGroupWallet, groupId, err := s.groupRepo.IsGroupWallet(ctx, walletId)
+	// 1. FETCH: Tarik wujud asli dompetnya dari database (Tambahkan fungsi GetWalletByID di repo lu kalau belum ada)
+	wallet, err := s.walletRepo.GetWalletByID(ctx, walletId)
 	if err != nil {
-		return err
+		return errors.New("wallet not found")
 	}
-	if isGroupWallet {
-		isGroupAdmin, err := s.groupRepo.IsGroupAdmin(ctx, groupId, userId)
-		if err != nil || !isGroupAdmin {
-			return err
+
+	// 2. OTORISASI MUTLAK (Aman dari Nil Pointer)
+	if wallet.GroupID != nil {
+		// SKENARIO A: Dompet Grup
+		// Karena kita udah ngecek != nil, melakukan *wallet.GroupID di bawah ini 100% aman dari Panic
+		isAdmin, err := s.groupRepo.IsGroupAdmin(ctx, *wallet.GroupID, userId)
+		if err != nil || !isAdmin {
+			return errors.New("unauthorized: only group admin can delete this group wallet")
 		}
-		err = s.walletRepo.SoftDeleteWallet(ctx, walletId)
-		if err != nil {
-			return err
+	} else {
+		// SKENARIO B: Dompet Personal
+		// CEK MUTLAK: Pastikan user yang login adalah pemiliknya
+		if wallet.UserID == nil || *wallet.UserID != userId {
+			return errors.New("unauthorized: you do not own this personal wallet")
 		}
 	}
 
+	// 3. EKSEKUSI DELETE TUNGGAL
+	// Pastikan di dalam SoftDeleteWallet ini lu juga me-soft delete semua transaksi
+	// yang terkait dengan walletId tersebut menggunakan db.Transaction()
 	err = s.walletRepo.SoftDeleteWallet(ctx, walletId)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

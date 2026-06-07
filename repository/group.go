@@ -157,6 +157,7 @@ func (r *groupRepository) IsGroupWallet(ctx context.Context, walletID uuid.UUID)
 
 	// 1. SELECT & FETCH: Suruh Postgres mengambil nilai "group_id" dari baris pertama yang cocok
 	err := r.db.WithContext(ctx).
+		Model(models.Wallet{}).
 		Select("group_id").
 		Where("id = ? AND group_id IS NOT NULL", walletID).
 		First(&wallet).Error

@@ -248,9 +248,6 @@ components:
         name:
           type: string
           example: "Wallet Utama"
-        type:
-          type: string
-          example: "Income"
 
     #--------------- WALLET END -------------
     #--------------- TRANSACTION BEGIN -------------

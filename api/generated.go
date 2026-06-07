@@ -225,8 +225,7 @@ type UpdateTransactionReq struct {
 
 // UpdateWalletReq defines model for UpdateWalletReq.
 type UpdateWalletReq struct {
-	Name string  `json:"name"`
-	Type *string `json:"type,omitempty"`
+	Name string `json:"name"`
 }
 
 // UserBaseRes defines model for UserBaseRes.
@@ -479,7 +478,7 @@ type ServerInterface interface {
 	// Create Group Wallet
 	// (POST /wallets/group)
 	CreateGroupWallet(c *gin.Context)
-	// Get all the user wallets
+	// Get all My wallets
 	// (GET /wallets/me)
 	GetMyWallets(c *gin.Context, params GetMyWalletsParams)
 	// Create Personal Wallet
@@ -3061,7 +3060,7 @@ type StrictServerInterface interface {
 	// Create Group Wallet
 	// (POST /wallets/group)
 	CreateGroupWallet(ctx context.Context, request CreateGroupWalletRequestObject) (CreateGroupWalletResponseObject, error)
-	// Get all the user wallets
+	// Get all My wallets
 	// (GET /wallets/me)
 	GetMyWallets(ctx context.Context, request GetMyWalletsRequestObject) (GetMyWalletsResponseObject, error)
 	// Create Personal Wallet

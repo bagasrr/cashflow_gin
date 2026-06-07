@@ -141,16 +141,20 @@ func (c *WalletAPI) GetWalletById(ctx context.Context, request api.GetWalletById
 	var walletTransac []api.TransactionRes
 	for _, v := range wallet.Transactions {
 		walletTransac = append(walletTransac, api.TransactionRes{
-			Id:     v.ID.String(),
-			Title:  v.Title,
-			Amount: v.Amount,
+			Id:          v.ID.String(),
+			Title:       v.Title,
+			Amount:      v.Amount,
+			Description: &v.Description,
 			Category: api.CategoryRes{
+				Id:   v.Category.ID.String(),
 				Name: v.Category.Name,
 				Type: v.Category.Type,
 			},
 			User: api.UserRes{
 				Id:       v.User.ID.String(),
+				Email:    v.User.Email,
 				Username: v.User.Username,
+				UserRole: v.User.UserRole.String(),
 			},
 		})
 	}
@@ -158,6 +162,7 @@ func (c *WalletAPI) GetWalletById(ctx context.Context, request api.GetWalletById
 	res.Id = wallet.ID.String()
 	res.Name = wallet.Name
 	res.GroupId = utils.UUIDPtrToStringPtr(wallet.GroupID)
+	res.UserId = utils.UUIDPtrToStringPtr(wallet.UserID)
 	res.Balance = wallet.Balance
 	res.TransactionCount = wallet.TransactionCount
 	res.Transactions = walletTransac

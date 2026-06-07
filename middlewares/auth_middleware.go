@@ -63,6 +63,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			return []byte(config.AppConfig.JWTSecret), nil
 		})
 
+		fmt.Println("\nToken Valid : " + tokenString)
+
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
 				Status:  false,

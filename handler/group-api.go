@@ -25,12 +25,11 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 	}
 	if role != models.RoleAdmin {
 		return api.GetGroups401JSONResponse{
-			Errors:  utils.StringPtr("ERR MESSAGE : " + err.Error()),
 			Message: utils.StringPtr("You do not have access to this resource"),
 			Status:  utils.BoolPtr(false),
 		}, nil
 	}
-	limit, page, offset := utils.ValidatePagination(request.Params.Limit, request.Params.Page)
+	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
 	groups, totalItem, err := c.Service.GetAllGroups(ctx, limit, offset)
 	if err != nil {
 		return api.GetGroups500JSONResponse{
@@ -39,7 +38,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 			Status:  utils.BoolPtr(false),
 		}, nil
 	}
-	var res []api.GroupRes
+	res := []api.GroupRes{}
 
 	// LOOPING PARENT (Group)
 	for _, group := range *groups {
@@ -58,6 +57,7 @@ func (c *GroupAPI) GetGroups(ctx context.Context, request api.GetGroupsRequestOb
 				TransactionCount: w.TransactionCount,
 				// Gunakan helper pointer kalau GroupId di Wallet opsional
 				GroupId: utils.UUIDPtrToStringPtr(w.GroupID),
+				UserId:  utils.UUIDPtrToStringPtr(w.UserID),
 				// Kosongkan dulu list transaksi untuk di wallet ini biar ringan
 				Transactions: []api.TransactionRes{},
 			})

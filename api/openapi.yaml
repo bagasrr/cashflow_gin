@@ -1846,6 +1846,8 @@ paths:
         - Groups
       summary: Create New Group
       operationId: createGroup
+      security:
+        - BearerAuth: [ ]
       requestBody:
         required: true
         content:

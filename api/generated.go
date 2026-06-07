@@ -854,6 +854,8 @@ func (siw *ServerInterfaceWrapper) GetGroups(c *gin.Context) {
 // CreateGroup operation middleware
 func (siw *ServerInterfaceWrapper) CreateGroup(c *gin.Context) {
 
+	c.Set(BearerAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {

@@ -59,18 +59,26 @@ func (r *walletRepository) FindAll(ctx context.Context, offset int, limit int) (
 	return &wallets, err
 }
 
-// repository/wallet.go
 func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) (*[]models.Wallet, int64, error) {
 	var wallets []models.Wallet
 	var totalItems int64
-	query := r.db.WithContext(ctx).
-		Select("wallets.*, "+countQuery+" as transaction_count").
-		Where("user_id = ?", userID)
 
-	if err := query.Count(&totalItems).Error; err != nil {
+	// 1. EKSEKUSI A: HANYA UNTUK MENGHITUNG (COUNT)
+	// Buat query baru, murni hanya untuk Where dan Count. Jangan dicampur Select.
+	if err := r.db.WithContext(ctx).
+		Model(&models.Wallet{}).
+		Where("user_id = ?", userID).
+		Count(&totalItems).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := query.Limit(limit).Offset(offset).
+
+	// 2. EKSEKUSI B: HANYA UNTUK MENARIK DATA (FIND)
+	// Buat rantai query BARU dari nol. Bersih, tidak tercemar.
+	if err := r.db.WithContext(ctx).
+		Model(&models.Wallet{}).
+		Select("wallets.*, "+countQuery+" as transaction_count"). // Asumsi countQuery lu valid
+		Where("user_id = ?", userID).
+		Limit(limit).Offset(offset).
 		Find(&wallets).Error; err != nil {
 		return nil, 0, err
 	}

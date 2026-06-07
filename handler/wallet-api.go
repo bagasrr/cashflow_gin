@@ -6,6 +6,7 @@ import (
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -41,7 +42,8 @@ func (c *WalletAPI) CreatePersonalWallet(ctx context.Context, request api.Create
 	var res api.WalletRes
 	res.Id = createWallet.ID.String()
 	res.Name = createWallet.Name
-	res.GroupId = nil
+	res.GroupId = utils.UUIDPtrToStringPtr(createWallet.GroupID)
+	res.UserId = utils.UUIDPtrToStringPtr(createWallet.UserID)
 	res.Balance = createWallet.Balance
 	return api.CreatePersonalWallet201JSONResponse{
 		Status:  utils.BoolPtr(true),
@@ -86,6 +88,7 @@ func (c *WalletAPI) CreateGroupWallet(ctx context.Context, request api.CreateGro
 		Data:    &res,
 	}, nil
 }
+
 func (c *WalletAPI) DeleteWallet(ctx context.Context, request api.DeleteWalletRequestObject) (api.DeleteWalletResponseObject, error) {
 	userId, _, err := utils.GetUserInfo(ctx)
 	if err != nil {
@@ -175,7 +178,7 @@ func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRe
 			Errors:  utils.StringPtr("Err : " + err.Error()),
 		}, nil
 	}
-	limit, page, offset := utils.ValidatePagination(request.Params.Limit, request.Params.Page)
+	page, limit, offset := utils.ValidatePagination(request.Params.Page, request.Params.Limit)
 	myWallets, totalItems, err := c.Service.GetMine(ctx, userId, limit, offset)
 	if err != nil {
 		return api.GetMyWallets500JSONResponse{
@@ -184,16 +187,24 @@ func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRe
 			Errors:  utils.StringPtr("Err : " + err.Error()),
 		}, nil
 	}
-	var res []api.WalletRes
+	fmt.Println(myWallets)
+	res := []api.WalletRes{}
+
+	// 2. LOOPING & MAPPING
 	for _, v := range *myWallets {
 		res = append(res, api.WalletRes{
 			Id:               v.ID.String(),
 			Name:             v.Name,
+			UserId:           utils.UUIDPtrToStringPtr(v.UserID),
 			GroupId:          utils.UUIDPtrToStringPtr(v.GroupID),
 			Balance:          v.Balance,
 			TransactionCount: v.TransactionCount,
+
+			// 3. PROTEKSI BERSARANG: Cegah properti ini meledak menjadi 'null' di Frontend
+			Transactions: []api.TransactionRes{},
 		})
 	}
+	fmt.Println(res)
 	totalPages := (int(totalItems) + limit - 1) / limit
 	return api.GetMyWallets200JSONResponse{
 		Message: utils.StringPtr("Get Wallets Successfully"),

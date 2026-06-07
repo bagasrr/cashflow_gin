@@ -276,6 +276,7 @@ type WalletRes struct {
 	Name             string           `json:"name"`
 	TransactionCount int64            `json:"transaction_count"`
 	Transactions     []TransactionRes `json:"transactions"`
+	UserId           *string          `json:"user_id"`
 }
 
 // GetCategoriesParams defines parameters for GetCategories.
@@ -377,11 +378,11 @@ type UpdateMyProfileJSONRequestBody = UpdateSystemUserReq
 // UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
 type UpdateUserJSONRequestBody = UpdateSystemUserReq
 
-// CreatePersonalWalletJSONRequestBody defines body for CreatePersonalWallet for application/json ContentType.
-type CreatePersonalWalletJSONRequestBody = CreateWalletReq
-
 // CreateGroupWalletJSONRequestBody defines body for CreateGroupWallet for application/json ContentType.
 type CreateGroupWalletJSONRequestBody = CreateWalletReq
+
+// CreatePersonalWalletJSONRequestBody defines body for CreatePersonalWallet for application/json ContentType.
+type CreatePersonalWalletJSONRequestBody = CreateWalletReq
 
 // UpdateWalletJSONRequestBody defines body for UpdateWallet for application/json ContentType.
 type UpdateWalletJSONRequestBody = UpdateWalletReq
@@ -475,15 +476,15 @@ type ServerInterface interface {
 	// Chage system role to admin
 	// (PUT /users/{id}/change-role-to-user)
 	ChangeRoleToUser(c *gin.Context, id string)
-	// Get all the user wallets
-	// (GET /wallets)
-	GetMyWallets(c *gin.Context, params GetMyWalletsParams)
-	// Create Personal Wallet
-	// (POST /wallets)
-	CreatePersonalWallet(c *gin.Context)
 	// Create Group Wallet
 	// (POST /wallets/group)
 	CreateGroupWallet(c *gin.Context)
+	// Get all the user wallets
+	// (GET /wallets/me)
+	GetMyWallets(c *gin.Context, params GetMyWalletsParams)
+	// Create Personal Wallet
+	// (POST /wallets/me)
+	CreatePersonalWallet(c *gin.Context)
 	// Delete Wallet By ID (soft)
 	// (DELETE /wallets/{id})
 	DeleteWallet(c *gin.Context, id string)
@@ -1319,6 +1320,21 @@ func (siw *ServerInterfaceWrapper) ChangeRoleToUser(c *gin.Context) {
 	siw.Handler.ChangeRoleToUser(c, id)
 }
 
+// CreateGroupWallet operation middleware
+func (siw *ServerInterfaceWrapper) CreateGroupWallet(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.CreateGroupWallet(c)
+}
+
 // GetMyWallets operation middleware
 func (siw *ServerInterfaceWrapper) GetMyWallets(c *gin.Context) {
 
@@ -1382,21 +1398,6 @@ func (siw *ServerInterfaceWrapper) CreatePersonalWallet(c *gin.Context) {
 	}
 
 	siw.Handler.CreatePersonalWallet(c)
-}
-
-// CreateGroupWallet operation middleware
-func (siw *ServerInterfaceWrapper) CreateGroupWallet(c *gin.Context) {
-
-	c.Set(BearerAuthScopes, []string{})
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.CreateGroupWallet(c)
 }
 
 // DeleteWallet operation middleware
@@ -1533,9 +1534,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/users/:id", wrapper.UpdateUser)
 	router.PUT(options.BaseURL+"/users/:id/change-role-to-admin", wrapper.ChangeRoleToAdmin)
 	router.PUT(options.BaseURL+"/users/:id/change-role-to-user", wrapper.ChangeRoleToUser)
-	router.GET(options.BaseURL+"/wallets", wrapper.GetMyWallets)
-	router.POST(options.BaseURL+"/wallets", wrapper.CreatePersonalWallet)
 	router.POST(options.BaseURL+"/wallets/group", wrapper.CreateGroupWallet)
+	router.GET(options.BaseURL+"/wallets/me", wrapper.GetMyWallets)
+	router.POST(options.BaseURL+"/wallets/me", wrapper.CreatePersonalWallet)
 	router.DELETE(options.BaseURL+"/wallets/:id", wrapper.DeleteWallet)
 	router.GET(options.BaseURL+"/wallets/:id", wrapper.GetWalletById)
 	router.PUT(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
@@ -2712,6 +2713,50 @@ func (response ChangeRoleToUser500JSONResponse) VisitChangeRoleToUserResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateGroupWalletRequestObject struct {
+	Body *CreateGroupWalletJSONRequestBody
+}
+
+type CreateGroupWalletResponseObject interface {
+	VisitCreateGroupWalletResponse(w http.ResponseWriter) error
+}
+
+type CreateGroupWallet201JSONResponse WalletBaseRes
+
+func (response CreateGroupWallet201JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroupWallet400JSONResponse N400BaseRes
+
+func (response CreateGroupWallet400JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroupWallet401JSONResponse N400BaseRes
+
+func (response CreateGroupWallet401JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateGroupWallet500JSONResponse N500BaseRes
+
+func (response CreateGroupWallet500JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetMyWalletsRequestObject struct {
 	Params GetMyWalletsParams
 }
@@ -2785,50 +2830,6 @@ func (response CreatePersonalWallet401JSONResponse) VisitCreatePersonalWalletRes
 type CreatePersonalWallet500JSONResponse N500BaseRes
 
 func (response CreatePersonalWallet500JSONResponse) VisitCreatePersonalWalletResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateGroupWalletRequestObject struct {
-	Body *CreateGroupWalletJSONRequestBody
-}
-
-type CreateGroupWalletResponseObject interface {
-	VisitCreateGroupWalletResponse(w http.ResponseWriter) error
-}
-
-type CreateGroupWallet201JSONResponse WalletBaseRes
-
-func (response CreateGroupWallet201JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateGroupWallet400JSONResponse N400BaseRes
-
-func (response CreateGroupWallet400JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateGroupWallet401JSONResponse N400BaseRes
-
-func (response CreateGroupWallet401JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CreateGroupWallet500JSONResponse N500BaseRes
-
-func (response CreateGroupWallet500JSONResponse) VisitCreateGroupWalletResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -3057,15 +3058,15 @@ type StrictServerInterface interface {
 	// Chage system role to admin
 	// (PUT /users/{id}/change-role-to-user)
 	ChangeRoleToUser(ctx context.Context, request ChangeRoleToUserRequestObject) (ChangeRoleToUserResponseObject, error)
-	// Get all the user wallets
-	// (GET /wallets)
-	GetMyWallets(ctx context.Context, request GetMyWalletsRequestObject) (GetMyWalletsResponseObject, error)
-	// Create Personal Wallet
-	// (POST /wallets)
-	CreatePersonalWallet(ctx context.Context, request CreatePersonalWalletRequestObject) (CreatePersonalWalletResponseObject, error)
 	// Create Group Wallet
 	// (POST /wallets/group)
 	CreateGroupWallet(ctx context.Context, request CreateGroupWalletRequestObject) (CreateGroupWalletResponseObject, error)
+	// Get all the user wallets
+	// (GET /wallets/me)
+	GetMyWallets(ctx context.Context, request GetMyWalletsRequestObject) (GetMyWalletsResponseObject, error)
+	// Create Personal Wallet
+	// (POST /wallets/me)
+	CreatePersonalWallet(ctx context.Context, request CreatePersonalWalletRequestObject) (CreatePersonalWalletResponseObject, error)
 	// Delete Wallet By ID (soft)
 	// (DELETE /wallets/{id})
 	DeleteWallet(ctx context.Context, request DeleteWalletRequestObject) (DeleteWalletResponseObject, error)
@@ -3950,6 +3951,39 @@ func (sh *strictHandler) ChangeRoleToUser(ctx *gin.Context, id string) {
 	}
 }
 
+// CreateGroupWallet operation middleware
+func (sh *strictHandler) CreateGroupWallet(ctx *gin.Context) {
+	var request CreateGroupWalletRequestObject
+
+	var body CreateGroupWalletJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateGroupWallet(ctx, request.(CreateGroupWalletRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateGroupWallet")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(CreateGroupWalletResponseObject); ok {
+		if err := validResponse.VisitCreateGroupWalletResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMyWallets operation middleware
 func (sh *strictHandler) GetMyWallets(ctx *gin.Context, params GetMyWalletsParams) {
 	var request GetMyWalletsRequestObject
@@ -4003,39 +4037,6 @@ func (sh *strictHandler) CreatePersonalWallet(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(CreatePersonalWalletResponseObject); ok {
 		if err := validResponse.VisitCreatePersonalWalletResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// CreateGroupWallet operation middleware
-func (sh *strictHandler) CreateGroupWallet(ctx *gin.Context) {
-	var request CreateGroupWalletRequestObject
-
-	var body CreateGroupWalletJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateGroupWallet(ctx, request.(CreateGroupWalletRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateGroupWallet")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(CreateGroupWalletResponseObject); ok {
-		if err := validResponse.VisitCreateGroupWalletResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

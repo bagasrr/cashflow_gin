@@ -172,8 +172,9 @@ components:
         - id
         - balance
         - name
-        - transaction_count
         - group_id
+        - user_id
+        - transaction_count
         - transactions
       properties:
         id:
@@ -189,6 +190,10 @@ components:
           type: integer
           format: int64
           example: 10
+        user_id:
+          type: string
+          nullable: true
+          example: "123e4567-e89b-12d3-a456-426655440000"
         group_id:
           type: string
           nullable: true
@@ -1555,7 +1560,7 @@ paths:
   # ==========================================
   # WALLET DOMAIN
   # ==========================================
-  /wallets:
+  /wallets/me:
     post:
       tags:
         - Wallets
@@ -1597,7 +1602,8 @@ paths:
     get:
       tags:
         - Wallets
-      summary: Get all the user wallets
+      summary: Get all My wallets
+      operationId: getMyWallets
       parameters:
         - name: page
           in: query
@@ -1611,7 +1617,6 @@ paths:
           schema:
             type: integer
             default: 10
-      operationId: getMyWallets
       security:
         - BearerAuth: []
       responses:

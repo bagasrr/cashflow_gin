@@ -90,20 +90,16 @@ func (s *walletService) GetWalletByID(ctx context.Context, userID, walletID uuid
 	return wallet, nil
 }
 
-// services/wallet_service.go
-func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Wallet, int64, error) {
-	// 1. Validasi cegah angka minus atau nol (Hacker/Bug Frontend)
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 { // Jangan biarkan frontend request 1 juta data sekaligus
+func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, int64, error) {
+	// 1. Validasi cegah Hacker/Bug Frontend (Opsional karena udah di-cover Helper Handler, tapi bagus untuk Double Security)
+	if limit < 1 || limit > 100 {
 		limit = 10
 	}
+	if offset < 0 {
+		offset = 0
+	}
 
-	// 2. Hitung Offset
-	offset := (page - 1) * limit
-
-	// 3. Panggil Repository dengan parameter yang udah matang
+	// 2. Langsung Panggil Repository (HAPUS PERHITUNGAN OFFSET DI SINI)
 	wallets, totalItems, err := s.walletRepo.FindAllMine(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, 0, err

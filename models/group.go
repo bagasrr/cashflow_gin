@@ -15,9 +15,9 @@ const (
 func (g *MembersRole) String() string {
 	switch *g {
 	case GroupAdmin:
-		return "ADMIN"
+		return "GROUP ADMIN"
 	case GroupParticipant:
-		return "MEMBER"
+		return "GROUP MEMBER"
 	case GroupGuest:
 		return "GUEST"
 	default:

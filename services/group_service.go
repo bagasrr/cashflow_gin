@@ -152,7 +152,7 @@ func (s *groupService) UpdateGroup(ctx context.Context, userID, groupID uuid.UUI
 	return s.repo.UpdateGroup(ctx, existingGroup)
 }
 func (s *groupService) DeleteGroup(ctx context.Context, userId, groupID uuid.UUID) error {
-	isGroupAdmin, err := s.repo.IsGroupAdmin(ctx, userId, groupID)
+	isGroupAdmin, err := s.repo.IsGroupAdmin(ctx, groupID, userId)
 	if err != nil {
 		return err
 	}

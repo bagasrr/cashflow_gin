@@ -127,6 +127,7 @@ type GroupListBaseRes struct {
 
 // GroupMembersRes defines model for GroupMembersRes.
 type GroupMembersRes struct {
+	Email    string `json:"email"`
 	Id       string `json:"id"`
 	Role     string `json:"role"`
 	UserId   string `json:"userId"`

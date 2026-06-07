@@ -552,6 +552,7 @@ components:
         - username
         - role
         - userId
+        - email
       properties:
         id:
           type: string
@@ -565,6 +566,9 @@ components:
         userId:
           type: string
           example: "123e4567-e89b-12d3-a456-426655440000"
+        email:
+          type: string
+          example: "john.doe@example.com"
 
     GroupRes:
       type: object

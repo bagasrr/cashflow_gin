@@ -243,11 +243,19 @@ func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdReq
 			Status:  utils.BoolPtr(false),
 		}, nil
 	}
-	var res api.GroupRes
-	res.Id = group.ID.String()
-	res.Name = group.Name
-	res.Description = utils.StringPtr(group.Description)
-	var walletRes []api.WalletRes
+
+	members := []api.GroupMembersRes{}
+	for _, m := range group.Members {
+		members = append(members, api.GroupMembersRes{
+			Id:       m.ID.String(),
+			UserId:   m.UserID.String(),
+			Role:     m.MembersRole.String(),
+			Email:    m.User.Email,
+			Username: m.User.Username,
+		})
+	}
+
+	walletRes := []api.WalletRes{}
 	for _, w := range group.Wallet {
 		walletRes = append(walletRes, api.WalletRes{
 			Id:               w.ID.String(),
@@ -258,6 +266,12 @@ func (c *GroupAPI) GetGroupById(ctx context.Context, request api.GetGroupByIdReq
 			Transactions:     []api.TransactionRes{},
 		})
 	}
+	res := api.GroupRes{}
+	res.Id = group.ID.String()
+	res.Name = group.Name
+	res.Description = utils.StringPtr(group.Description)
+	res.Wallet = walletRes
+	res.Members = members
 	return api.GetGroupById200JSONResponse{
 		Message: utils.StringPtr("Get Group Success"),
 		Status:  utils.BoolPtr(true),

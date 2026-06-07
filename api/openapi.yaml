@@ -107,13 +107,6 @@ components:
         email:
           type: string
           example: "john.doe@example.com"
-#        user_role:
-#          type: string
-#          enum:
-#            - admin
-#            - moderator
-#            - user
-#          example: "user"
 
     ChangePassword:
       type: object
@@ -448,10 +441,12 @@ components:
       properties:
         name:
           type: string
-          example: "Makanan"
         type:
           type: string
-          example: "expense"
+          enum:
+            - INCOME
+            - EXPENSE
+            - INVESTMENT
         group_id:
           type: string
           nullable: true

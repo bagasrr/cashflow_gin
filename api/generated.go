@@ -19,6 +19,27 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
+// Defines values for CreateCategoryReqType.
+const (
+	EXPENSE    CreateCategoryReqType = "EXPENSE"
+	INCOME     CreateCategoryReqType = "INCOME"
+	INVESTMENT CreateCategoryReqType = "INVESTMENT"
+)
+
+// Valid indicates whether the value is a known member of the CreateCategoryReqType enum.
+func (e CreateCategoryReqType) Valid() bool {
+	switch e {
+	case EXPENSE:
+		return true
+	case INCOME:
+		return true
+	case INVESTMENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // N400BaseRes defines model for 400BaseRes.
 type N400BaseRes struct {
 	Errors  *string `json:"errors,omitempty"`
@@ -68,11 +89,14 @@ type CategoryRes struct {
 
 // CreateCategoryReq defines model for CreateCategoryReq.
 type CreateCategoryReq struct {
-	GroupId *string `json:"group_id,omitempty"`
-	Name    string  `json:"name"`
-	Type    string  `json:"type"`
-	UserId  *string `json:"user_id,omitempty"`
+	GroupId *string               `json:"group_id,omitempty"`
+	Name    string                `json:"name"`
+	Type    CreateCategoryReqType `json:"type"`
+	UserId  *string               `json:"user_id,omitempty"`
 }
+
+// CreateCategoryReqType defines model for CreateCategoryReq.Type.
+type CreateCategoryReqType string
 
 // CreateGroupReq defines model for CreateGroupReq.
 type CreateGroupReq struct {

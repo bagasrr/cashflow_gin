@@ -39,7 +39,7 @@ func NewCategoryService(r repository.CategoryRepository, gr repository.GroupRepo
 func (s *categoryService) CreateMyDefault(ctx context.Context, userId uuid.UUID, input api.CreateCategoryReq) (*models.Category, error) {
 	category := models.Category{
 		Name:   input.Name,
-		Type:   input.Type,
+		Type:   models.CategoryType(input.Type),
 		UserID: &userId,
 	}
 	err := s.repo.CreateMyDefault(ctx, &category)
@@ -79,7 +79,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input ap
 	if isRoleAdmin {
 		category := models.Category{
 			Name:   input.Name,
-			Type:   input.Type,
+			Type:   models.CategoryType(input.Type),
 			UserID: nil,
 		}
 		createdCategory, err = s.repo.Create(ctx, &category)
@@ -98,7 +98,7 @@ func (s *categoryService) Create(ctx context.Context, userID uuid.UUID, input ap
 		category := models.Category{
 			UserID: &userID,
 			Name:   input.Name,
-			Type:   input.Type,
+			Type:   models.CategoryType(input.Type),
 		}
 
 		if input.GroupId != nil {
@@ -189,7 +189,7 @@ func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input 
 	category := models.Category{
 		UserID: &userID,
 		Name:   input.Name,
-		Type:   input.Type,
+		Type:   models.CategoryType(input.Type),
 	}
 
 	if input.GroupId != nil {
@@ -248,7 +248,7 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, catId uuid.UUI
 	}
 
 	category.Name = input.Name
-	category.Type = input.Type
+	category.Type = models.CategoryType(input.Type)
 
 	if category.GroupID != nil {
 		fmt.Println("Berhasil masuk ke validasi groupid != nil")

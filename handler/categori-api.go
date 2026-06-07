@@ -60,7 +60,7 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 		Data: &api.CategoryRes{
 			Id:      res.ID.String(),
 			Name:    res.Name,
-			Type:    res.Type,
+			Type:    string(res.Type),
 			UserId:  utils.UUIDPtrToStringPtr(res.UserID),
 			GroupId: utils.UUIDPtrToStringPtr(res.GroupID),
 		},
@@ -97,7 +97,7 @@ func (c *CategoryAPI) GetSystemCategories(ctx context.Context, request api.GetSy
 			GroupId: utils.UUIDPtrToStringPtr(v.GroupID),
 			UserId:  utils.UUIDPtrToStringPtr(v.UserID),
 			Name:    v.Name,
-			Type:    v.Type,
+			Type:    string(v.Type),
 		})
 	}
 
@@ -150,7 +150,7 @@ func (c *CategoryAPI) GetCategories(ctx context.Context, request api.GetCategori
 			GroupId: utils.UUIDPtrToStringPtr(v.GroupID),
 			UserId:  utils.UUIDPtrToStringPtr(v.UserID),
 			Name:    v.Name,
-			Type:    v.Type,
+			Type:    string(v.Type),
 		})
 	}
 
@@ -238,7 +238,7 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 			UserId:  utils.UUIDPtrToStringPtr(v.UserID),
 			GroupId: utils.UUIDPtrToStringPtr(v.GroupID),
 			Name:    v.Name,
-			Type:    v.Type,
+			Type:    string(v.Type),
 		})
 	}
 	return api.GetMyCategories200JSONResponse{
@@ -303,7 +303,7 @@ func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCatego
 		UserId:  utils.UUIDPtrToStringPtr(cat.UserID),
 		GroupId: utils.UUIDPtrToStringPtr(cat.GroupID),
 		Name:    cat.Name,
-		Type:    cat.Type,
+		Type:    string(cat.Type),
 	}
 	return api.GetCategoryById200JSONResponse{
 		Data:    &res,
@@ -340,7 +340,7 @@ func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCate
 		Id:      cat.ID.String(),
 		GroupId: utils.UUIDPtrToStringPtr(cat.GroupID),
 		Name:    cat.Name,
-		Type:    cat.Type,
+		Type:    string(cat.Type),
 		UserId:  utils.UUIDPtrToStringPtr(cat.UserID),
 	}
 	return api.UpdateCategory200JSONResponse{

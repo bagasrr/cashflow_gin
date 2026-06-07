@@ -92,6 +92,7 @@ func (r *groupRepository) GetMyGroups(ctx context.Context, userID uuid.UUID, lim
 	// lalu memfilternya berdasarkan user_id yang ada di group_members.
 	query := r.db.WithContext(ctx).
 		Model(&models.Group{}).
+		Select(`groups.*, (SELECT COUNT(*) FROM group_members WHERE group_members.group_id = groups.id) AS member_count`).
 		Joins("JOIN group_members ON group_members.group_id = groups.id").
 		Where("group_members.user_id = ?", userID)
 

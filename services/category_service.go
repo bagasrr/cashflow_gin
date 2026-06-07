@@ -6,6 +6,7 @@ import (
 	"cashflow_gin/repository"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -240,22 +241,7 @@ func (s *categoryService) GetById(ctx context.Context, categoryID, reqId uuid.UU
 }
 
 func (s *categoryService) UpdateById(ctx context.Context, userID, catId uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error) {
-	// category, err := s.repo.FindByIDAndUserID(ctx, categoryID, userID)
-	// if err != nil {
-	// 	return nil, errors.New("category not found or unauthorized")
-	// }
-
-	// Flow Update by id:
-	// 1. Cari Category berdasarkan id
-	// 2. Apakah itu categori milik group?
-	//    - Jika iya, apakah user adalah admin group tersebut?
-	//   		- Jika ya, boleh mendelete category tersebut
-	//   		- Jika tidak, return error unauthorized
-	//    - Jika tidak, apakah category tersebut milik user tersebut?
-	//   		- Jika ya, boleh mendelete category tersebut
-	//   		- Jika tidak, return error unauthorized
-	// 3. Jika salah satu kondisi di atas terpenuhi, lakukan update pada category tersebut.
-
+	fmt.Println("sampe ke service updatebyid")
 	category, err := s.repo.FindByID(ctx, catId)
 	if err != nil {
 		return nil, errors.New("category not found")
@@ -265,6 +251,7 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, catId uuid.UUI
 	category.Type = input.Type
 
 	if category.GroupID != nil {
+		fmt.Println("Berhasil masuk ke validasi groupid != nil")
 		isGroupAdmin, err := s.groupRepo.IsGroupAdmin(ctx, *category.GroupID, userID)
 		if err != nil {
 			return nil, errors.New("failed to check group admin status")
@@ -272,8 +259,14 @@ func (s *categoryService) UpdateById(ctx context.Context, userID, catId uuid.UUI
 		if !isGroupAdmin {
 			return nil, errors.New("unauthorized: user is not an admin of the group")
 		}
+		fmt.Println("Validasi groupid != nil SELESAI")
 	}
-
+	if category.UserID != nil {
+		fmt.Println("MASUK VALIDA CAT.USERID != Nil")
+		if *category.UserID != userID {
+			return nil, errors.New("user is not authorized to update category")
+		}
+	}
 	if input.GroupId != nil {
 		groupID, err := uuid.Parse(*input.GroupId)
 		if err != nil {

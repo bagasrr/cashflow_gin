@@ -48,10 +48,6 @@ func (c *CategoryAPI) CreateCategory(ctx context.Context, req api.CreateCategory
 				Message: utils.StringPtr("Nama Kategori Sudah Ada"),
 			}, nil
 		}
-
-		// Kalau error lain (misal koneksi DB mati), baru return 500
-		status := false
-		msg := "Gagal membuat kategori: " + err.Error()
 		return api.CreateCategory500JSONResponse{
 			Status:  utils.BoolPtr(false),
 			Message: utils.StringPtr("Huhuuu, Cannot Create Category"),
@@ -179,21 +175,23 @@ func (c *CategoryAPI) CreateSystemCategories(ctx context.Context, request api.Cr
 	if err != nil {
 		return api.CreateSystemCategories401JSONResponse{
 			Status:  utils.BoolPtr(false),
-			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
-		}, err
+			Message: utils.StringPtr("Cannot get context"),
+			Errors:  utils.StringPtr("ERR :  " + err.Error()),
+		}, nil
 	}
 	if role != models.RoleAdmin {
 		return api.CreateSystemCategories401JSONResponse{
 			Status:  utils.BoolPtr(false),
 			Message: utils.StringPtr("Access Denied : Only System Admin can run this endpoint"),
-		}, err
+		}, nil
 	}
 	err = c.Service.CreateSystemCategories(ctx)
 	if err != nil {
 		return api.CreateSystemCategories500JSONResponse{
 			Status:  utils.BoolPtr(false),
 			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
-		}, err
+			Errors:  utils.StringPtr("ERR :  " + err.Error()),
+		}, nil
 	}
 	return api.CreateSystemCategories201JSONResponse{
 		Status:  utils.BoolPtr(true),
@@ -253,16 +251,18 @@ func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCate
 	userId, err := utils.GetUserID(ctx)
 	if err != nil {
 		return api.DeleteCategory400JSONResponse{
-			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist" + err.Error()),
+			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist"),
 			Status:  utils.BoolPtr(false),
-		}, err
+			Errors:  utils.StringPtr("ERR :  " + err.Error()),
+		}, nil
 	}
 	catId, err := uuid.Parse(request.Id)
 	if err != nil {
 		return api.DeleteCategory400JSONResponse{
-			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist" + err.Error()),
+			Message: utils.StringPtr("User Id not Found In The context, Please Login Frist"),
 			Status:  utils.BoolPtr(false),
-		}, err
+			Errors:  utils.StringPtr("ERR :  " + err.Error()),
+		}, nil
 	}
 
 	err = c.Service.DeleteById(ctx, userId, catId)
@@ -270,7 +270,8 @@ func (c *CategoryAPI) DeleteCategory(ctx context.Context, request api.DeleteCate
 		return api.DeleteCategory500JSONResponse{
 			Message: utils.StringPtr("Delete Category Failed: " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+			Errors:  utils.StringPtr("ERR :  " + err.Error()),
+		}, nil
 	}
 	return api.DeleteCategory200JSONResponse{
 		Message: utils.StringPtr("Delete Category Success"),
@@ -310,27 +311,28 @@ func (c *CategoryAPI) GetCategoryById(ctx context.Context, request api.GetCatego
 }
 
 func (c *CategoryAPI) UpdateCategory(ctx context.Context, request api.UpdateCategoryRequestObject) (api.UpdateCategoryResponseObject, error) {
-	userId, err := utils.GetUserID(ctx)
+	requestorId, err := utils.GetUserID(ctx)
 	if err != nil {
 		return api.UpdateCategory400JSONResponse{
 			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}, nil
 	}
 	catId, err := uuid.Parse(request.Id)
 	if err != nil {
 		return api.UpdateCategory400JSONResponse{
 			Message: utils.StringPtr("Tidak Bisa Mendapatkan :id " + err.Error()),
 			Status:  utils.BoolPtr(false),
-		}, err
+		}, nil
 	}
 	inputBody := *request.Body
-	cat, err := c.Service.UpdateById(ctx, userId, catId, inputBody)
+	cat, err := c.Service.UpdateById(ctx, requestorId, catId, inputBody)
 	if err != nil {
 		return api.UpdateCategory500JSONResponse{
-			Message: utils.StringPtr("Gagal Auth: " + err.Error()),
+			Message: utils.StringPtr("Cannot Update Category"),
 			Status:  utils.BoolPtr(false),
-		}, err
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
 	}
 	res := api.CategoryRes{
 		Id:      cat.ID.String(),

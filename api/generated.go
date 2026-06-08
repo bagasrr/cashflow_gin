@@ -54,15 +54,6 @@ type N500BaseRes struct {
 	Status  *bool   `json:"status,omitempty"`
 }
 
-// AuthLoginRes defines model for AuthLoginRes.
-type AuthLoginRes struct {
-	Data *struct {
-		Token *string `json:"token,omitempty"`
-	} `json:"data,omitempty"`
-	Message *string `json:"message,omitempty"`
-	Status  *bool   `json:"status,omitempty"`
-}
-
 // CategoryBaseRes defines model for CategoryBaseRes.
 type CategoryBaseRes struct {
 	Data    *CategoryRes `json:"data,omitempty"`
@@ -1576,7 +1567,7 @@ type ForgotPasswordResponseObject interface {
 	VisitForgotPasswordResponse(w http.ResponseWriter) error
 }
 
-type ForgotPassword200JSONResponse AuthLoginRes
+type ForgotPassword200JSONResponse SuccessBaseRes
 
 func (response ForgotPassword200JSONResponse) VisitForgotPasswordResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -1611,13 +1602,21 @@ type LoginResponseObject interface {
 	VisitLoginResponse(w http.ResponseWriter) error
 }
 
-type Login200JSONResponse AuthLoginRes
+type Login200ResponseHeaders struct {
+	SetCookie string
+}
+
+type Login200JSONResponse struct {
+	Body    SuccessBaseRes
+	Headers Login200ResponseHeaders
+}
 
 func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
 	w.WriteHeader(200)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type Login400JSONResponse N400BaseRes

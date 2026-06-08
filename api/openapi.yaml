@@ -469,17 +469,6 @@ components:
           example: "expense"
     #--------------- CATEGORY END -------------
     #--------------- AUTH BEGIN ---------------
-    AuthLoginRes:
-      allOf:
-        - $ref: "#/components/schemas/SuccessBaseRes"
-        - type: object
-          properties:
-            data:
-              type: object
-              properties:
-                token:
-                  type: string
-                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     RegisterReq:
       type: object
       required: [username, email, password]
@@ -676,10 +665,14 @@ paths:
       responses:
         "200":
           description: Success
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthLoginRes"
+                $ref: "#/components/schemas/SuccessBaseRes"
         "400":
           description: Bad Request
           content:
@@ -711,7 +704,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthLoginRes"
+                $ref: "#/components/schemas/SuccessBaseRes"
         "400":
           description: Bad Request
           content:

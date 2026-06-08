@@ -62,7 +62,6 @@ func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (
 	}, nil
 }
 
-// Login memenuhi interface dari openapi.yaml
 func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.LoginResponseObject, error) {
 	reqInput := request.LoginRequest{
 		Email:    req.Body.Email,
@@ -81,17 +80,22 @@ func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.Lo
 		}, nil
 	}
 
-	status := true
-	msg := "Login Success"
+	// RAKIT COOKIE STRING SECARA MANUAL
+	// Format mutlak: Nama=Value; Max-Age=...; Path=/; Domain=...; HttpOnly
+	cookieString := fmt.Sprintf("token=%s; Max-Age=86400; Path=/; Domain=localhost; HttpOnly; SameSite=Lax", token)
+	// Catatan: Saat lu deploy ke server1.bagasrr.my.id, ganti Domain=localhost jadi Domain=bagasrr.my.id dan tambahkan tulisan ; Secure di ujungnya.
+
 	return api.Login200JSONResponse{
-		Status:  &status,
-		Message: &msg,
-		Data: &struct {
-			Token *string `json:"token,omitempty"`
-		}{Token: &token},
+		// GAK ADA LAGI TOKEN DI BODY JSON
+		Body: api.SuccessBaseRes{
+			Status:  utils.BoolPtr(true),
+			Message: utils.StringPtr("Login successfully"),
+		},
+		Headers: api.Login200ResponseHeaders{
+			SetCookie: cookieString, // Lempar cookie lewat pintu yang benar
+		},
 	}, nil
 }
-
 func (a *AuthAPI) ForgotPassword(ctx context.Context, req api.ForgotPasswordRequestObject) (api.ForgotPasswordResponseObject, error) {
 	err := a.Service.ForgotPassword(ctx, req.Body.Email, req.Body.Password)
 	if err != nil {

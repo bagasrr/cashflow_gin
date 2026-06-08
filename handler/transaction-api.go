@@ -52,7 +52,7 @@ func (c *TransactionAPI) GetTransactions(ctx context.Context, request api.GetTra
 			Category: api.CategoryRes{
 				Id:   trx.Category.ID.String(),
 				Name: trx.Category.Name,
-				Type: trx.Category.Type,
+				Type: string(trx.Category.Type),
 			},
 			User: api.UserRes{
 				Id:       trx.User.ID.String(),
@@ -108,7 +108,7 @@ func (c *TransactionAPI) CreateTransaction(ctx context.Context, req api.CreateTr
 		Category: api.CategoryRes{
 			Id:   newTrx.Category.ID.String(),
 			Name: newTrx.Category.Name,
-			Type: newTrx.Category.Type,
+			Type: string(newTrx.Category.Type),
 		},
 		User: api.UserRes{
 			Id:       newTrx.User.ID.String(),
@@ -169,7 +169,7 @@ func (c *TransactionAPI) FindTransactionById(ctx context.Context, request api.Fi
 		Category: api.CategoryRes{
 			Id:   trx.Category.ID.String(),
 			Name: trx.Category.Name,
-			Type: trx.Category.Type,
+			Type: string(trx.Category.Type),
 		},
 		User: api.UserRes{
 			Id:       trx.User.ID.String(),
@@ -229,7 +229,7 @@ func (c *TransactionAPI) UpdateTransaction(ctx context.Context, request api.Upda
 		Category: api.CategoryRes{
 			Id:   updatedTrx.Category.ID.String(),
 			Name: updatedTrx.Category.Name,
-			Type: updatedTrx.Category.Type,
+			Type: string(updatedTrx.Category.Type),
 		},
 		User: api.UserRes{
 			Id:       updatedTrx.User.ID.String(),

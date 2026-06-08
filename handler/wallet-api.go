@@ -148,7 +148,7 @@ func (c *WalletAPI) GetWalletById(ctx context.Context, request api.GetWalletById
 			Category: api.CategoryRes{
 				Id:   v.Category.ID.String(),
 				Name: v.Category.Name,
-				Type: v.Category.Type,
+				Type: string(v.Category.Type),
 			},
 			User: api.UserRes{
 				Id:       v.User.ID.String(),

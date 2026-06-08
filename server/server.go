@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gin-contrib/cors"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -38,7 +40,13 @@ func Run() {
 	}
 
 	r := gin.Default()
-
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"}, // URL Next.js lu
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 	// ------------------------------------
 	// ZONA SETUP DESIGN-FIRST (MASA DEPAN)
 	// ------------------------------------

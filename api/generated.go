@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -184,6 +185,21 @@ type SuccessBaseRes struct {
 	Status  *bool   `json:"status,omitempty"`
 }
 
+// SummaryBaseRes defines model for SummaryBaseRes.
+type SummaryBaseRes struct {
+	Data    *SummaryRes `json:"data,omitempty"`
+	Message *string     `json:"message,omitempty"`
+	Status  *bool       `json:"status,omitempty"`
+}
+
+// SummaryRes defines model for SummaryRes.
+type SummaryRes struct {
+	TotalCashflow   float64 `json:"total_cashflow"`
+	TotalInflow     float64 `json:"total_inflow"`
+	TotalInvestment float64 `json:"total_investment"`
+	TotalOutflow    float64 `json:"total_outflow"`
+}
+
 // TransactionBaseRes defines model for TransactionBaseRes.
 type TransactionBaseRes struct {
 	Data    *TransactionRes `json:"data,omitempty"`
@@ -275,6 +291,13 @@ type WalletBaseRes struct {
 	Status  *bool      `json:"status,omitempty"`
 }
 
+// WalletChartPoint defines model for WalletChartPoint.
+type WalletChartPoint struct {
+	Date    *openapi_types.Date `json:"date,omitempty"`
+	Expense *int                `json:"expense,omitempty"`
+	Income  *int                `json:"income,omitempty"`
+}
+
 // WalletListBaseRes defines model for WalletListBaseRes.
 type WalletListBaseRes struct {
 	Data    *[]WalletRes    `json:"data,omitempty"`
@@ -321,6 +344,13 @@ type GetMyCategoriesParams struct {
 	Limit int `form:"limit" json:"limit"`
 }
 
+// GetDashboardSummaryParams defines parameters for GetDashboardSummary.
+type GetDashboardSummaryParams struct {
+	StartDate openapi_types.Date `form:"start_date" json:"start_date"`
+	EndDate   openapi_types.Date `form:"end_date" json:"end_date"`
+	WalletId  string             `form:"wallet_id" json:"wallet_id"`
+}
+
 // GetGroupsParams defines parameters for GetGroups.
 type GetGroupsParams struct {
 	Page  int `form:"page" json:"page"`
@@ -355,6 +385,12 @@ type FindAllUsersParams struct {
 type GetMyWalletsParams struct {
 	Page  int `form:"page" json:"page"`
 	Limit int `form:"limit" json:"limit"`
+}
+
+// GetWalletChartDataParams defines parameters for GetWalletChartData.
+type GetWalletChartDataParams struct {
+	StartDate *openapi_types.Date `form:"start_date,omitempty" json:"start_date,omitempty"`
+	EndDate   *openapi_types.Date `form:"end_date,omitempty" json:"end_date,omitempty"`
 }
 
 // ForgotPasswordJSONRequestBody defines body for ForgotPassword for application/json ContentType.
@@ -437,6 +473,9 @@ type ServerInterface interface {
 	// Update Category By ID
 	// (PUT /categories/{id})
 	UpdateCategory(c *gin.Context, id string)
+	// Get Dashboard Summary
+	// (GET /dashboard/summary)
+	GetDashboardSummary(c *gin.Context, params GetDashboardSummaryParams)
 	// Get all the user groups
 	// (GET /groups)
 	GetGroups(c *gin.Context, params GetGroupsParams)
@@ -509,6 +548,9 @@ type ServerInterface interface {
 	// Update Wallet By ID
 	// (PUT /wallets/{id})
 	UpdateWallet(c *gin.Context, id string)
+	// Get Wallet Transaction Chart Data
+	// (GET /wallets/{id}/charts)
+	GetWalletChartData(c *gin.Context, id openapi_types.UUID, params GetWalletChartDataParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -815,6 +857,71 @@ func (siw *ServerInterfaceWrapper) UpdateCategory(c *gin.Context) {
 	}
 
 	siw.Handler.UpdateCategory(c, id)
+}
+
+// GetDashboardSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetDashboardSummary(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDashboardSummaryParams
+
+	// ------------- Required query parameter "start_date" -------------
+
+	if paramValue := c.Query("start_date"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument start_date is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "start_date", c.Request.URL.Query(), &params.StartDate, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter start_date: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "end_date" -------------
+
+	if paramValue := c.Query("end_date"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument end_date is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "end_date", c.Request.URL.Query(), &params.EndDate, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter end_date: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "wallet_id" -------------
+
+	if paramValue := c.Query("wallet_id"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument wallet_id is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "wallet_id", c.Request.URL.Query(), &params.WalletId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter wallet_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDashboardSummary(c, params)
 }
 
 // GetGroups operation middleware
@@ -1495,6 +1602,51 @@ func (siw *ServerInterfaceWrapper) UpdateWallet(c *gin.Context) {
 	siw.Handler.UpdateWallet(c, id)
 }
 
+// GetWalletChartData operation middleware
+func (siw *ServerInterfaceWrapper) GetWalletChartData(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetWalletChartDataParams
+
+	// ------------- Optional query parameter "start_date" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "start_date", c.Request.URL.Query(), &params.StartDate, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter start_date: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "end_date" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "end_date", c.Request.URL.Query(), &params.EndDate, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter end_date: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetWalletChartData(c, id, params)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -1533,6 +1685,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/categories/:id", wrapper.DeleteCategory)
 	router.GET(options.BaseURL+"/categories/:id", wrapper.GetCategoryById)
 	router.PUT(options.BaseURL+"/categories/:id", wrapper.UpdateCategory)
+	router.GET(options.BaseURL+"/dashboard/summary", wrapper.GetDashboardSummary)
 	router.GET(options.BaseURL+"/groups", wrapper.GetGroups)
 	router.POST(options.BaseURL+"/groups", wrapper.CreateGroup)
 	router.GET(options.BaseURL+"/groups/me", wrapper.GetMyGroups)
@@ -1557,6 +1710,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/wallets/:id", wrapper.DeleteWallet)
 	router.GET(options.BaseURL+"/wallets/:id", wrapper.GetWalletById)
 	router.PUT(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
+	router.GET(options.BaseURL+"/wallets/:id/charts", wrapper.GetWalletChartData)
 }
 
 type ForgotPasswordRequestObject struct {
@@ -1976,6 +2130,23 @@ type UpdateCategory500JSONResponse N500BaseRes
 func (response UpdateCategory500JSONResponse) VisitUpdateCategoryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDashboardSummaryRequestObject struct {
+	Params GetDashboardSummaryParams
+}
+
+type GetDashboardSummaryResponseObject interface {
+	VisitGetDashboardSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetDashboardSummary200JSONResponse SummaryBaseRes
+
+func (response GetDashboardSummary200JSONResponse) VisitGetDashboardSummaryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2994,6 +3165,28 @@ func (response UpdateWallet500JSONResponse) VisitUpdateWalletResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetWalletChartDataRequestObject struct {
+	Id     openapi_types.UUID `json:"id"`
+	Params GetWalletChartDataParams
+}
+
+type GetWalletChartDataResponseObject interface {
+	VisitGetWalletChartDataResponse(w http.ResponseWriter) error
+}
+
+type GetWalletChartData200JSONResponse struct {
+	Data    *[]WalletChartPoint `json:"data,omitempty"`
+	Message *string             `json:"message,omitempty"`
+	Status  *bool               `json:"status,omitempty"`
+}
+
+func (response GetWalletChartData200JSONResponse) VisitGetWalletChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Forgot Password
@@ -3029,6 +3222,9 @@ type StrictServerInterface interface {
 	// Update Category By ID
 	// (PUT /categories/{id})
 	UpdateCategory(ctx context.Context, request UpdateCategoryRequestObject) (UpdateCategoryResponseObject, error)
+	// Get Dashboard Summary
+	// (GET /dashboard/summary)
+	GetDashboardSummary(ctx context.Context, request GetDashboardSummaryRequestObject) (GetDashboardSummaryResponseObject, error)
 	// Get all the user groups
 	// (GET /groups)
 	GetGroups(ctx context.Context, request GetGroupsRequestObject) (GetGroupsResponseObject, error)
@@ -3101,6 +3297,9 @@ type StrictServerInterface interface {
 	// Update Wallet By ID
 	// (PUT /wallets/{id})
 	UpdateWallet(ctx context.Context, request UpdateWalletRequestObject) (UpdateWalletResponseObject, error)
+	// Get Wallet Transaction Chart Data
+	// (GET /wallets/{id}/charts)
+	GetWalletChartData(ctx context.Context, request GetWalletChartDataRequestObject) (GetWalletChartDataResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -3443,6 +3642,33 @@ func (sh *strictHandler) UpdateCategory(ctx *gin.Context, id string) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(UpdateCategoryResponseObject); ok {
 		if err := validResponse.VisitUpdateCategoryResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDashboardSummary operation middleware
+func (sh *strictHandler) GetDashboardSummary(ctx *gin.Context, params GetDashboardSummaryParams) {
+	var request GetDashboardSummaryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDashboardSummary(ctx, request.(GetDashboardSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDashboardSummary")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetDashboardSummaryResponseObject); ok {
+		if err := validResponse.VisitGetDashboardSummaryResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -4151,6 +4377,34 @@ func (sh *strictHandler) UpdateWallet(ctx *gin.Context, id string) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(UpdateWalletResponseObject); ok {
 		if err := validResponse.VisitUpdateWalletResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetWalletChartData operation middleware
+func (sh *strictHandler) GetWalletChartData(ctx *gin.Context, id openapi_types.UUID, params GetWalletChartDataParams) {
+	var request GetWalletChartDataRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWalletChartData(ctx, request.(GetWalletChartDataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWalletChartData")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetWalletChartDataResponseObject); ok {
+		if err := validResponse.VisitGetWalletChartDataResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

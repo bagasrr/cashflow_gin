@@ -3,6 +3,7 @@ package repository
 import (
 	"cashflow_gin/models"
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -16,6 +17,7 @@ type WalletRepository interface {
 	SoftDeleteWallet(ctx context.Context, wallet uuid.UUID) error
 	GetWalletByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
 	UpdateWallet(ctx context.Context, wallet *models.Wallet) (*models.Wallet, error)
+	GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time) ([]models.WalletChartPoint, error)
 }
 
 type walletRepository struct {
@@ -107,4 +109,25 @@ func (r *walletRepository) GetWalletByID(ctx context.Context, walletID uuid.UUID
 func (r *walletRepository) UpdateWallet(ctx context.Context, wallet *models.Wallet) (*models.Wallet, error) {
 	err := r.db.WithContext(ctx).Save(wallet).Error
 	return wallet, err
+}
+
+func (r *walletRepository) GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time) ([]models.WalletChartPoint, error) {
+	var chartPoints []models.WalletChartPoint
+
+	// Query untuk mengelompokkan pemasukan dan pengeluaran per hari
+	err := r.db.WithContext(ctx).
+		Table("transactions").
+		Select(`
+            transactions.transaction_date::date as tx_date,
+            COALESCE(SUM(CASE WHEN categories.type = 'INCOME' THEN transactions.amount ELSE 0 END), 0) as total_income,
+            COALESCE(SUM(CASE WHEN categories.type = 'EXPENSE' THEN transactions.amount ELSE 0 END), 0) as total_expense
+        `).
+		Joins("JOIN categories ON categories.id = transactions.category_id").
+		Where("transactions.user_id = ? AND transactions.wallet_id = ? AND transactions.deleted_at IS NULL", userID, walletID).
+		Where("transactions.transaction_date >= ? AND transactions.transaction_date <= ?", startDate, endDate).
+		Group("transactions.transaction_date::date").
+		Order("transactions.transaction_date::date ASC"). // Urutkan dari tanggal tertua ke terbaru untuk grafik
+		Scan(&chartPoints).Error
+
+	return chartPoints, err
 }

@@ -66,7 +66,41 @@ components:
         errors:
           type: string
           example: "There is a problem with the request"
-    # --- BASE RESPONSES BEGIN ---
+    # --- BASE RESPONSES END ---
+
+    # --- DASHBOARD SUMMARY BEGIN ---
+    SummaryRes:
+      type: object
+      required:
+        - total_cashflow
+        - total_inflow
+        - total_outflow
+        - total_investment
+      properties:
+        total_cashflow:
+          type : number
+          format : double
+          example : 99999999
+        total_inflow:
+          type: number
+          format: double
+          example: 99999999
+        total_outflow:
+          type: number
+          format: double
+          example: 99999999
+        total_investment:
+          type: number
+          format: double
+          example: 99999999
+    SummaryBaseRes:
+      allOf:
+        - $ref: "#/components/schemas/SuccessBaseRes"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/SummaryRes"
+    # --- DASHBOARD SUMMARY END ---
 
     # --- ENTITAS UTAMA ---
     #--------------- USER BEGIN ---------------
@@ -242,6 +276,19 @@ components:
           type: string
           example: "Wallet Utama"
 
+    WalletChartPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        income:
+          type: integer
+          example: 500000
+        expense:
+          type: integer
+          example: 150000
     #--------------- WALLET END -------------
     #--------------- TRANSACTION BEGIN -------------
     TransactionRes:
@@ -455,6 +502,7 @@ components:
           type: string
           nullable: true
           example: "123e4567-e89b-12d3-a456-426655440000"
+
     CreateSystemCategoryReq:
       type: object
       required:
@@ -587,6 +635,7 @@ components:
           properties:
             data:
               $ref: "#/components/schemas/GroupRes"
+
     GroupListBaseRes:
       allOf:
         - $ref: "#/components/schemas/SuccessBaseRes"
@@ -601,6 +650,7 @@ components:
     #--------------- GROUP END -----------------
     #--------------- Meta Start -----------------
         # Tambahkan ini di deretan komponen lu
+
     PaginationMeta:
       type: object
       properties:
@@ -718,7 +768,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
-
+  # ==========================================
+  # SUMMARY DOMAIN
+  # ==========================================
+  /dashboard/summary:
+    get:
+      tags:
+        - Summary
+      summary: Get Dashboard Summary
+      operationId: getDashboardSummary
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "YYYY-MM-DD"
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "YYYY-MM-DD"
+        - name : wallet_id
+          in : query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SummaryBaseRes"
   # ==========================================
   # USER DOMAIN
   # ==========================================
@@ -764,6 +851,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
   /users/me:
     get:
       tags:
@@ -831,7 +919,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-
 
   /users/{id}:
     get:
@@ -1057,6 +1144,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
     post:
       tags:
         - Transactions
@@ -1138,6 +1226,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
     put:
       tags:
         - Transactions
@@ -1184,6 +1273,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
     delete:
       tags:
         - Transactions
@@ -1267,6 +1357,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
     get:
       tags:
         - Categories
@@ -1468,6 +1559,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
+
     put:
       tags:
         - Categories
@@ -1790,6 +1882,51 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
+  /wallets/{id}/charts:
+    get:
+      tags:
+        - Wallet
+      summary: Get Wallet Transaction Chart Data
+      operationId: getWalletChartData
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-05-16"
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-06-16"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WalletChartPoint"
   # ==========================================
   # GROUP DOMAIN
   # ==========================================

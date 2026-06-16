@@ -278,3 +278,37 @@ func (c *WalletAPI) UpdateWallet(ctx context.Context, request api.UpdateWalletRe
 		Data:    &res,
 	}, nil
 }
+
+func (c *WalletAPI) GetWalletChartData(ctx context.Context, request api.GetWalletChartDataRequestObject) (api.GetWalletChartDataResponseObject, error) {
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		// ... return 401
+	}
+
+	walletId, err := uuid.Parse(request.Id)
+	if err != nil {
+		// ... return 400
+	}
+
+	// Ambil start_date & end_date dari request.Params (Gunakan logika default fallback 30 hari seperti sebelumnya)
+	// Lalu panggil service -> repo
+	points, err := c.Service.GetWalletChartData(ctx, userId, walletId, request.Params)
+	if err != nil {
+		// ... return 500
+	}
+
+	var chartRes []api.WalletChartPoint
+	for _, p := range points {
+		chartRes = append(chartRes, api.WalletChartPoint{
+			Date:    p.Date.Format("2006-01-02"), // Ubah ke string YYYY-MM-DD
+			Income:  int(p.Income),
+			Expense: int(p.Expense),
+		})
+	}
+
+	return api.GetWalletChartData200JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Success get wallet chart data"),
+		Data:    &chartRes,
+	}, nil
+}

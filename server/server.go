@@ -23,6 +23,7 @@ type MasterAPI struct {
 	*handler.UserAPI
 	*handler.WalletAPI
 	*handler.GroupAPI
+	*handler.DashboardAPI
 }
 
 type standardError struct {
@@ -58,6 +59,7 @@ func Run() {
 	userRepo := repository.NewUserRepository(db)
 	walletRepo := repository.NewWalletRepository(db)
 	groupRepo := repository.NewGroupRepository(db) // Buka kalau group udah ada
+	dashboardRepo := repository.NewDashboardRepository(db)
 
 	// B. Inisialisasi Services (Layer Tengah)
 	authService := services.NewAuthService(authRepo)
@@ -67,6 +69,7 @@ func Run() {
 	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo)
 	walletService := services.NewWalletService(walletRepo, nil)
 	groupService := services.NewGroupService(groupRepo)
+	dashboardService := services.NewDashboardService(dashboardRepo)
 
 	// C. Inisialisasi Handlers (Gerbang Luar)
 	authAPI := &handler.AuthAPI{Service: authService}
@@ -75,6 +78,7 @@ func Run() {
 	userAPI := &handler.UserAPI{Service: userService}
 	walletAPI := &handler.WalletAPI{Service: walletService}
 	groupAPI := &handler.GroupAPI{Service: groupService}
+	dashboardAPI := &handler.DashboardAPI{Service: dashboardService}
 
 	// D. Gabungkan ke Master API
 	masterHandler := &MasterAPI{
@@ -84,6 +88,7 @@ func Run() {
 		UserAPI:        userAPI,
 		WalletAPI:      walletAPI,
 		GroupAPI:       groupAPI,
+		DashboardAPI:   dashboardAPI,
 	}
 
 	r.Use(middlewares.AuthMiddleware())

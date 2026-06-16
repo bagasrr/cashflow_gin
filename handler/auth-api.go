@@ -67,18 +67,19 @@ func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.Lo
 		Email:    req.Body.Email,
 		Password: req.Body.Password,
 	}
+	fmt.Println(req.Body.Email)
+	fmt.Println(req.Body.Password)
 
 	token, err := a.Service.Login(ctx, &reqInput)
 	if err != nil {
-		errStr := err.Error()
-		status := false
-		msg := "Login Gagal"
+
 		return api.Login500JSONResponse{
-			Status:  &status,
-			Message: &msg,
-			Errors:  &errStr,
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Can't Login"),
+			Errors:  utils.StringPtr("ERR: " + err.Error()),
 		}, nil
 	}
+	fmt.Println("token di handler : ", token)
 
 	// RAKIT COOKIE STRING SECARA MANUAL
 	// Format mutlak: Nama=Value; Max-Age=...; Path=/; Domain=...; HttpOnly

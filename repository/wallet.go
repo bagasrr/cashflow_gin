@@ -118,15 +118,16 @@ func (r *walletRepository) GetWalletChartData(ctx context.Context, userID, walle
 	err := r.db.WithContext(ctx).
 		Table("transactions").
 		Select(`
-            transactions.transaction_date::date as tx_date,
+            transactions.date::date as tx_date,
             COALESCE(SUM(CASE WHEN categories.type = 'INCOME' THEN transactions.amount ELSE 0 END), 0) as total_income,
-            COALESCE(SUM(CASE WHEN categories.type = 'EXPENSE' THEN transactions.amount ELSE 0 END), 0) as total_expense
+            COALESCE(SUM(CASE WHEN categories.type = 'EXPENSE' THEN transactions.amount ELSE 0 END), 0) as total_expense,
+            COALESCE(SUM(CASE WHEN categories.type = 'INVESTMENT' THEN transactions.amount ELSE 0 END), 0) as total_investment
         `).
 		Joins("JOIN categories ON categories.id = transactions.category_id").
 		Where("transactions.user_id = ? AND transactions.wallet_id = ? AND transactions.deleted_at IS NULL", userID, walletID).
-		Where("transactions.transaction_date >= ? AND transactions.transaction_date <= ?", startDate, endDate).
-		Group("transactions.transaction_date::date").
-		Order("transactions.transaction_date::date ASC"). // Urutkan dari tanggal tertua ke terbaru untuk grafik
+		Where("transactions.date >= ? AND transactions.date <= ?", startDate, endDate).
+		Group("transactions.date::date").
+		Order("transactions.date::date ASC"). // Urutkan dari tanggal tertua ke terbaru untuk grafik
 		Scan(&chartPoints).Error
 
 	return chartPoints, err

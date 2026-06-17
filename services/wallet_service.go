@@ -1,10 +1,12 @@
 package services
 
 import (
+	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -18,6 +20,7 @@ type WalletService interface {
 
 	UpdateWalletName(ctx context.Context, userID, walletID uuid.UUID, newName string) (*models.Wallet, error)
 	DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error
+	GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletChartDataParams) ([]models.WalletChartPoint, error)
 }
 
 type walletService struct {
@@ -169,4 +172,49 @@ func (s *walletService) UpdateWalletName(ctx context.Context, userID, walletID u
 
 	// 4. SAVE: Lempar ke Repo
 	return s.walletRepo.UpdateWallet(ctx, wallet)
+}
+
+func (s *walletService) GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletChartDataParams) ([]models.WalletChartPoint, error) {
+
+	// 1. DEFINISIKAN WAKTU DEFAULT FALLBACK (30 Hari Terakhir)
+	now := time.Now()
+
+	// Set Jam ke 23:59:59 untuk batas akhir hari ini
+	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+
+	// Tarik mundur 30 hari, set jam ke 00:00:00 untuk awal hari
+	startDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -30)
+
+	// 2. TIMPA DENGAN INPUT FRONTEND JIKA ADA (Menggunakan objek .Time dari openapi_types.Date)
+	if params.EndDate != nil {
+		parsedEnd := params.EndDate.Time
+		endDate = time.Date(parsedEnd.Year(), parsedEnd.Month(), parsedEnd.Day(), 23, 59, 59, 0, parsedEnd.Location())
+	}
+
+	if params.StartDate != nil {
+		parsedStart := params.StartDate.Time
+		startDate = time.Date(parsedStart.Year(), parsedStart.Month(), parsedStart.Day(), 0, 0, 0, 0, parsedStart.Location())
+	}
+
+	// 3. JARING PENGAMAN (DEFENSIVE CODING) - BLIND SPOT VALIDASI WAKTU
+	// Jangan pernah percaya 100% sama Frontend. Ada kalanya mereka salah kirim rentang waktu.
+	// Jika start_date lebih maju daripada end_date (misal: start=Desember, end=Januari), query DB akan hancur atau kosong.
+	if startDate.After(endDate) {
+		return nil, errors.New("bad request: tanggal mulai (start_date) tidak boleh melewati tanggal akhir (end_date)")
+	}
+
+	// Maksimal rentang waktu (Opsional, tapi krusial untuk kestabilan server)
+	// Batasi rentang pencarian grafik maksimal 1 tahun (365 hari) agar user gak iseng narik data grafik 10 tahun sekaligus yang bikin DB hang.
+	if endDate.Sub(startDate).Hours() > 24*365 {
+		return nil, errors.New("bad request: rentang waktu grafik maksimal adalah 1 tahun")
+	}
+
+	// 4. LEMPAR KE REPOSITORY
+	// Menggunakan fungsi Repo yang udah kita bedah di obrolan sebelumnya
+	chartPoints, err := s.walletRepo.GetWalletChartData(ctx, userID, walletID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return chartPoints, nil
 }

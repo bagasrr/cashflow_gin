@@ -281,7 +281,6 @@ components:
       properties:
         date:
           type: string
-          format: date
           example: "2026-06-01"
         income:
           type: integer
@@ -289,6 +288,9 @@ components:
         expense:
           type: integer
           example: 150000
+        investment:
+          type: integer
+          example: 999999
     #--------------- WALLET END -------------
     #--------------- TRANSACTION BEGIN -------------
     TransactionRes:
@@ -1896,7 +1898,6 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
         - name: start_date
           in: query
           required: false

@@ -281,28 +281,39 @@ func (c *WalletAPI) UpdateWallet(ctx context.Context, request api.UpdateWalletRe
 
 func (c *WalletAPI) GetWalletChartData(ctx context.Context, request api.GetWalletChartDataRequestObject) (api.GetWalletChartDataResponseObject, error) {
 	userId, _, err := utils.GetUserInfo(ctx)
+
 	if err != nil {
-		// ... return 401
+		return api.GetWalletChartData200JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get Context"),
+		}, nil
 	}
 
 	walletId, err := uuid.Parse(request.Id)
 	if err != nil {
-		// ... return 400
+		return api.GetWalletChartData200JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Invalid wallet ID format"),
+		}, nil
 	}
 
 	// Ambil start_date & end_date dari request.Params (Gunakan logika default fallback 30 hari seperti sebelumnya)
 	// Lalu panggil service -> repo
 	points, err := c.Service.GetWalletChartData(ctx, userId, walletId, request.Params)
 	if err != nil {
-		// ... return 500
+		return api.GetWalletChartData200JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Get Chart Data Failed"),
+		}, nil
 	}
 
 	var chartRes []api.WalletChartPoint
 	for _, p := range points {
 		chartRes = append(chartRes, api.WalletChartPoint{
-			Date:    p.Date.Format("2006-01-02"), // Ubah ke string YYYY-MM-DD
-			Income:  int(p.Income),
-			Expense: int(p.Expense),
+			Date:       utils.StringPtr(p.Date.Format("2006-01-02")), // Ubah ke string YYYY-MM-DD
+			Income:     utils.IntPtr(int(p.Income)),
+			Expense:    utils.IntPtr(int(p.Expense)),
+			Investment: utils.IntPtr(int(p.Investment)),
 		})
 	}
 

@@ -293,9 +293,10 @@ type WalletBaseRes struct {
 
 // WalletChartPoint defines model for WalletChartPoint.
 type WalletChartPoint struct {
-	Date    *openapi_types.Date `json:"date,omitempty"`
-	Expense *int                `json:"expense,omitempty"`
-	Income  *int                `json:"income,omitempty"`
+	Date       *string `json:"date,omitempty"`
+	Expense    *int    `json:"expense,omitempty"`
+	Income     *int    `json:"income,omitempty"`
+	Investment *int    `json:"investment,omitempty"`
 }
 
 // WalletListBaseRes defines model for WalletListBaseRes.
@@ -550,7 +551,7 @@ type ServerInterface interface {
 	UpdateWallet(c *gin.Context, id string)
 	// Get Wallet Transaction Chart Data
 	// (GET /wallets/{id}/charts)
-	GetWalletChartData(c *gin.Context, id openapi_types.UUID, params GetWalletChartDataParams)
+	GetWalletChartData(c *gin.Context, id string, params GetWalletChartDataParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -1608,9 +1609,9 @@ func (siw *ServerInterfaceWrapper) GetWalletChartData(c *gin.Context) {
 	var err error
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: "uuid"})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
 		return
@@ -3166,7 +3167,7 @@ func (response UpdateWallet500JSONResponse) VisitUpdateWalletResponse(w http.Res
 }
 
 type GetWalletChartDataRequestObject struct {
-	Id     openapi_types.UUID `json:"id"`
+	Id     string `json:"id"`
 	Params GetWalletChartDataParams
 }
 
@@ -4385,7 +4386,7 @@ func (sh *strictHandler) UpdateWallet(ctx *gin.Context, id string) {
 }
 
 // GetWalletChartData operation middleware
-func (sh *strictHandler) GetWalletChartData(ctx *gin.Context, id openapi_types.UUID, params GetWalletChartDataParams) {
+func (sh *strictHandler) GetWalletChartData(ctx *gin.Context, id string, params GetWalletChartDataParams) {
 	var request GetWalletChartDataRequestObject
 
 	request.Id = id

@@ -43,6 +43,7 @@ type User struct {
 	Username              string     `gorm:"type:varchar(100);unique" json:"username"`
 	Email                 string     `gorm:"type:varchar(100);unique" json:"email"`
 	Password              string     `gorm:"type:varchar(255)" json:"-"` // Hide password dari JSON
+	NickName              string     `gorm:"type:varchar(100)" json:"nickname"`
 	UserRole              UserRole   `gorm:"type:smallint" json:"user_role" default:"3"`
 	SubscriptionPlan      string     `gorm:"type:varchar(100)" json:"subscription_plan"`
 	SubscriptionExpiredAt *time.Time `json:"subscription_expired_at" `

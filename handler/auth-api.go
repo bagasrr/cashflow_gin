@@ -2,7 +2,6 @@ package handler
 
 import (
 	"cashflow_gin/api"
-	"cashflow_gin/dto/request"
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
@@ -16,10 +15,11 @@ type AuthAPI struct {
 // Register memenuhi interface dari openapi.yaml
 func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (api.RegisterResponseObject, error) {
 	// 1. Mapping Eksternal DTO -> Internal DTO
-	reqInput := request.CreateUserRequest{
+	reqInput := api.RegisterReq{
 		Username: req.Body.Username,
 		Email:    req.Body.Email,
 		Password: req.Body.Password,
+		Nickname: req.Body.Nickname,
 	}
 
 	// 2. Panggil layer Service
@@ -63,14 +63,14 @@ func (a *AuthAPI) Register(ctx context.Context, req api.RegisterRequestObject) (
 }
 
 func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.LoginResponseObject, error) {
-	reqInput := request.LoginRequest{
+	reqInput := api.LoginReq{
 		Email:    req.Body.Email,
 		Password: req.Body.Password,
 	}
 	fmt.Println(req.Body.Email)
 	fmt.Println(req.Body.Password)
 
-	token, err := a.Service.Login(ctx, &reqInput)
+	token, err := a.Service.Login(ctx, reqInput)
 	if err != nil {
 
 		return api.Login500JSONResponse{

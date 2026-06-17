@@ -1,7 +1,7 @@
 package services
 
 import (
-	"cashflow_gin/dto/request"
+	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
@@ -15,8 +15,8 @@ import (
 )
 
 type AuthService interface {
-	Login(ctx context.Context, input *request.LoginRequest) (string, error)
-	Register(ctx context.Context, input request.CreateUserRequest) (*models.User, error)
+	Login(ctx context.Context, input api.LoginReq) (string, error)
+	Register(ctx context.Context, input api.RegisterReq) (*models.User, error)
 	ForgotPassword(ctx context.Context, email string, password string) error
 }
 
@@ -28,7 +28,7 @@ func NewAuthService(r repository.AuthRepository) AuthService {
 	return &authService{repo: r}
 }
 
-func (s *authService) Login(ctx context.Context, input *request.LoginRequest) (string, error) {
+func (s *authService) Login(ctx context.Context, input api.LoginReq) (string, error) {
 	// 1. Cari user berdasarkan email (panggil Repo)
 	user, err := s.repo.Login(ctx, input)
 	if err != nil {
@@ -52,7 +52,7 @@ func (s *authService) Login(ctx context.Context, input *request.LoginRequest) (s
 	return tokenString, err
 }
 
-func (s *authService) Register(ctx context.Context, input request.CreateUserRequest) (*models.User, error) {
+func (s *authService) Register(ctx context.Context, input api.RegisterReq) (*models.User, error) {
 	// 1. VALIDASI DATABASE YANG SOLID
 	_, err := s.repo.FindByEmail(ctx, input.Email)
 	if err == nil {
@@ -79,6 +79,7 @@ func (s *authService) Register(ctx context.Context, input request.CreateUserRequ
 		Username:         input.Username,
 		Email:            input.Email,
 		Password:         string(hashedPassword),
+		NickName:         input.Nickname,
 		UserRole:         defaultRole,
 		SubscriptionPlan: "free",
 

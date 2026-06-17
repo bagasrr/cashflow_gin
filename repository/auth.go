@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"cashflow_gin/dto/request"
+	"cashflow_gin/api"
 	"cashflow_gin/models"
 	"context"
 
@@ -9,8 +9,8 @@ import (
 )
 
 type AuthRepository interface {
-	Login(ctx context.Context, input *request.LoginRequest) (*models.User, error)
-	Register(ctx context.Context, input *request.CreateUserRequest) (*models.User, error)
+	Login(ctx context.Context, input api.LoginReq) (*models.User, error)
+	Register(ctx context.Context, input api.RegisterReq) (*models.User, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	//CreateUserWithWallet(ctx context.Context, user *models.User, wallet *models.Wallet) (*models.User, error)
 	CreateUserWithWallet(ctx context.Context, user *models.User) (*models.User, error)
@@ -26,14 +26,14 @@ func NewAuthRepository(db *gorm.DB) AuthRepository {
 	return &authRepository{db: db}
 }
 
-func (r *authRepository) Login(ctx context.Context, input *request.LoginRequest) (*models.User, error) {
+func (r *authRepository) Login(ctx context.Context, input api.LoginReq) (*models.User, error) {
 	var user models.User
 	err := r.db.WithContext(ctx).First(&user, "email = ? ", input.Email).Error
 
 	return &user, err
 }
 
-func (r *authRepository) Register(ctx context.Context, input *request.CreateUserRequest) (*models.User, error) {
+func (r *authRepository) Register(ctx context.Context, input api.RegisterReq) (*models.User, error) {
 	var user models.User
 	err := r.db.WithContext(ctx).Create(&user).Error
 

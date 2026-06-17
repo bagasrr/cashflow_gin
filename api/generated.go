@@ -175,6 +175,7 @@ type PaginationMeta struct {
 // RegisterReq defines model for RegisterReq.
 type RegisterReq struct {
 	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
 	Password string `json:"password"`
 	Username string `json:"username"`
 }

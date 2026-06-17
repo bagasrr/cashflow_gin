@@ -521,7 +521,7 @@ components:
     #--------------- AUTH BEGIN ---------------
     RegisterReq:
       type: object
-      required: [username, email, password]
+      required: [username, email, password, nickname]
       properties:
         username:
           type: string
@@ -532,6 +532,9 @@ components:
         password:
           type: string
           example: "password123"
+        nickname:
+          type: string
+          example: "John Tampan"
 
     LoginReq:
       type: object

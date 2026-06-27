@@ -1890,7 +1890,7 @@ paths:
   /wallets/{id}/charts:
     get:
       tags:
-        - Wallet
+        - Wallets
       summary: Get Wallet Transaction Chart Data
       operationId: getWalletChartData
       security:
@@ -1931,6 +1931,95 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/WalletChartPoint"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /wallets/{id}/transactions:
+    get:
+      tags:
+        - Wallets
+      summary: Get Wallet Transactions (Paginated)
+      operationId: getWalletTransactions
+      security:
+        - BearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        # --- FILTER TANGGAL ---
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-05-16"
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-06-16"
+        # --- FILTER PAGINASI (MUTLAK) ---
+        - name: page
+          in: query
+          required: false
+          description: "Halaman ke berapa. Default: 1"
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: "Jumlah data per halaman. Default: 20"
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                # Bikin struktur response yang mengembalikan array transaksi
+                $ref: "#/components/schemas/TransactionListRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
   # ==========================================
   # GROUP DOMAIN
   # ==========================================

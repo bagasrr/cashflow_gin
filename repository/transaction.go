@@ -20,6 +20,7 @@ type TransactionRepository interface {
 	UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta int64) error
 	// UBAH MUTLAK: delta sekarang int64
 	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error
+	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int) ([]models.Transaction, error)
 }
 
 type transactionRepository struct {
@@ -139,4 +140,21 @@ func (r *transactionRepository) SoftDeleteTransaction(ctx context.Context, trans
 
 		return nil // Commit transaksi jika kedua operasi di atas sukses
 	})
+}
+
+func (r *transactionRepository) GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int) ([]models.Transaction, error) {
+	var transactions []models.Transaction
+
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND wallet_id = ? AND deleted_at IS NULL", userID, walletID).
+		// Sesuaikan nama kolom tanggal lu. Di script lu kemarin namanya `date`.
+		Where("date >= ? AND date <= ?", startDate, endDate).
+		Order("date DESC, created_at DESC"). // Wajib diurutkan dari yang paling baru
+		Limit(limit).
+		Offset(offset).
+		// Preload relasi kalau lu butuh nama kategori di Frontend
+		Preload("Category").
+		Find(&transactions).Error
+
+	return transactions, err
 }

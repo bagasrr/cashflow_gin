@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -25,6 +26,7 @@ type TransactionService interface {
 	GetTransactionByID(ctx context.Context, userID uuid.UUID, transactionID uuid.UUID) (*models.Transaction, error)
 	UpdateTransaction(ctx context.Context, userID, transactionID uuid.UUID, input api.UpdateTransactionReq) (*models.Transaction, error)
 	SoftDeleteTransaction(ctx context.Context, userID, transactionID uuid.UUID) error
+	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams) ([]models.Transaction, error)
 }
 
 type transactionService struct {
@@ -250,4 +252,49 @@ func (s *transactionService) SoftDeleteTransaction(ctx context.Context, userID, 
 	}
 
 	return nil
+}
+
+func (s *transactionService) GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams) ([]models.Transaction, error) {
+
+	// 1. Logika Jatuh Bebas (Fallback) Tanggal
+	now := time.Now()
+	endDate := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+	startDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, -1, 0) // Default 1 bulan terakhir
+
+	if params.EndDate != nil {
+		parsedEnd := params.EndDate.Time
+		endDate = time.Date(parsedEnd.Year(), parsedEnd.Month(), parsedEnd.Day(), 23, 59, 59, 0, parsedEnd.Location())
+	}
+
+	if params.StartDate != nil {
+		parsedStart := params.StartDate.Time
+		startDate = time.Date(parsedStart.Year(), parsedStart.Month(), parsedStart.Day(), 0, 0, 0, 0, parsedStart.Location())
+	}
+
+	if startDate.After(endDate) {
+		return nil, errors.New("bad request: start_date tidak boleh melebihi end_date")
+	}
+
+	// 2. Logika Mutlak Paginasi
+	page := 1
+	if params.Page != nil && *params.Page > 0 {
+		page = *params.Page
+	}
+
+	limit := 20
+	if params.Limit != nil && *params.Limit > 0 {
+		limit = *params.Limit
+	}
+
+	// Batasi limit maksimal agar user gak nge-bypass dengan limit=1000000
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Rumus Offset: (Halaman - 1) * Jumlah Data per Halaman
+	// Contoh: Page 1 -> Offset 0. Page 2 -> Offset 20.
+	offset := (page - 1) * limit
+
+	// 3. Lempar ke DB
+	return s.transactionRepo.GetTransactionsByWallet(ctx, userID, walletID, startDate, endDate, limit, offset)
 }

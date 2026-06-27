@@ -76,7 +76,7 @@ func Run() {
 	categoryAPI := &handler.CategoryAPI{Service: categoryService}
 	transactionAPI := &handler.TransactionAPI{Service: transactionService}
 	userAPI := &handler.UserAPI{Service: userService}
-	walletAPI := &handler.WalletAPI{Service: walletService}
+	walletAPI := &handler.WalletAPI{Service: walletService, TransactionService: transactionService}
 	groupAPI := &handler.GroupAPI{Service: groupService}
 	dashboardAPI := &handler.DashboardAPI{Service: dashboardService}
 

@@ -395,6 +395,18 @@ type GetWalletChartDataParams struct {
 	EndDate   *openapi_types.Date `form:"end_date,omitempty" json:"end_date,omitempty"`
 }
 
+// GetWalletTransactionsParams defines parameters for GetWalletTransactions.
+type GetWalletTransactionsParams struct {
+	StartDate *openapi_types.Date `form:"start_date,omitempty" json:"start_date,omitempty"`
+	EndDate   *openapi_types.Date `form:"end_date,omitempty" json:"end_date,omitempty"`
+
+	// Page Halaman ke berapa. Default: 1
+	Page *int `form:"page,omitempty" json:"page,omitempty"`
+
+	// Limit Jumlah data per halaman. Default: 20
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ForgotPasswordJSONRequestBody defines body for ForgotPassword for application/json ContentType.
 type ForgotPasswordJSONRequestBody = ForgotPassword
 
@@ -553,6 +565,9 @@ type ServerInterface interface {
 	// Get Wallet Transaction Chart Data
 	// (GET /wallets/{id}/charts)
 	GetWalletChartData(c *gin.Context, id string, params GetWalletChartDataParams)
+	// Get Wallet Transactions (Paginated)
+	// (GET /wallets/{id}/transactions)
+	GetWalletTransactions(c *gin.Context, id string, params GetWalletTransactionsParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -1649,6 +1664,67 @@ func (siw *ServerInterfaceWrapper) GetWalletChartData(c *gin.Context) {
 	siw.Handler.GetWalletChartData(c, id, params)
 }
 
+// GetWalletTransactions operation middleware
+func (siw *ServerInterfaceWrapper) GetWalletTransactions(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetWalletTransactionsParams
+
+	// ------------- Optional query parameter "start_date" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "start_date", c.Request.URL.Query(), &params.StartDate, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter start_date: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "end_date" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "end_date", c.Request.URL.Query(), &params.EndDate, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter end_date: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetWalletTransactions(c, id, params)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -1713,6 +1789,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/wallets/:id", wrapper.GetWalletById)
 	router.PUT(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
 	router.GET(options.BaseURL+"/wallets/:id/charts", wrapper.GetWalletChartData)
+	router.GET(options.BaseURL+"/wallets/:id/transactions", wrapper.GetWalletTransactions)
 }
 
 type ForgotPasswordRequestObject struct {
@@ -3189,6 +3266,78 @@ func (response GetWalletChartData200JSONResponse) VisitGetWalletChartDataRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetWalletChartData400JSONResponse N400BaseRes
+
+func (response GetWalletChartData400JSONResponse) VisitGetWalletChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWalletChartData401JSONResponse N400BaseRes
+
+func (response GetWalletChartData401JSONResponse) VisitGetWalletChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWalletChartData500JSONResponse N500BaseRes
+
+func (response GetWalletChartData500JSONResponse) VisitGetWalletChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWalletTransactionsRequestObject struct {
+	Id     string `json:"id"`
+	Params GetWalletTransactionsParams
+}
+
+type GetWalletTransactionsResponseObject interface {
+	VisitGetWalletTransactionsResponse(w http.ResponseWriter) error
+}
+
+type GetWalletTransactions200JSONResponse TransactionListRes
+
+func (response GetWalletTransactions200JSONResponse) VisitGetWalletTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWalletTransactions400JSONResponse N400BaseRes
+
+func (response GetWalletTransactions400JSONResponse) VisitGetWalletTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWalletTransactions401JSONResponse N400BaseRes
+
+func (response GetWalletTransactions401JSONResponse) VisitGetWalletTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWalletTransactions500JSONResponse N500BaseRes
+
+func (response GetWalletTransactions500JSONResponse) VisitGetWalletTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Forgot Password
@@ -3302,6 +3451,9 @@ type StrictServerInterface interface {
 	// Get Wallet Transaction Chart Data
 	// (GET /wallets/{id}/charts)
 	GetWalletChartData(ctx context.Context, request GetWalletChartDataRequestObject) (GetWalletChartDataResponseObject, error)
+	// Get Wallet Transactions (Paginated)
+	// (GET /wallets/{id}/transactions)
+	GetWalletTransactions(ctx context.Context, request GetWalletTransactionsRequestObject) (GetWalletTransactionsResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -4407,6 +4559,34 @@ func (sh *strictHandler) GetWalletChartData(ctx *gin.Context, id string, params 
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(GetWalletChartDataResponseObject); ok {
 		if err := validResponse.VisitGetWalletChartDataResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetWalletTransactions operation middleware
+func (sh *strictHandler) GetWalletTransactions(ctx *gin.Context, id string, params GetWalletTransactionsParams) {
+	var request GetWalletTransactionsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWalletTransactions(ctx, request.(GetWalletTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWalletTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetWalletTransactionsResponseObject); ok {
+		if err := validResponse.VisitGetWalletTransactionsResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

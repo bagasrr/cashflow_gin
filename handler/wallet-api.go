@@ -12,7 +12,8 @@ import (
 )
 
 type WalletAPI struct {
-	Service services.WalletService
+	Service            services.WalletService
+	TransactionService services.TransactionService
 }
 
 func (c *WalletAPI) CreatePersonalWallet(ctx context.Context, request api.CreatePersonalWalletRequestObject) (api.CreatePersonalWalletResponseObject, error) {
@@ -321,5 +322,60 @@ func (c *WalletAPI) GetWalletChartData(ctx context.Context, request api.GetWalle
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Success get wallet chart data"),
 		Data:    &chartRes,
+	}, nil
+}
+
+func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWalletTransactionsRequestObject) (api.GetWalletTransactionsResponseObject, error) {
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.GetWalletTransactions401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get user info"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+
+	// 2. Validasi Wallet ID dari URL Path
+	walletId, err := uuid.Parse(request.Id)
+	if err != nil {
+		return api.GetWalletTransactions400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get user id"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+
+	// 3. Panggil Service
+	transactions, err := h.TransactionService.GetTransactionsByWallet(ctx, userId, walletId, request.Params)
+	if err != nil {
+		return api.GetWalletTransactions500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Cannot get Transaction"),
+			Errors:  utils.StringPtr("ERR : " + err.Error()),
+		}, nil
+	}
+
+	// 4. Mapping Data Database ke Data OpenAPI
+	var dataRes []api.TransactionRes
+	for _, trx := range transactions {
+		dataRes = append(dataRes, api.TransactionRes{
+			Id:          trx.ID.String(),
+			Amount:      int64(trx.Amount), // Ingat pelajaran kita soal Float vs Integer
+			Title:       trx.Title,
+			Date:        trx.Date,
+			Description: &trx.Description,
+			Category: api.CategoryRes{
+				Id:   trx.Category.ID.String(),
+				Name: trx.Category.Name,
+				Type: string(trx.Category.Type),
+			},
+		})
+	}
+
+	// 5. Kembalikan 200 OK
+	return api.GetWalletTransactions200JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Berhasil mengambil riwayat transaksi"),
+		Data:    &dataRes,
 	}, nil
 }

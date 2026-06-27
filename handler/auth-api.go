@@ -75,7 +75,7 @@ func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.Lo
 
 		return api.Login500JSONResponse{
 			Status:  utils.BoolPtr(false),
-			Message: utils.StringPtr("Can't Login"),
+			Message: utils.StringPtr("Email or Password is wrong"),
 			Errors:  utils.StringPtr("ERR: " + err.Error()),
 		}, nil
 	}

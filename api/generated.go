@@ -41,6 +41,24 @@ func (e CreateCategoryReqType) Valid() bool {
 	}
 }
 
+// Defines values for GetWalletTransactionsParamsSortOrder.
+const (
+	Asc  GetWalletTransactionsParamsSortOrder = "asc"
+	Desc GetWalletTransactionsParamsSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetWalletTransactionsParamsSortOrder enum.
+func (e GetWalletTransactionsParamsSortOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
 // N400BaseRes defines model for 400BaseRes.
 type N400BaseRes struct {
 	Errors  *string `json:"errors,omitempty"`
@@ -405,7 +423,19 @@ type GetWalletTransactionsParams struct {
 
 	// Limit Jumlah data per halaman. Default: 20
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Search Pencarian kata kunci pada judul transaksi
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
+	// SortBy Kolom yang mau diurutkan (contoh: amount, date)
+	SortBy *string `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+
+	// SortOrder Arah urutan (asc atau desc)
+	SortOrder *GetWalletTransactionsParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
 }
+
+// GetWalletTransactionsParamsSortOrder defines parameters for GetWalletTransactions.
+type GetWalletTransactionsParamsSortOrder string
 
 // ForgotPasswordJSONRequestBody defines body for ForgotPassword for application/json ContentType.
 type ForgotPasswordJSONRequestBody = ForgotPassword
@@ -1712,6 +1742,30 @@ func (siw *ServerInterfaceWrapper) GetWalletTransactions(c *gin.Context) {
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "search", c.Request.URL.Query(), &params.Search, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter search: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort_by" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort_by", c.Request.URL.Query(), &params.SortBy, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort_by: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort_order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort_order", c.Request.URL.Query(), &params.SortOrder, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort_order: %w", err), http.StatusBadRequest)
 		return
 	}
 

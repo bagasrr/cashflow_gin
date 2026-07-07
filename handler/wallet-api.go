@@ -344,9 +344,9 @@ func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWa
 			Errors:  utils.StringPtr("ERR : " + err.Error()),
 		}, nil
 	}
-
+	page, limit, offset := utils.ValidatePagination(*request.Params.Page, *request.Params.Limit)
 	// 3. Panggil Service
-	transactions, err := h.TransactionService.GetTransactionsByWallet(ctx, userId, walletId, request.Params)
+	transactions, totalData, err := h.TransactionService.GetTransactionsByWallet(ctx, userId, walletId, request.Params, page, limit, offset)
 	if err != nil {
 		return api.GetWalletTransactions500JSONResponse{
 			Status:  utils.BoolPtr(false),
@@ -354,13 +354,12 @@ func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWa
 			Errors:  utils.StringPtr("ERR : " + err.Error()),
 		}, nil
 	}
-
 	// 4. Mapping Data Database ke Data OpenAPI
 	var dataRes []api.TransactionRes
 	for _, trx := range transactions {
 		dataRes = append(dataRes, api.TransactionRes{
 			Id:          trx.ID.String(),
-			Amount:      int64(trx.Amount), // Ingat pelajaran kita soal Float vs Integer
+			Amount:      int64(trx.Amount),
 			Title:       trx.Title,
 			Date:        trx.Date,
 			Description: &trx.Description,
@@ -372,10 +371,17 @@ func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWa
 		})
 	}
 
+	totalPages := (int(totalData) + limit - 1) / limit
+
 	// 5. Kembalikan 200 OK
 	return api.GetWalletTransactions200JSONResponse{
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Berhasil mengambil riwayat transaksi"),
 		Data:    &dataRes,
+		Meta: &api.PaginationMeta{
+			CurrentPage: utils.IntPtr(page),
+			TotalPages:  utils.IntPtr(totalPages),
+			TotalItems:  utils.IntPtr(int(totalData)),
+		},
 	}, nil
 }

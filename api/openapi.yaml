@@ -1994,6 +1994,27 @@ paths:
           schema:
             type: integer
             default: 20
+        - name: search
+          in: query
+          required: false
+          description: "Pencarian kata kunci pada judul transaksi"
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          required: false
+          description: "Kolom yang mau diurutkan (contoh: amount, date)"
+          schema:
+            type: string
+            default: "date"
+        - name: sort_order
+          in: query
+          required: false
+          description: "Arah urutan (asc atau desc)"
+          schema:
+            type: string
+            enum: [ asc, desc ] # Kunci mutlak agar Swagger menolak input ngawur
+            default: "desc"
       responses:
         "200":
           description: Success

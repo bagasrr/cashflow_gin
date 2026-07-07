@@ -3,6 +3,7 @@ package repository
 import (
 	"cashflow_gin/models"
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ type TransactionRepository interface {
 	UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta int64) error
 	// UBAH MUTLAK: delta sekarang int64
 	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error
-	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int) ([]models.Transaction, error)
+	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int, search, sortBy, sortOrder string) ([]models.Transaction, int64, error)
 }
 
 type transactionRepository struct {
@@ -141,20 +142,41 @@ func (r *transactionRepository) SoftDeleteTransaction(ctx context.Context, trans
 		return nil // Commit transaksi jika kedua operasi di atas sukses
 	})
 }
-
-func (r *transactionRepository) GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int) ([]models.Transaction, error) {
+func (r *transactionRepository) GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int, search, sortBy, sortOrder string) ([]models.Transaction, int64, error) {
 	var transactions []models.Transaction
+	var totalItems int64
 
-	err := r.db.WithContext(ctx).
+	// 1. Fondasi Query (MUTLAK: Gunakan .Model agar GORM tahu tabel mana yang mau dihitung)
+	query := r.db.WithContext(ctx).Model(&models.Transaction{}).
 		Where("user_id = ? AND wallet_id = ? AND deleted_at IS NULL", userID, walletID).
-		// Sesuaikan nama kolom tanggal lu. Di script lu kemarin namanya `date`.
-		Where("date >= ? AND date <= ?", startDate, endDate).
-		Order("date DESC, created_at DESC"). // Wajib diurutkan dari yang paling baru
-		Limit(limit).
+		Where("date >= ? AND date <= ?", startDate, endDate)
+
+	// 2. Tumpuk Lego Search (SEBELUM DIHITUNG!)
+	if search != "" {
+		query = query.Where("title ILIKE ?", "%"+search+"%")
+	}
+
+	// 3. EKSEKUSI COUNT MUTLAK
+	// Di titik ini, query sudah berisi filter tanggal + search (jika ada).
+	// Tapi belum tercemar oleh Limit dan Offset.
+	if err := query.Count(&totalItems).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 4. Tumpuk Lego Sorting
+	// (Sorting ditaruh setelah Count karena mengurutkan data cuma buang-buang CPU database saat proses menghitung)
+	orderClause := fmt.Sprintf("%s %s", sortBy, sortOrder)
+	query = query.Order(orderClause)
+
+	if sortBy != "date" {
+		query = query.Order("created_at DESC")
+	}
+
+	// 5. Eksekusi Akhir (Pemotongan Data)
+	err := query.Limit(limit).
 		Offset(offset).
-		// Preload relasi kalau lu butuh nama kategori di Frontend
 		Preload("Category").
 		Find(&transactions).Error
 
-	return transactions, err
+	return transactions, totalItems, err
 }

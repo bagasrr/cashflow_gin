@@ -26,7 +26,7 @@ type TransactionService interface {
 	GetTransactionByID(ctx context.Context, userID uuid.UUID, transactionID uuid.UUID) (*models.Transaction, error)
 	UpdateTransaction(ctx context.Context, userID, transactionID uuid.UUID, input api.UpdateTransactionReq) (*models.Transaction, error)
 	SoftDeleteTransaction(ctx context.Context, userID, transactionID uuid.UUID) error
-	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams) ([]models.Transaction, error)
+	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams, page, limit, offset int) ([]models.Transaction, int64, error)
 }
 
 type transactionService struct {
@@ -254,7 +254,7 @@ func (s *transactionService) SoftDeleteTransaction(ctx context.Context, userID, 
 	return nil
 }
 
-func (s *transactionService) GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams) ([]models.Transaction, error) {
+func (s *transactionService) GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams, page, limit, offset int) ([]models.Transaction, int64, error) {
 
 	// 1. Logika Jatuh Bebas (Fallback) Tanggal
 	now := time.Now()
@@ -272,29 +272,36 @@ func (s *transactionService) GetTransactionsByWallet(ctx context.Context, userID
 	}
 
 	if startDate.After(endDate) {
-		return nil, errors.New("bad request: start_date tidak boleh melebihi end_date")
+		return nil, 0, errors.New("bad request: start_date tidak boleh melebihi end_date")
 	}
-
-	// 2. Logika Mutlak Paginasi
-	page := 1
-	if params.Page != nil && *params.Page > 0 {
-		page = *params.Page
-	}
-
-	limit := 20
-	if params.Limit != nil && *params.Limit > 0 {
-		limit = *params.Limit
-	}
-
-	// Batasi limit maksimal agar user gak nge-bypass dengan limit=1000000
-	if limit > 100 {
-		limit = 100
-	}
-
-	// Rumus Offset: (Halaman - 1) * Jumlah Data per Halaman
-	// Contoh: Page 1 -> Offset 0. Page 2 -> Offset 20.
-	offset := (page - 1) * limit
 
 	// 3. Lempar ke DB
-	return s.transactionRepo.GetTransactionsByWallet(ctx, userID, walletID, startDate, endDate, limit, offset)
+	var searchStr string
+	if params.Search != nil {
+		searchStr = *params.Search
+	}
+
+	validOrder := "desc"
+
+	if params.SortOrder != nil {
+		orderStr := string(*params.SortOrder)
+
+		if orderStr == "asc" || orderStr == "desc" {
+			validOrder = orderStr
+		}
+	}
+
+	// Validasi Sort By (WHITELIST MUTLAK MENCEGAH SQL INJECTION)
+	validSortBy := "date" // Default
+	if params.SortBy != nil {
+		switch *params.SortBy {
+		case "amount", "title", "date", "created_at": // Hanya izinkan kolom ini
+			validSortBy = *params.SortBy
+		default:
+			// Tendang user kalau dia nyoba masukin nama kolom aneh
+			return nil, 0, errors.New("bad request: parameter sort_by tidak valid")
+		}
+	}
+
+	return s.transactionRepo.GetTransactionsByWallet(ctx, userID, walletID, startDate, endDate, limit, offset, searchStr, validSortBy, validOrder)
 }

@@ -1415,20 +1415,13 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - name: page
+        - name: type
           in: query
-          description: Page number
-          required: true
+          required: false
+          description: "Filter kategori berdasarkan tipe mutlak"
           schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          description: Jumlah data per halaman
-          required: true
-          schema:
-            type: integer
-            default: 10
+            type: string
+            enum: [ INCOME, EXPENSE, INVESTMENT ]
       responses:
         "200":
           description: Success

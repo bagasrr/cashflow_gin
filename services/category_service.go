@@ -19,7 +19,7 @@ type CategoryService interface {
 
 	Create(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
 	CreateMy(ctx context.Context, userID uuid.UUID, input api.CreateCategoryReq) (*models.Category, error)
-	GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error)
+	GetMine(ctx context.Context, userID uuid.UUID, params *api.GetMyCategoriesParams) (*[]models.Category, error)
 
 	GetById(ctx context.Context, categoryID, reqId uuid.UUID, reqRole models.UserRole) (*models.Category, error)
 	UpdateById(ctx context.Context, userID, catId uuid.UUID, input api.UpdateCategoryReq) (*models.Category, error)
@@ -207,9 +207,15 @@ func (s *categoryService) CreateMy(ctx context.Context, userID uuid.UUID, input 
 	return createdCategory, nil
 }
 
-func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, page, limit int) (*[]models.Category, error) {
-	offset := (page - 1) * limit
-	categories, err := s.repo.FindByUserID(ctx, userID, limit, offset)
+func (s *categoryService) GetMine(ctx context.Context, userID uuid.UUID, params *api.GetMyCategoriesParams) (*[]models.Category, error) {
+
+	var filterType string
+	if params.Type != nil {
+		// Bongkar paksa (Explicit Casting) tipe kustom menjadi string
+		filterType = string(*params.Type)
+	}
+
+	categories, err := s.repo.FindByUserID(ctx, userID, filterType)
 	if err != nil {
 		return nil, err
 	}

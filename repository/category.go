@@ -17,7 +17,7 @@ type CategoryRepository interface {
 	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, int64, error)
 
 	FindByName(ctx context.Context, name string) (*models.Category, error)
-	FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Category, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID, categoryType string) (*[]models.Category, error)
 	FindByGroupID(ctx context.Context, groupID uuid.UUID) (*[]models.Category, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Category, error)
 	Update(ctx context.Context, category *models.Category) (*models.Category, error)
@@ -144,10 +144,23 @@ func (r *categoryRepository) FindByName(ctx context.Context, name string) (*mode
 	return &category, err
 }
 
-func (r *categoryRepository) FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Category, error) {
+func (r *categoryRepository) FindByUserID(ctx context.Context, userID uuid.UUID, categoryType string) (*[]models.Category, error) {
 	var categories []models.Category
-	err := r.db.WithContext(ctx).Where("user_id = ? OR user_id IS NULL", userID).Limit(limit).Offset(offset).Find(&categories).Error
-	return &categories, err
+
+	// Logika cerdas lu: Ambil milik user tersebut, ATAU milik sistem (NULL)
+	query := r.db.WithContext(ctx).Model(&models.Category{}).
+		Where("user_id = ? OR user_id IS NULL", userID)
+
+	if categoryType != "" {
+		query = query.Where("type = ?", categoryType)
+	}
+
+	//err := query.Limit(limit).Offset(offset).Find(&categories).Error
+	if err := query.Find(&categories).Error; err != nil {
+		return nil, err
+	}
+
+	return &categories, nil
 }
 
 func (r *categoryRepository) FindByGroupID(ctx context.Context, groupID uuid.UUID) (*[]models.Category, error) {

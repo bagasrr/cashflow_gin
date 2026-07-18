@@ -22,19 +22,40 @@ const (
 
 // Defines values for CreateCategoryReqType.
 const (
-	EXPENSE    CreateCategoryReqType = "EXPENSE"
-	INCOME     CreateCategoryReqType = "INCOME"
-	INVESTMENT CreateCategoryReqType = "INVESTMENT"
+	CreateCategoryReqTypeEXPENSE    CreateCategoryReqType = "EXPENSE"
+	CreateCategoryReqTypeINCOME     CreateCategoryReqType = "INCOME"
+	CreateCategoryReqTypeINVESTMENT CreateCategoryReqType = "INVESTMENT"
 )
 
 // Valid indicates whether the value is a known member of the CreateCategoryReqType enum.
 func (e CreateCategoryReqType) Valid() bool {
 	switch e {
-	case EXPENSE:
+	case CreateCategoryReqTypeEXPENSE:
 		return true
-	case INCOME:
+	case CreateCategoryReqTypeINCOME:
 		return true
-	case INVESTMENT:
+	case CreateCategoryReqTypeINVESTMENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMyCategoriesParamsType.
+const (
+	GetMyCategoriesParamsTypeEXPENSE    GetMyCategoriesParamsType = "EXPENSE"
+	GetMyCategoriesParamsTypeINCOME     GetMyCategoriesParamsType = "INCOME"
+	GetMyCategoriesParamsTypeINVESTMENT GetMyCategoriesParamsType = "INVESTMENT"
+)
+
+// Valid indicates whether the value is a known member of the GetMyCategoriesParamsType enum.
+func (e GetMyCategoriesParamsType) Valid() bool {
+	switch e {
+	case GetMyCategoriesParamsTypeEXPENSE:
+		return true
+	case GetMyCategoriesParamsTypeINCOME:
+		return true
+	case GetMyCategoriesParamsTypeINVESTMENT:
 		return true
 	default:
 		return false
@@ -357,12 +378,12 @@ type GetSystemCategoriesParams struct {
 
 // GetMyCategoriesParams defines parameters for GetMyCategories.
 type GetMyCategoriesParams struct {
-	// Page Page number
-	Page int `form:"page" json:"page"`
-
-	// Limit Jumlah data per halaman
-	Limit int `form:"limit" json:"limit"`
+	// Type Filter kategori berdasarkan tipe mutlak
+	Type *GetMyCategoriesParamsType `form:"type,omitempty" json:"type,omitempty"`
 }
+
+// GetMyCategoriesParamsType defines parameters for GetMyCategories.
+type GetMyCategoriesParamsType string
 
 // GetDashboardSummaryParams defines parameters for GetDashboardSummary.
 type GetDashboardSummaryParams struct {
@@ -788,33 +809,11 @@ func (siw *ServerInterfaceWrapper) GetMyCategories(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetMyCategoriesParams
 
-	// ------------- Required query parameter "page" -------------
+	// ------------- Optional query parameter "type" -------------
 
-	if paramValue := c.Query("page"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument page is required, but not found"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "type", c.Request.URL.Query(), &params.Type, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	// ------------- Required query parameter "limit" -------------
-
-	if paramValue := c.Query("limit"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandler(c, fmt.Errorf("Query argument limit is required, but not found"), http.StatusBadRequest)
-		return
-	}
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter type: %w", err), http.StatusBadRequest)
 		return
 	}
 

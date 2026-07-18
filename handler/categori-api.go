@@ -211,17 +211,7 @@ func (c *CategoryAPI) GetMyCategories(ctx context.Context, request api.GetMyCate
 		}, nil
 	}
 
-	pageValue := 1
-	limitValue := 10
-
-	if request.Params.Limit != 0 {
-		limitValue = request.Params.Limit
-	}
-
-	if request.Params.Page != 0 {
-		pageValue = request.Params.Page
-	}
-	cat, err := c.Service.GetMine(ctx, userID, pageValue, limitValue)
+	cat, err := c.Service.GetMine(ctx, userID, &request.Params)
 	if err != nil {
 		status := false
 		msg := "Gagal mengambil kategori: " + err.Error()

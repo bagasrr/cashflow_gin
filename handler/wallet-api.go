@@ -355,9 +355,9 @@ func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWa
 		}, nil
 	}
 	// 4. Mapping Data Database ke Data OpenAPI
-	var dataRes []api.TransactionRes
+	var dataRes []api.TxWithWallet
 	for _, trx := range transactions {
-		dataRes = append(dataRes, api.TransactionRes{
+		dataRes = append(dataRes, api.TxWithWallet{
 			Id:          trx.ID.String(),
 			Amount:      int64(trx.Amount),
 			Title:       trx.Title,
@@ -367,6 +367,10 @@ func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWa
 				Id:   trx.Category.ID.String(),
 				Name: trx.Category.Name,
 				Type: string(trx.Category.Type),
+			},
+			Wallet: &api.TxWalletRes{
+				Id:   trx.Wallet.ID.String(),
+				Name: trx.Wallet.Name,
 			},
 		})
 	}

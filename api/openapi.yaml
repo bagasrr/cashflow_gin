@@ -230,6 +230,19 @@ components:
           items:
             $ref: "#/components/schemas/TransactionRes"
 
+    TxWalletRes:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: "Wallet Gaji"
+
+
     WalletBaseRes:
       allOf:
         - $ref: "#/components/schemas/SuccessBaseRes"
@@ -291,6 +304,7 @@ components:
         investment:
           type: integer
           example: 999999
+    
     #--------------- WALLET END -------------
     #--------------- TRANSACTION BEGIN -------------
     TransactionRes:
@@ -330,7 +344,7 @@ components:
         - type: object
           properties:
             wallet:
-              $ref: "#/components/schemas/WalletRes"
+              $ref: "#/components/schemas/TxWalletRes"
 
     TransactionBaseRes:
       allOf:
@@ -359,7 +373,11 @@ components:
         - type: object
           properties:
             data:
-              $ref: "#/components/schemas/TxWithWallet"
+              type: array
+              items:
+                $ref: "#/components/schemas/TxWithWallet"
+            meta:
+              $ref: "#/components/schemas/PaginationMeta"
 
     CreateTransactionReq:
       type: object
@@ -2015,7 +2033,7 @@ paths:
             application/json:
               schema:
                 # Bikin struktur response yang mengembalikan array transaksi
-                $ref: "#/components/schemas/TransactionListRes"
+                $ref: "#/components/schemas/TxWithWalletBaseRes"
         "400":
           description: Bad Request
           content:

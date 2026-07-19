@@ -266,6 +266,32 @@ type TransactionRes struct {
 	User        UserRes     `json:"user"`
 }
 
+// TxWalletRes defines model for TxWalletRes.
+type TxWalletRes struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// TxWithWallet defines model for TxWithWallet.
+type TxWithWallet struct {
+	Amount      int64        `json:"amount"`
+	Category    CategoryRes  `json:"category"`
+	Date        time.Time    `json:"date"`
+	Description *string      `json:"description,omitempty"`
+	Id          string       `json:"id"`
+	Title       string       `json:"title"`
+	User        UserRes      `json:"user"`
+	Wallet      *TxWalletRes `json:"wallet,omitempty"`
+}
+
+// TxWithWalletBaseRes defines model for TxWithWalletBaseRes.
+type TxWithWalletBaseRes struct {
+	Data    *[]TxWithWallet `json:"data,omitempty"`
+	Message *string         `json:"message,omitempty"`
+	Meta    *PaginationMeta `json:"meta,omitempty"`
+	Status  *bool           `json:"status,omitempty"`
+}
+
 // UpdateCategoryReq defines model for UpdateCategoryReq.
 type UpdateCategoryReq struct {
 	GroupId *string `json:"group_id,omitempty"`
@@ -3355,7 +3381,7 @@ type GetWalletTransactionsResponseObject interface {
 	VisitGetWalletTransactionsResponse(w http.ResponseWriter) error
 }
 
-type GetWalletTransactions200JSONResponse TransactionListRes
+type GetWalletTransactions200JSONResponse TxWithWalletBaseRes
 
 func (response GetWalletTransactions200JSONResponse) VisitGetWalletTransactionsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")

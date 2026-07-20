@@ -176,6 +176,7 @@ func (r *transactionRepository) GetTransactionsByWallet(ctx context.Context, use
 	err := query.Limit(limit).
 		Offset(offset).
 		Preload("Category").
+		Preload("Wallet").
 		Find(&transactions).Error
 
 	return transactions, totalItems, err

@@ -16,10 +16,7 @@ type TransactionRepository interface {
 	FindAllByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Transaction, error)
 	IsOwner(ctx context.Context, userID uuid.UUID, walletID string) bool
 	FindByID(ctx context.Context, transactionID uuid.UUID) (*models.Transaction, error)
-	UpdateTransaction(ctx context.Context, transaction *models.Transaction) error
-	// UBAH MUTLAK: delta sekarang int64
-	UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta int64) error
-	// UBAH MUTLAK: delta sekarang int64
+	UpdateTransaction(ctx context.Context, transaction *models.Transaction, delta int64) error
 	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error
 	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int, search, sortBy, sortOrder string) ([]models.Transaction, int64, error)
 }
@@ -93,26 +90,35 @@ func (r *transactionRepository) IsOwner(ctx context.Context, userID uuid.UUID, w
 
 func (r *transactionRepository) FindByID(ctx context.Context, transactionID uuid.UUID) (*models.Transaction, error) {
 	var transaction models.Transaction
-	err := r.db.WithContext(ctx).Preload("Category").Preload("User").First(&transaction, "id = ?", transactionID).Error
+	err := r.db.WithContext(ctx).Preload("Category").Preload("User").Preload("Wallet").First(&transaction, "id = ?", transactionID).Error
 	return &transaction, err
 }
 
-func (r *transactionRepository) UpdateTransaction(ctx context.Context, transaction *models.Transaction) error {
-	return r.db.WithContext(ctx).Save(transaction).Error
-}
-
-func (r *transactionRepository) UpdateTransactionWithWalletBallance(ctx context.Context, transaction *models.Transaction, delta int64) error {
+// Namanya dipersingkat, tapi logic-nya meng-handle semua skenario (dengan atau tanpa perubahan saldo)
+func (r *transactionRepository) UpdateTransaction(ctx context.Context, transaction *models.Transaction, delta int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(transaction).Error; err != nil {
+
+		// 1. OMIT MUTLAK (Fokus ubah tabel transaksi aja)
+		if err := tx.Omit("Category", "User").Save(transaction).Error; err != nil {
 			return err
 		}
 
-		if err := tx.Model(&models.Wallet{}).
-			Where("id = ?", transaction.WalletID).
-			Update("balance", gorm.Expr("balance + ?", delta)).Error; err != nil {
+		// 2. UPDATE SALDO DOMPET (Hanya kalau ada perubahan nominal/tipe)
+		if delta != 0 {
+			if err := tx.Model(&models.Wallet{}).
+				Where("id = ?", transaction.WalletID).
+				Update("balance", gorm.Expr("balance + ?", delta)).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. REFRESH ABSOLUT (Bantai memori basi)
+		var refreshed models.Transaction
+		if err := tx.Preload("Category").Preload("User").First(&refreshed, transaction.ID).Error; err != nil {
 			return err
 		}
 
+		*transaction = refreshed
 		return nil
 	})
 }

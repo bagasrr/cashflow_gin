@@ -6,7 +6,6 @@ import (
 	"cashflow_gin/repository"
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -182,8 +181,13 @@ func (s *transactionService) UpdateTransaction(ctx context.Context, userID, tran
 		return nil, errors.New("unauthorized: transaction does not belong to user")
 	}
 
-	oldAmount := transaction.Amount
+	// 1. TENTUKAN DAMPAK TRANSAKSI LAMA
+	oldImpact := transaction.Amount
+	if transaction.Category.Type == "EXPENSE" || transaction.Category.Type == "INVESTMENT" {
+		oldImpact = -transaction.Amount
+	}
 
+	// 2. TERAPKAN PERUBAHAN DATA TEKS & TANGGAL
 	if input.Title != "" {
 		transaction.Title = input.Title
 	}
@@ -194,34 +198,45 @@ func (s *transactionService) UpdateTransaction(ctx context.Context, userID, tran
 		transaction.Date = input.Date
 	}
 
-	// LOGIKA INT64 MURNI
-	var deltaAmount int64
-	if input.Amount != 0 {
-		var newAmount int64
-
-		if transaction.Category.Type == "EXPENSE" {
-			newAmount = -absInt64(input.Amount)
-		} else {
-			newAmount = absInt64(input.Amount)
+	// 3. TERAPKAN PERUBAHAN KATEGORI (MUTLAK)
+	if input.CategoryId != "" && input.CategoryId != transaction.CategoryID.String() {
+		newCatID, err := uuid.Parse(input.CategoryId)
+		if err != nil {
+			return nil, errors.New("bad request: format category_id tidak valid")
 		}
 
-		transaction.Amount = newAmount
-		deltaAmount = newAmount - oldAmount
+		// Panggil Repository Kategori lu. (Pastikan lu punya fungsi FindByID ini di categoryRepo lu)
+		// Kalau balikan repo lu itu struct utuh (bukan pointer), hilangkan bintang/ampersand sesuai kebutuhan.
+		newCategory, err := s.categoryRepo.FindByID(ctx, newCatID)
+		if err != nil {
+			return nil, errors.New("bad request: kategori baru tidak ditemukan")
+		}
+
+		// Update memori sementara agar perhitungan delta di bawah tidak cacat
+		transaction.CategoryID = newCategory.ID
+		transaction.Category = *newCategory
 	}
 
-	if deltaAmount != 0 {
-		fmt.Println("Update Transaction With Wallet Balance")
-		// CATATAN: Pastikan UpdateTransactionWithWalletBallance di Repo nerima int64
-		err := s.transactionRepo.UpdateTransactionWithWalletBallance(ctx, transaction, deltaAmount)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		fmt.Println("Update Transaction ONLY")
-		err = s.transactionRepo.UpdateTransaction(ctx, transaction)
-		if err != nil {
-			return nil, err
-		}
+	// 4. TERAPKAN PERUBAHAN NOMINAL
+	if input.Amount != 0 {
+		transaction.Amount = absInt64(input.Amount)
+	}
+
+	// 5. TENTUKAN DAMPAK TRANSAKSI BARU
+	// Karena transaction.Category udah di-update di atas (jika ada perubahan),
+	// Type yang dibaca di sini adalah Type yang 100% akurat.
+	newImpact := transaction.Amount
+	if transaction.Category.Type == "EXPENSE" || transaction.Category.Type == "INVESTMENT" {
+		newImpact = -transaction.Amount
+	}
+
+	// 6. RUMUS DELTA MUTLAK
+	deltaAmount := newImpact - oldImpact
+
+	// 7. EKSEKUSI KE REPO GABUNGAN
+	err = s.transactionRepo.UpdateTransaction(ctx, transaction, deltaAmount)
+	if err != nil {
+		return nil, err
 	}
 
 	return transaction, nil

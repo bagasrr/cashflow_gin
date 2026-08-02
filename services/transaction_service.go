@@ -53,7 +53,7 @@ func NewTransactionService(
 }
 
 func (s *transactionService) Create(ctx context.Context, userID uuid.UUID, input api.CreateTransactionReq) (*models.Transaction, error) {
-	// 1. TYPO FIX: Gunakan WalletId, bukan WalletID
+	// 1. VALIDASI WALLET MUTLAK
 	walletUUID, err := uuid.Parse(input.WalletId)
 	if err != nil {
 		return nil, errors.New("invalid wallet id")
@@ -75,17 +75,16 @@ func (s *transactionService) Create(ctx context.Context, userID uuid.UUID, input
 			return nil, errors.New("failed to check group membership")
 		}
 		if !isGroupMember {
-			return nil, errors.New("unauthorized: user is not a member of the group wallet, cannot create personal transaction")
+			return nil, errors.New("unauthorized: user is not a member of the group wallet")
 		}
 	} else {
-		// TYPO FIX: WalletId
 		reqUser := s.transactionRepo.IsOwner(ctx, userID, input.WalletId)
 		if !reqUser {
 			return nil, errors.New("unauthorized: wallet does not belong to user")
 		}
 	}
 
-	// 2. TYPO FIX: Gunakan CategoryId, bukan CategoryID
+	// 2. VALIDASI CATEGORY MUTLAK
 	catId, err := uuid.Parse(input.CategoryId)
 	if err != nil {
 		return nil, errors.New("invalid category id")
@@ -96,35 +95,39 @@ func (s *transactionService) Create(ctx context.Context, userID uuid.UUID, input
 		return nil, errors.New("category not found")
 	}
 
-	// LOGIKA INT64 MURNI
-	finalAmount := input.Amount
-	if category.Type == "EXPENSE" {
-		finalAmount = -absInt64(finalAmount)
-	} else {
-		finalAmount = absInt64(finalAmount)
+	// 3. LOGIKA AKUNTANSI MUTLAK (Pemisahan Fakta dan Dampak)
+	absoluteAmount := absInt64(input.Amount)
+
+	impactAmount := absoluteAmount
+	if category.Type == "EXPENSE" || category.Type == "INVESTMENT" {
+		impactAmount = -absoluteAmount // Dampak minus ke dompet
 	}
 
-	// 3. PENGAMAN POINTER MUTLAK UNTUK DESCRIPTION
+	// 4. PENGAMAN POINTER
 	var safeDescription string
 	if input.Description != nil {
 		safeDescription = *input.Description
 	}
 
+	// Struct mentah sebelum masuk database
 	transaction := models.Transaction{
 		UserID:      userID,
 		WalletID:    walletUUID,
 		CategoryID:  category.ID,
 		Title:       input.Title,
-		Amount:      finalAmount,
-		Description: safeDescription, // Masukkan variabel yang sudah dipastikan aman (string)
+		Amount:      absoluteAmount, // Fakta nominal positif
+		Description: safeDescription,
 		Date:        input.Date,
 	}
 
-	newTrx, err := s.transactionRepo.CreateWithWalletUpdate(ctx, &transaction)
+	// 5. EKSEKUSI DAN TANGKAP HASIL (Integrasi dengan Repo baru lu)
+	// newTrx di sini adalah data yang sudah di-reload (memiliki data Category utuh)
+	newTrx, err := s.transactionRepo.CreateWithWalletUpdate(ctx, &transaction, impactAmount)
 	if err != nil {
 		return nil, err
 	}
 
+	// Kembalikan newTrx, bukan &transaction mentah
 	return newTrx, nil
 }
 
@@ -241,6 +244,7 @@ func (s *transactionService) UpdateTransaction(ctx context.Context, userID, tran
 
 	return transaction, nil
 }
+
 func (s *transactionService) SoftDeleteTransaction(ctx context.Context, userID, transactionID uuid.UUID) error {
 	reqUser, err := s.userRepo.FindMyProfile(ctx, userID)
 	if err != nil {

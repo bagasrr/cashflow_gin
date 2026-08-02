@@ -5,6 +5,7 @@ import (
 	"cashflow_gin/models"
 	"cashflow_gin/repository"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,16 +15,21 @@ type DashboardService interface {
 	GetSummary(ctx context.Context, userID uuid.UUID, params api.GetDashboardSummaryParams) (*models.CashflowSummary, error)
 }
 type dashboardService struct {
-	repo repository.DashboardRepository
+	repo   repository.DashboardRepository
+	trRepo repository.TransactionRepository
 }
 
-func NewDashboardService(r repository.DashboardRepository) DashboardService {
-	return &dashboardService{repo: r}
+func NewDashboardService(r repository.DashboardRepository, trRepo repository.TransactionRepository) DashboardService {
+	return &dashboardService{repo: r, trRepo: trRepo}
 }
 func (s *dashboardService) GetSummary(ctx context.Context, userID uuid.UUID, params api.GetDashboardSummaryParams) (*models.CashflowSummary, error) {
 	walletId, err := uuid.Parse(params.WalletId)
 	if err != nil {
 		return nil, err
+	}
+	isOwner := s.trRepo.IsOwner(ctx, userID, params.WalletId)
+	if !isOwner {
+		return nil, errors.New("Not Yours, Fuck Off")
 	}
 	//now := time.Now()
 	//endDate := now

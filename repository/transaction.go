@@ -11,7 +11,7 @@ import (
 )
 
 type TransactionRepository interface {
-	CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction) (*models.Transaction, error)
+	CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction, impact int64) (*models.Transaction, error)
 	FindAll(ctx context.Context) (*[]models.Transaction, error)
 	FindAllByUserID(ctx context.Context, userID uuid.UUID) (*[]models.Transaction, error)
 	IsOwner(ctx context.Context, userID uuid.UUID, walletID string) bool
@@ -29,26 +29,30 @@ func NewTransactionRepository(db *gorm.DB) TransactionRepository {
 	return &transactionRepository{db: db}
 }
 
-// Tanda tangan WAJIB me-return *models.Transaction agar Handler lu dapet data
-func (r *transactionRepository) CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction) (*models.Transaction, error) {
+// WAJIB: Tambahkan parameter "impact int64"
+func (r *transactionRepository) CreateWithWalletUpdate(ctx context.Context, transaction *models.Transaction, impact int64) (*models.Transaction, error) {
+
 	// 1. MULAI TRANSAKSI DATABASE (ACID)
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// A. Simpan Transaksi
-		if err := tx.Create(transaction).Error; err != nil {
+
+		// A. Simpan Transaksi (MUTLAK: Omit relasi agar GORM tidak menciptakan data siluman)
+		if err := tx.Omit("Category", "User").Create(transaction).Error; err != nil {
 			return err
 		}
 
-		// B. Potong/Tambah Saldo Dompet dengan aman dari Race Condition
-		if err := tx.Model(&models.Wallet{}).
-			Where("id = ?", transaction.WalletID).
-			Updates(map[string]interface{}{
-				"balance":    gorm.Expr("balance + ?", transaction.Amount),
-				"updated_at": time.Now(), // Hati-hati, import "time" jika belum
-			}).Error; err != nil {
-			return err // Jika dompet gagal diupdate, transaksi akan di-Rollback otomatis
+		// B. Update Saldo Dompet (Gunakan variabel IMPACT, bukan Amount)
+		if impact != 0 {
+			if err := tx.Model(&models.Wallet{}).
+				Where("id = ?", transaction.WalletID).
+				Updates(map[string]interface{}{
+					"balance":    gorm.Expr("balance + ?", impact), // impact sudah membawa nilai minus jika EXPENSE
+					"updated_at": time.Now(),
+				}).Error; err != nil {
+				return err
+			}
 		}
 
-		return nil // Commit transaksi
+		return nil
 	})
 
 	// 2. CEK STATUS TRANSAKSI
@@ -56,8 +60,7 @@ func (r *transactionRepository) CreateWithWalletUpdate(ctx context.Context, tran
 		return nil, err
 	}
 
-	// 3. RELOAD SECARA MUTLAK (The Enterprise Way)
-	// Transaksi sukses, sekarang tarik ulang datanya + relasi untuk dikirim ke Handler
+	// 3. RELOAD SECARA MUTLAK
 	var reloadedTrx models.Transaction
 	err = r.db.WithContext(ctx).
 		Preload("Category").
@@ -70,6 +73,7 @@ func (r *transactionRepository) CreateWithWalletUpdate(ctx context.Context, tran
 
 	return &reloadedTrx, nil
 }
+
 func (r *transactionRepository) FindAll(ctx context.Context) (*[]models.Transaction, error) {
 	var transactions []models.Transaction
 	err := r.db.WithContext(ctx).Preload("Category").Preload("User").Find(&transactions).Error

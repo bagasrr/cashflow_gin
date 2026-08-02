@@ -69,7 +69,7 @@ func Run() {
 	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo)
 	walletService := services.NewWalletService(walletRepo, nil)
 	groupService := services.NewGroupService(groupRepo)
-	dashboardService := services.NewDashboardService(dashboardRepo)
+	dashboardService := services.NewDashboardService(dashboardRepo, transactionRepo)
 
 	// C. Inisialisasi Handlers (Gerbang Luar)
 	authAPI := &handler.AuthAPI{Service: authService}

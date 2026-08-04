@@ -401,6 +401,7 @@ components:
         description:
           type: string
           example: "Gaji bulan Januari 2026"
+          maxLength: 255
         category_id:
           type: string
           example: "123e4567-e89b-12d3-a456-426655440000"
@@ -428,6 +429,7 @@ components:
         description:
           type: string
           example: "Gaji bulan Januari 2026"
+          maxLength: 255
         category_id:
           type: string
           example: "123e4567-e89b-12d3-a456-426655440000"
@@ -584,6 +586,7 @@ components:
         description:
           type: string
           example: "Group ini adalah group utama"
+          maxLength: 255
 
     UpdateGroupReq:
       type: object
@@ -599,6 +602,7 @@ components:
           type: string
           example: "Deskripsi group yang diupdate"
           default: "This Is Description"
+          maxLength: 255
 
     GroupMembersRes:
       type: object
@@ -642,6 +646,7 @@ components:
         description:
           type: string
           example: "Group ini adalah group utama"
+          maxLength: 255
         wallet:
           type: array
           items:

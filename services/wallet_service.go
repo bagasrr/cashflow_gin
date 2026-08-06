@@ -16,7 +16,7 @@ type WalletService interface {
 	CreateGroupWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
 	GetAll(ctx context.Context) (*[]models.Wallet, error)
 	GetWalletByID(ctx context.Context, userID, walletID uuid.UUID) (*models.Wallet, error)
-	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, int64, error)
+	GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) ([]models.Wallet, int64, error)
 
 	UpdateWalletName(ctx context.Context, userID, walletID uuid.UUID, newName string) (*models.Wallet, error)
 	DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error
@@ -93,7 +93,7 @@ func (s *walletService) GetWalletByID(ctx context.Context, userID, walletID uuid
 	return wallet, nil
 }
 
-func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, int64, error) {
+func (s *walletService) GetMine(ctx context.Context, userID uuid.UUID, limit, offset int) ([]models.Wallet, int64, error) {
 	// 1. Validasi cegah Hacker/Bug Frontend (Opsional karena udah di-cover Helper Handler, tapi bagus untuk Double Security)
 	if limit < 1 || limit > 100 {
 		limit = 10

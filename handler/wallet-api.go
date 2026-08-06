@@ -6,7 +6,6 @@ import (
 	"cashflow_gin/services"
 	"cashflow_gin/utils"
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -193,11 +192,53 @@ func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRe
 			Errors:  utils.StringPtr("Err : " + err.Error()),
 		}, nil
 	}
-	fmt.Println(myWallets)
 	res := []api.WalletRes{}
 
-	// 2. LOOPING & MAPPING
-	for _, v := range *myWallets {
+	// 1. LOOPING DOMPET UTAMA
+	for _, v := range myWallets {
+
+		var trxRes []api.TransactionRes
+
+		// 2. LOOPING TRANSAKSI ANAK
+		for _, t := range v.Transactions {
+
+			// A. RAKIT KATEGORI SECARA AMAN (Seluruhnya ada di dalam blok if)
+			var catRes api.CategoryRes
+			if t.Category.ID != uuid.Nil {
+				catRes = api.CategoryRes{
+					Id:      t.Category.ID.String(),
+					Name:    t.Category.Name,
+					Type:    string(t.Category.Type),
+					GroupId: utils.UUIDPtrToStringPtr(t.Category.GroupID),
+				}
+			}
+
+			// B. RAKIT USER SECARA AMAN (Wajib lu tambahin kalau Front-end butuh data siapa yang transaksi)
+			// Asumsi nama struct dari OpenAPI lu adalah api.UserRes
+			/*
+			   var userRes api.UserRes
+			   if t.User.ID != uuid.Nil {
+			      userRes = api.UserRes{
+			          Id:       t.User.ID.String(),
+			          Username: t.User.Username,
+			          Email:    t.User.Email,
+			      }
+			   }
+			*/
+
+			// C. TEMPELKAN KE WADAH TRANSAKSI
+			trxRes = append(trxRes, api.TransactionRes{
+				Id:       t.ID.String(),
+				Title:    t.Title,
+				Amount:   t.Amount,
+				Date:     t.Date, // KITA BUKA MUTLAK AGAR TIDAK 0001-01-01
+				Category: catRes, // Objek kategori yang sudah aman
+
+				// User: userRes,  // Buka ini kalau struct TransactionRes lu butuh data user
+			})
+		}
+
+		// 3. TEMPELKAN KE INDUK (WALLET)
 		res = append(res, api.WalletRes{
 			Id:               v.ID.String(),
 			Name:             v.Name,
@@ -205,12 +246,11 @@ func (c *WalletAPI) GetMyWallets(ctx context.Context, request api.GetMyWalletsRe
 			GroupId:          utils.UUIDPtrToStringPtr(v.GroupID),
 			Balance:          v.Balance,
 			TransactionCount: v.TransactionCount,
-
-			// 3. PROTEKSI BERSARANG: Cegah properti ini meledak menjadi 'null' di Frontend
-			Transactions: []api.TransactionRes{},
+			Transactions:     trxRes,
 		})
 	}
-	fmt.Println(res)
+
+	// HAPUS fmt.Println(res)
 	totalPages := (int(totalItems) + limit - 1) / limit
 	return api.GetMyWallets200JSONResponse{
 		Message: utils.StringPtr("Get Wallets Successfully"),

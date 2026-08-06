@@ -13,7 +13,7 @@ type WalletRepository interface {
 	CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error)
 	FindAll(ctx context.Context, offset int, limit int) (*[]models.Wallet, error)
 	FindByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
-	FindAllMine(ctx context.Context, userID uuid.UUID, limit, offset int) (*[]models.Wallet, int64, error)
+	FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]models.Wallet, int64, error)
 	SoftDeleteWallet(ctx context.Context, wallet uuid.UUID) error
 	GetWalletByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
 	UpdateWallet(ctx context.Context, wallet *models.Wallet) (*models.Wallet, error)
@@ -61,12 +61,12 @@ func (r *walletRepository) FindAll(ctx context.Context, offset int, limit int) (
 	return &wallets, err
 }
 
-func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) (*[]models.Wallet, int64, error) {
+// HAPUS BINTANG DI RETURN TYPE
+func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]models.Wallet, int64, error) {
 	var wallets []models.Wallet
 	var totalItems int64
 
-	// 1. EKSEKUSI A: HANYA UNTUK MENGHITUNG (COUNT)
-	// Buat query baru, murni hanya untuk Where dan Count. Jangan dicampur Select.
+	// 1. EKSEKUSI A: MENGHITUNG TOTAL
 	if err := r.db.WithContext(ctx).
 		Model(&models.Wallet{}).
 		Where("user_id = ?", userID).
@@ -74,18 +74,37 @@ func (r *walletRepository) FindAllMine(ctx context.Context, userID uuid.UUID, li
 		return nil, 0, err
 	}
 
-	// 2. EKSEKUSI B: HANYA UNTUK MENARIK DATA (FIND)
-	// Buat rantai query BARU dari nol. Bersih, tidak tercemar.
+	// 2. EKSEKUSI B: MENARIK DATA WALLET
+	// Kita hapus Preload di sini karena GORM cacat kalau disuruh Limit per grup
 	if err := r.db.WithContext(ctx).
 		Model(&models.Wallet{}).
-		Select("wallets.*, "+countQuery+" as transaction_count"). // Asumsi countQuery lu valid
+		Select("wallets.*, "+countQuery+" as transaction_count").
 		Where("user_id = ?", userID).
 		Limit(limit).Offset(offset).
+		Order("created_at DESC"). // Tambahkan urutan wallet yang logis!
 		Find(&wallets).Error; err != nil {
 		return nil, 0, err
 	}
 
-	return &wallets, totalItems, nil
+	// 3. EKSEKUSI C: CONTROLLED MANUAL INJECTION (Solusi Limit 5 Per Dompet)
+	// Karena wallets dibatasi limit (misal 10), loop ini maksimal hanya jalan 10 kali. Sangat aman.
+	for i := range wallets {
+		var recentTransactions []models.Transaction
+
+		// Tarik 5 transaksi terbaru KHUSUS untuk dompet ini
+		r.db.WithContext(ctx).
+			Preload("Category").
+			Where("wallet_id = ?", wallets[i].ID).
+			Order("created_at DESC"). // Atau pakai "date DESC" jika lu pakai kolom Date
+			Limit(5).
+			Find(&recentTransactions)
+
+		// Suntikkan ke memori array dompet
+		wallets[i].Transactions = recentTransactions
+	}
+
+	// Kembalikan MURNI (tanpa &)
+	return wallets, totalItems, nil
 }
 
 func (r *walletRepository) CreateWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {

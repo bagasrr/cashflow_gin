@@ -3,7 +3,6 @@ package repository
 import (
 	"cashflow_gin/models"
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -156,36 +155,60 @@ func (r *transactionRepository) GetTransactionsByWallet(ctx context.Context, use
 	var transactions []models.Transaction
 	var totalItems int64
 
-	// 1. Fondasi Query (MUTLAK: Gunakan .Model agar GORM tahu tabel mana yang mau dihitung)
+	// 1. FONDASI MUTLAK DENGAN JOIN
+	// Paksa GORM untuk menggabungkan tabel sejak awal agar Postgres bisa membaca kolom categories
 	query := r.db.WithContext(ctx).Model(&models.Transaction{}).
-		Where("user_id = ? AND wallet_id = ? AND deleted_at IS NULL", userID, walletID).
-		Where("date >= ? AND date <= ?", startDate, endDate)
+		Joins("JOIN categories ON categories.id = transactions.category_id").
+		Where("transactions.user_id = ? AND transactions.wallet_id = ? AND transactions.deleted_at IS NULL", userID, walletID).
+		Where("transactions.date >= ? AND transactions.date <= ?", startDate, endDate)
 
-	// 2. Tumpuk Lego Search (SEBELUM DIHITUNG!)
+	// 2. TUMPUK LEGO SEARCH (Gunakan prefix tabel!)
 	if search != "" {
-		query = query.Where("title ILIKE ?", "%"+search+"%")
+		query = query.Where("transactions.title ILIKE ?", "%"+search+"%")
 	}
 
-	// 3. EKSEKUSI COUNT MUTLAK
-	// Di titik ini, query sudah berisi filter tanggal + search (jika ada).
-	// Tapi belum tercemar oleh Limit dan Offset.
+	// 3. EKSEKUSI COUNT
 	if err := query.Count(&totalItems).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 4. Tumpuk Lego Sorting
-	// (Sorting ditaruh setelah Count karena mengurutkan data cuma buang-buang CPU database saat proses menghitung)
-	orderClause := fmt.Sprintf("%s %s", sortBy, sortOrder)
-	query = query.Order(orderClause)
-
-	if sortBy != "date" {
-		query = query.Order("created_at DESC")
+	// 4. SANITASI MUTLAK & TRANSLASI SORTING (Mencegah SQL Injection)
+	// Kita translasi bahasa API Frontend menjadi bahasa Database yang akurat
+	var orderColumn string
+	switch sortBy {
+	case "categories.type": // Jika Frontend ngirim "category"
+		orderColumn = "categories.type" // Kita urutkan berdasarkan tipe kategori
+	case "categories.name": // Jika Frontend ngirim "category"
+		orderColumn = "categories.name" // Kita urutkan berdasarkan tipe kategori
+	case "amount":
+		orderColumn = "transactions.amount"
+	case "title":
+		orderColumn = "transactions.title"
+	case "description":
+		orderColumn = "transactions.description"
+	case "updated_at":
+		orderColumn = "transactions.updated_at"
+	default:
+		orderColumn = "transactions.date" // Fallback aman
 	}
 
-	// 5. Eksekusi Akhir (Pemotongan Data)
+	// Validasi Sort Order secara hardcode agar tidak bisa disusupi perintah SQL
+	if sortOrder != "asc" && sortOrder != "ASC" {
+		sortOrder = "DESC"
+	}
+
+	// Terapkan sorting yang sudah 100% aman
+	query = query.Order(orderColumn + " " + sortOrder)
+
+	// Tie-breaker order
+	if orderColumn != "transactions.date" {
+		query = query.Order("transactions.created_at DESC")
+	}
+
+	// 5. EKSEKUSI AKHIR
 	err := query.Limit(limit).
 		Offset(offset).
-		Preload("Category").
+		Preload("Category"). // Preload tetap wajib dipanggil agar struct Golang lu terisi data utuh
 		Preload("Wallet").
 		Find(&transactions).Error
 

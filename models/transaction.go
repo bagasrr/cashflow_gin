@@ -15,10 +15,9 @@ type Transaction struct {
 
 	Title string `gorm:"type:varchar(255)" json:"title"`
 	// UBAH MUTLAK: Pakai int64 dan bigint. Lupakan desimal.
-	Amount           int64     `gorm:"type:bigint" json:"amount"`
-	Description      string    `gorm:"type:varchar(255)" json:"description"`
-	Date             time.Time `json:"date"`
-	TransactionCount int64     `gorm:"-:migration;->" json:"transaction_count"`
+	Amount      int64     `gorm:"type:bigint" json:"amount"`
+	Description string    `gorm:"type:varchar(255)" json:"description"`
+	Date        time.Time `json:"date"`
 
 	User     User     `gorm:"foreignKey:UserID"`
 	Wallet   Wallet   `gorm:"foreignKey:WalletID"`

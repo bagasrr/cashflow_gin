@@ -314,7 +314,7 @@ func (s *transactionService) GetTransactionsByWallet(ctx context.Context, userID
 	validSortBy := "date" // Default
 	if params.SortBy != nil {
 		switch *params.SortBy {
-		case "amount", "title", "date", "created_at": // Hanya izinkan kolom ini
+		case "amount", "title", "categories.type", "categories.name", "date", "created_at", "update_at", "description": // Hanya izinkan kolom ini
 			validSortBy = *params.SortBy
 		default:
 			// Tendang user kalau dia nyoba masukin nama kolom aneh

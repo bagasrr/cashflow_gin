@@ -531,6 +531,9 @@ type UpdateWalletJSONRequestBody = UpdateWalletReq
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Revoke Token & Logout
+	// (POST /api/auth/logout)
+	Logout(c *gin.Context)
 	// Forgot Password
 	// (POST /auth/forgot-password)
 	ForgotPassword(c *gin.Context)
@@ -655,6 +658,21 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Logout(c)
+}
 
 // ForgotPassword operation middleware
 func (siw *ServerInterfaceWrapper) ForgotPassword(c *gin.Context) {
@@ -1831,6 +1849,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.POST(options.BaseURL+"/api/auth/logout", wrapper.Logout)
 	router.POST(options.BaseURL+"/auth/forgot-password", wrapper.ForgotPassword)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login)
 	router.POST(options.BaseURL+"/auth/register", wrapper.Register)
@@ -1869,6 +1888,48 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/wallets/:id", wrapper.UpdateWallet)
 	router.GET(options.BaseURL+"/wallets/:id/charts", wrapper.GetWalletChartData)
 	router.GET(options.BaseURL+"/wallets/:id/transactions", wrapper.GetWalletTransactions)
+}
+
+type LogoutRequestObject struct {
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout200ResponseHeaders struct {
+	SetCookie string
+}
+
+type Logout200JSONResponse struct {
+	Body    SuccessBaseRes
+	Headers Logout200ResponseHeaders
+}
+
+func (response Logout200JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type Logout400JSONResponse N400BaseRes
+
+func (response Logout400JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type Logout500JSONResponse N500BaseRes
+
+func (response Logout500JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type ForgotPasswordRequestObject struct {
@@ -3419,6 +3480,9 @@ func (response GetWalletTransactions500JSONResponse) VisitGetWalletTransactionsR
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Revoke Token & Logout
+	// (POST /api/auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
 	// Forgot Password
 	// (POST /auth/forgot-password)
 	ForgotPassword(ctx context.Context, request ForgotPasswordRequestObject) (ForgotPasswordResponseObject, error)
@@ -3545,6 +3609,31 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(ctx *gin.Context) {
+	var request LogoutRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		if err := validResponse.VisitLogoutResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ForgotPassword operation middleware

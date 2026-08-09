@@ -11,7 +11,6 @@ import (
 	"log"
 
 	"github.com/gin-contrib/cors"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,11 +34,16 @@ type standardError struct {
 func Run() {
 	config.LoadConfig()
 
+	redisClient := config.InitRedis()
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			log.Printf("CRITICAL WARNING: Gagal menutup koneksi Redis secara anggun: %v", err)
+		}
+	}()
 	db, err := config.NewDatabaseConnection()
 	if err != nil {
 		log.Fatal("Gagal Konek Database: ", err)
 	}
-
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"}, // URL Next.js lu
@@ -72,7 +76,7 @@ func Run() {
 	dashboardService := services.NewDashboardService(dashboardRepo, transactionRepo)
 
 	// C. Inisialisasi Handlers (Gerbang Luar)
-	authAPI := &handler.AuthAPI{Service: authService}
+	authAPI := &handler.AuthAPI{Service: authService, RedisClient: redisClient}
 	categoryAPI := &handler.CategoryAPI{Service: categoryService}
 	transactionAPI := &handler.TransactionAPI{Service: transactionService}
 	userAPI := &handler.UserAPI{Service: userService}
@@ -90,8 +94,7 @@ func Run() {
 		GroupAPI:       groupAPI,
 		DashboardAPI:   dashboardAPI,
 	}
-
-	r.Use(middlewares.AuthMiddleware())
+	r.Use(middlewares.AuthMiddleware(redisClient))
 	// E. Daftarkan ke Gin Router
 	strictHandler := api.NewStrictHandler(masterHandler, nil)
 	// PENTING: Jangan lupa kasih BaseURL "/api" kalau di yaml lu path-nya mulai dari "/api"

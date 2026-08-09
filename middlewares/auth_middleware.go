@@ -12,9 +12,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(rdb *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		publicRoutes := []string{
 			"/docs", // Biar Swagger UI tetep bisa dibuka
@@ -62,7 +63,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			// Asumsi lu punya JWTSecret di struct config lu
 			return []byte(config.AppConfig.JWTSecret), nil
 		})
-
 		fmt.Println("\nToken Valid : " + tokenString)
 
 		if err != nil || !token.Valid {
@@ -74,12 +74,40 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		ctx := c.Request.Context()
+		redisErr := rdb.Get(ctx, tokenString).Err()
+		if redisErr != nil && redisErr != redis.Nil {
+			log.Printf("CRITICAL: Redis Middleware Error: %v", redisErr)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, response.BaseResponse{
+				Status:  false,
+				Message: "Internal Server Error",
+				Errors:  "Sistem otentikasi sedang mengalami gangguan",
+			})
+			return
+		}
+
+		// Jika tidak ada error sama sekali (berarti data token KETEMU di daftar hitam)
+		if redisErr == nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
+				Status:  false,
+				Message: "Unauthorized",
+				Errors:  "Akses ditolak: Token sudah tidak berlaku (Revoked)",
+			})
+			return
+		}
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
 				Status:  false,
 				Message: "Unauthorized",
 				Errors:  "Invalid token structure",
+			})
+			return
+		}
+		expClaim, expOk := claims["exp"].(float64)
+		if !expOk {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.BaseResponse{
+				Status: false, Message: "Unauthorized", Errors: "Token tidak memiliki expiration time",
 			})
 			return
 		}
@@ -107,8 +135,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			})
 			return
 		}
-
-		// 4. MASUKKAN KE DALAM CONTEXT STANDAR GO
+		c.Set("token_string", tokenString)
+		c.Set("token_exp", expClaim)
 		c.Set("user_id", userID)
 		c.Set("user_role", userRole)
 

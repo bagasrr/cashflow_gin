@@ -3,6 +3,7 @@ package utils
 import (
 	"cashflow_gin/models"
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -155,4 +156,42 @@ func AbsInt64(n int64) int64 {
 		return -n
 	}
 	return n
+}
+
+func GetStringFromContext(ctx context.Context, key string) (string, error) {
+	ginCtx, ok := ctx.(*gin.Context)
+	if !ok {
+		return "", errors.New("fatal: context is not a gin.Context")
+	}
+	val, exists := ginCtx.Get(key)
+	if !exists {
+		return "", errors.New("fatal: context missing from context")
+	}
+	valStr, ok := val.(string)
+	if !ok {
+		return "", errors.New("fatal: invalid value in context")
+	}
+
+	return valStr, nil
+}
+
+func GetFloatFromContext(ctx context.Context, key string) (float64, error) {
+	ginCtx, ok := ctx.(*gin.Context)
+	if !ok {
+		return 0, errors.New("fatal: context is not a gin.Context")
+	}
+
+	val, exists := ginCtx.Get(key)
+	if !exists {
+		return 0, errors.New("fatal: context missing from context")
+	}
+
+	// EKSEKUSI MUTLAK: Langsung tembak ke float64, karena dari Middleware asalnya udah float64!
+	f, ok := val.(float64)
+	if !ok {
+		// Kasih pesan error yang jelas biar kalau meledak lagi lu tahu tipe datanya apa
+		return 0, fmt.Errorf("fatal: invalid value in context, expected float64 but got %T", val)
+	}
+
+	return f, nil
 }

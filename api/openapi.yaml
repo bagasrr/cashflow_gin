@@ -796,6 +796,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
+  /api/auth/logout:
+    post:
+      summary: Revoke Token & Logout
+      operationId: Logout
+      tags:
+        - Auth
+      security:
+        - BearerAuth: [ ]
+      responses:
+        '200':
+          description: Berhasil logout dan token diblokir
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Menghapus token dari cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBaseRes'
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
   # ==========================================
   # SUMMARY DOMAIN
   # ==========================================

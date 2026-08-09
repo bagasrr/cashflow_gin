@@ -6,10 +6,14 @@ import (
 	"cashflow_gin/utils"
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type AuthAPI struct {
-	Service services.AuthService
+	Service     services.AuthService
+	RedisClient *redis.Client
 }
 
 // Register memenuhi interface dari openapi.yaml
@@ -97,6 +101,7 @@ func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.Lo
 		},
 	}, nil
 }
+
 func (a *AuthAPI) ForgotPassword(ctx context.Context, req api.ForgotPasswordRequestObject) (api.ForgotPasswordResponseObject, error) {
 	err := a.Service.ForgotPassword(ctx, req.Body.Email, req.Body.Password)
 	if err != nil {
@@ -109,5 +114,68 @@ func (a *AuthAPI) ForgotPassword(ctx context.Context, req api.ForgotPasswordRequ
 	return api.ForgotPassword200JSONResponse{
 		Status:  utils.BoolPtr(true),
 		Message: utils.StringPtr("Forgot password successfully"),
+	}, nil
+}
+
+func (c *AuthAPI) Logout(ctx context.Context, request api.LogoutRequestObject) (api.LogoutResponseObject, error) {
+	// 1. Tarik data yang sudah disiapkan oleh Middleware
+	// Karena lu pakai oapi-codegen (context standar), lu harus menggunakan utilitas buatan lu
+	// untuk mengekstrak value dari Gin Context yang terbungkus.
+	tokenString, err := utils.GetStringFromContext(ctx, "token_string")
+	if err != nil || tokenString == "" {
+		return api.Logout500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Internal Server Error"),
+			Errors:  utils.StringPtr("Gagal mengekstrak token dari context"),
+		}, nil
+	}
+
+	expFloat, err := utils.GetFloatFromContext(ctx, "token_exp")
+	if err != nil {
+		return api.Logout500JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Internal Server Error"),
+			Errors:  utils.StringPtr("Gagal mengekstrak waktu kedaluwarsa"),
+		}, nil
+	}
+
+	// 2. MATEMATIKA TTL MUTLAK
+	// Konversi float64 (standar Unix timestamp di JWT) ke bentuk Time Golang
+	expiresAt := time.Unix(int64(expFloat), 0)
+
+	// Hitung sisa umur token: Waktu Kedaluwarsa - Waktu Saat Ini
+	ttl := time.Until(expiresAt)
+
+	// 3. EKSEKUSI BLACKLIST KE REDIS
+	// Jika TTL masih lebih dari 0 detik (token belum mati secara alami), masukkan ke daftar hitam
+	if ttl > 0 {
+		// Gunakan c.RedisClient (pastikan lu udah inject Redis ke struct AuthAPI lu)
+		redisErr := c.RedisClient.Set(ctx, tokenString, "revoked", ttl).Err()
+		if redisErr != nil {
+			return api.Logout500JSONResponse{
+				Status:  utils.BoolPtr(false),
+				Message: utils.StringPtr("Logout Gagal"),
+				Errors:  utils.StringPtr("Gagal memblokir token di server"),
+			}, nil
+		}
+	}
+
+	// 4. CLIENT-SIDE DESTRUCTION (Jika lu menggunakan Cookie)
+	// Kalau Front-end lu (Next.js/Flutter) murni menggunakan Bearer Header dari LocalStorage,
+	// lu nggak perlu ngirim instruksi hapus cookie. Front-end lu yang wajib nge-clear storage-nya sendiri.
+	// TAPI, kalau API lu memakai HttpOnly Cookie, buka komentar di bawah ini dan pastikan lu punya
+	// utilitas untuk mengakses Gin ResponseWriter dari context.
+
+	destroyCookieString := "token=; Max-Age=0; Path=/; Domain=localhost; HttpOnly; SameSite=Lax"
+
+	// 5. KEMBALIKAN RESPONS SUKSES MUTLAK LEWAT JALUR RESMI
+	return api.Logout200JSONResponse{
+		Body: api.SuccessBaseRes{ // Sesuaikan dengan nama struct response lu yang bener dari oapi-codegen
+			Status:  utils.BoolPtr(true),
+			Message: utils.StringPtr("Logout berhasil, sesi telah dihancurkan"),
+		},
+		Headers: api.Logout200ResponseHeaders{
+			SetCookie: destroyCookieString,
+		},
 	}, nil
 }

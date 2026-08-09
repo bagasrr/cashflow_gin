@@ -796,7 +796,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
 
-  /api/auth/logout:
+  /auth/logout:
     post:
       summary: Revoke Token & Logout
       operationId: Logout

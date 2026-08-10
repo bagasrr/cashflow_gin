@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"cashflow_gin/utils"
 	"context"
 	"time"
 
@@ -18,6 +19,7 @@ type TransactionRepository interface {
 	UpdateTransaction(ctx context.Context, transaction *models.Transaction, delta int64) error
 	SoftDeleteTransaction(ctx context.Context, transactionID uuid.UUID, delta int64, walletID uuid.UUID) error
 	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time, limit, offset int, search, sortBy, sortOrder string) ([]models.Transaction, int64, error)
+	ExecuteBulkImport(ctx context.Context, transactions []models.Transaction) error
 }
 
 type transactionRepository struct {
@@ -213,4 +215,17 @@ func (r *transactionRepository) GetTransactionsByWallet(ctx context.Context, use
 		Find(&transactions).Error
 
 	return transactions, totalItems, err
+}
+
+// Pastikan parameternya adalah ctx context.Context
+func (r *transactionRepository) ExecuteBulkImport(ctx context.Context, transactions []models.Transaction) error {
+	if len(transactions) == 0 {
+		return nil
+	}
+
+	// BONGKAR PENYAMARAN: Tarik objek GORM (yang lagi mode transaksi) dari dalam Context
+	db := utils.ExtractTx(ctx, r.db)
+
+	// Gunakan variabel 'db' yang berhasil terekstrak
+	return db.WithContext(ctx).CreateInBatches(transactions, 1000).Error
 }

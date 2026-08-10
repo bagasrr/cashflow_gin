@@ -23,6 +23,8 @@ type CategoryRepository interface {
 	Update(ctx context.Context, category *models.Category) (*models.Category, error)
 	Delete(ctx context.Context, category *models.Category) error
 	// FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error)
+	GetCategoriesByNames(ctx context.Context, userID uuid.UUID, names []string) ([]models.Category, error)
+	CreateCategoriesBatch(tx *gorm.DB, categories []models.Category) error
 }
 
 type categoryRepository struct {
@@ -183,9 +185,16 @@ func (r *categoryRepository) Delete(ctx context.Context, category *models.Catego
 	err := r.db.WithContext(ctx).Delete(&category).Error
 	return err
 }
-
-// func (r *categoryRepository) FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error) {
-// 	var category models.Category
-// 	err := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&category).Error
-// 	return &category, err
-// }
+func (r *categoryRepository) GetCategoriesByNames(ctx context.Context, userID uuid.UUID, names []string) ([]models.Category, error) {
+	var categories []models.Category
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND name IN ?", userID, names).
+		Find(&categories).Error
+	return categories, err
+}
+func (r *categoryRepository) CreateCategoriesBatch(tx *gorm.DB, categories []models.Category) error {
+	if len(categories) == 0 {
+		return nil
+	}
+	return tx.CreateInBatches(categories, 500).Error
+}

@@ -6,6 +6,7 @@ import (
 	"cashflow_gin/repository"
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,6 +27,7 @@ type TransactionService interface {
 	UpdateTransaction(ctx context.Context, userID, transactionID uuid.UUID, input api.UpdateTransactionReq) (*models.Transaction, error)
 	SoftDeleteTransaction(ctx context.Context, userID, transactionID uuid.UUID) error
 	GetTransactionsByWallet(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletTransactionsParams, page, limit, offset int) ([]models.Transaction, int64, error)
+	BulkImportTransactions(ctx context.Context, userID uuid.UUID, req []api.BulkTransactionItemReq) error
 }
 
 type transactionService struct {
@@ -34,6 +36,7 @@ type transactionService struct {
 	userRepo        repository.UserRepository
 	groupRepo       repository.GroupRepository
 	walletRepo      repository.WalletRepository
+	txManager       TransactionManager
 }
 
 func NewTransactionService(
@@ -42,6 +45,7 @@ func NewTransactionService(
 	uRepo repository.UserRepository,
 	gRepo repository.GroupRepository,
 	wRepo repository.WalletRepository,
+	txManager TransactionManager,
 ) TransactionService {
 	return &transactionService{
 		transactionRepo: tRepo,
@@ -49,6 +53,7 @@ func NewTransactionService(
 		userRepo:        uRepo,
 		groupRepo:       gRepo,
 		walletRepo:      wRepo,
+		txManager:       txManager,
 	}
 }
 
@@ -323,4 +328,82 @@ func (s *transactionService) GetTransactionsByWallet(ctx context.Context, userID
 	}
 
 	return s.transactionRepo.GetTransactionsByWallet(ctx, userID, walletID, startDate, endDate, limit, offset, searchStr, validSortBy, validOrder)
+}
+
+func (s *transactionService) BulkImportTransactions(ctx context.Context, userID uuid.UUID, req []api.BulkTransactionItemReq) error {
+	if len(req) == 0 {
+		return errors.New("data transaksi kosong")
+	}
+
+	// 1. KUMPULKAN SEMUA NAMA KATEGORI UNIK (Hindari duplikasi memori)
+	uniqueCategoryMap := make(map[string]string) // key: Nama Kategori, value: Tipe Kategori
+	var categoryNames []string
+	for _, item := range req {
+		name := strings.TrimSpace(item.CategoryName)
+		if name == "" {
+			return errors.New("terdapat baris dengan nama kategori kosong")
+		}
+		if _, exists := uniqueCategoryMap[name]; !exists {
+			uniqueCategoryMap[name] = string(item.CategoryType)
+			categoryNames = append(categoryNames, name)
+		}
+	}
+
+	// 2. AMBIL KATEGORI YANG SUDAH ADA DARI DATABASE (Cuma 1 Query!)
+	existingCategories, err := s.categoryRepo.GetCategoriesByNames(ctx, userID, categoryNames)
+	if err != nil {
+		return err
+	}
+
+	// Pindahkan existing ke dalam Dictionary (Map) agar pencariannya instan O(1)
+	categoryDict := make(map[string]uuid.UUID)
+	for _, cat := range existingCategories {
+		categoryDict[cat.Name] = cat.ID
+	}
+
+	// 3. IDENTIFIKASI KATEGORI YANG BELUM ADA & RAKIT OBJEK BARU
+	var newCategories []models.Category
+	for name, catType := range uniqueCategoryMap {
+		if _, exists := categoryDict[name]; !exists {
+			newCatID := uuid.New()
+			newCategories = append(newCategories, models.Category{
+				Base:   models.Base{ID: newCatID},
+				UserID: &userID,
+				Name:   name,
+				Type:   models.CategoryType(catType), // Pemasukan atau Pengeluaran dari Frontend
+			})
+			// Daftarkan langsung ke dictionary kita
+			categoryDict[name] = newCatID
+		}
+	}
+
+	// 4. EKSEKUSI DATABASE SECARA ATOMIK (Gagal satu, batal semua!)
+	return s.txManager.WithTransaction(ctx, func(txCtx context.Context) error {
+		// A. Insert Kategori (Lempar txCtx, BUKAN tx)
+		if err := s.categoryRepo.CreateCategoriesBatch(txCtx, newCategories); err != nil {
+			return err
+		}
+
+		// B. Rakit objek transaksi dengan UUID Kategori yang sudah akurat
+		var transactions []models.Transaction
+		for _, item := range req {
+
+			categoryID := categoryDict[strings.TrimSpace(item.CategoryName)]
+
+			transactions = append(transactions, models.Transaction{
+				Base: models.Base{
+					ID: uuid.New(),
+				},
+				UserID:     userID,
+				WalletID:   item.WalletId,
+				CategoryID: categoryID,
+				Title:      item.Title,
+				Amount:     int64(item.Amount),
+				Date:       item.Date, // Asumsi ini udah format time.Time, parsing sesuai format FE lu
+			})
+		}
+
+		// C. Bulk Insert Transaksi
+		return s.transactionRepo.ExecuteBulkImport(txCtx, transactions)
+	})
 }

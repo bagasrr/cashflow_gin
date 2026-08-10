@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Bikin kunci unik supaya aman dari bentrok dengan package lain
@@ -194,4 +195,19 @@ func GetFloatFromContext(ctx context.Context, key string) (float64, error) {
 	}
 
 	return f, nil
+}
+
+const txKey contextKey = "tx_gorm"
+
+// InjectTx menyuntikkan transaksi ke dalam Context
+func InjectTx(ctx context.Context, tx *gorm.DB) context.Context {
+	return context.WithValue(ctx, txKey, tx)
+}
+
+// ExtractTx membongkar transaksi dari Context di dalam Repository
+func ExtractTx(ctx context.Context, defaultDB *gorm.DB) *gorm.DB {
+	if tx, ok := ctx.Value(txKey).(*gorm.DB); ok {
+		return tx
+	}
+	return defaultDB
 }

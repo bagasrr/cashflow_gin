@@ -64,13 +64,14 @@ func Run() {
 	walletRepo := repository.NewWalletRepository(db)
 	groupRepo := repository.NewGroupRepository(db) // Buka kalau group udah ada
 	dashboardRepo := repository.NewDashboardRepository(db)
+	txManager := repository.NewTransactionManager(db)
 
 	// B. Inisialisasi Services (Layer Tengah)
 	authService := services.NewAuthService(authRepo)
 	categoryService := services.NewCategoryService(categoryRepo, groupRepo, userRepo)
 	userService := services.NewUserService(userRepo)
 	// Hati-hati: TransactionService lu biasanya butuh banyak repo
-	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo)
+	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo, txManager)
 	walletService := services.NewWalletService(walletRepo, nil)
 	groupService := services.NewGroupService(groupRepo)
 	dashboardService := services.NewDashboardService(dashboardRepo, transactionRepo)

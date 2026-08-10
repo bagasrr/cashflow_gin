@@ -20,6 +20,27 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
+// Defines values for BulkTransactionItemReqCategoryType.
+const (
+	BulkTransactionItemReqCategoryTypeEXPENSE    BulkTransactionItemReqCategoryType = "EXPENSE"
+	BulkTransactionItemReqCategoryTypeINCOME     BulkTransactionItemReqCategoryType = "INCOME"
+	BulkTransactionItemReqCategoryTypeINVESTMENT BulkTransactionItemReqCategoryType = "INVESTMENT"
+)
+
+// Valid indicates whether the value is a known member of the BulkTransactionItemReqCategoryType enum.
+func (e BulkTransactionItemReqCategoryType) Valid() bool {
+	switch e {
+	case BulkTransactionItemReqCategoryTypeEXPENSE:
+		return true
+	case BulkTransactionItemReqCategoryTypeINCOME:
+		return true
+	case BulkTransactionItemReqCategoryTypeINVESTMENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateCategoryReqType.
 const (
 	CreateCategoryReqTypeEXPENSE    CreateCategoryReqType = "EXPENSE"
@@ -43,19 +64,19 @@ func (e CreateCategoryReqType) Valid() bool {
 
 // Defines values for GetMyCategoriesParamsType.
 const (
-	GetMyCategoriesParamsTypeEXPENSE    GetMyCategoriesParamsType = "EXPENSE"
-	GetMyCategoriesParamsTypeINCOME     GetMyCategoriesParamsType = "INCOME"
-	GetMyCategoriesParamsTypeINVESTMENT GetMyCategoriesParamsType = "INVESTMENT"
+	EXPENSE    GetMyCategoriesParamsType = "EXPENSE"
+	INCOME     GetMyCategoriesParamsType = "INCOME"
+	INVESTMENT GetMyCategoriesParamsType = "INVESTMENT"
 )
 
 // Valid indicates whether the value is a known member of the GetMyCategoriesParamsType enum.
 func (e GetMyCategoriesParamsType) Valid() bool {
 	switch e {
-	case GetMyCategoriesParamsTypeEXPENSE:
+	case EXPENSE:
 		return true
-	case GetMyCategoriesParamsTypeINCOME:
+	case INCOME:
 		return true
-	case GetMyCategoriesParamsTypeINVESTMENT:
+	case INVESTMENT:
 		return true
 	default:
 		return false
@@ -93,6 +114,23 @@ type N500BaseRes struct {
 	Message *string `json:"message,omitempty"`
 	Status  *bool   `json:"status,omitempty"`
 }
+
+// BulkTransactionItemReq defines model for BulkTransactionItemReq.
+type BulkTransactionItemReq struct {
+	Amount float32 `json:"amount"`
+
+	// CategoryName Nama kategori (misal "Makan"). Jika tidak ada, akan dibuat otomatis.
+	CategoryName string `json:"category_name"`
+
+	// CategoryType MUTLAK DIBUTUHKAN untuk membuat kategori baru jika belum ada.
+	CategoryType BulkTransactionItemReqCategoryType `json:"category_type"`
+	Date         time.Time                          `json:"date"`
+	Title        string                             `json:"title"`
+	WalletId     openapi_types.UUID                 `json:"wallet_id"`
+}
+
+// BulkTransactionItemReqCategoryType MUTLAK DIBUTUHKAN untuk membuat kategori baru jika belum ada.
+type BulkTransactionItemReqCategoryType string
 
 // CategoryBaseRes defines model for CategoryBaseRes.
 type CategoryBaseRes struct {
@@ -439,6 +477,9 @@ type GetTransactionsParams struct {
 	Limit int `form:"limit" json:"limit"`
 }
 
+// BulkImportTransactionsJSONBody defines parameters for BulkImportTransactions.
+type BulkImportTransactionsJSONBody = []BulkTransactionItemReq
+
 // FindAllUsersParams defines parameters for FindAllUsers.
 type FindAllUsersParams struct {
 	// Page Page number
@@ -510,6 +551,9 @@ type UpdateGroupJSONRequestBody = UpdateGroupReq
 
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = CreateTransactionReq
+
+// BulkImportTransactionsJSONRequestBody defines body for BulkImportTransactions for application/json ContentType.
+type BulkImportTransactionsJSONRequestBody = BulkImportTransactionsJSONBody
 
 // UpdateTransactionJSONRequestBody defines body for UpdateTransaction for application/json ContentType.
 type UpdateTransactionJSONRequestBody = UpdateTransactionReq
@@ -594,6 +638,9 @@ type ServerInterface interface {
 	// Create Transaction
 	// (POST /transactions)
 	CreateTransaction(c *gin.Context)
+	// Import Bulk Transactions with Auto-Category
+	// (POST /transactions/bulk)
+	BulkImportTransactions(c *gin.Context)
 	// Delete Transaction By ID (soft)
 	// (DELETE /transactions/{id})
 	DeleteTransaction(c *gin.Context, id string)
@@ -1272,6 +1319,21 @@ func (siw *ServerInterfaceWrapper) CreateTransaction(c *gin.Context) {
 	siw.Handler.CreateTransaction(c)
 }
 
+// BulkImportTransactions operation middleware
+func (siw *ServerInterfaceWrapper) BulkImportTransactions(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.BulkImportTransactions(c)
+}
+
 // DeleteTransaction operation middleware
 func (siw *ServerInterfaceWrapper) DeleteTransaction(c *gin.Context) {
 
@@ -1870,6 +1932,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/groups/:id", wrapper.UpdateGroup)
 	router.GET(options.BaseURL+"/transactions", wrapper.GetTransactions)
 	router.POST(options.BaseURL+"/transactions", wrapper.CreateTransaction)
+	router.POST(options.BaseURL+"/transactions/bulk", wrapper.BulkImportTransactions)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction)
 	router.GET(options.BaseURL+"/transactions/:id", wrapper.FindTransactionById)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
@@ -2699,6 +2762,50 @@ func (response CreateTransaction401JSONResponse) VisitCreateTransactionResponse(
 type CreateTransaction500JSONResponse N500BaseRes
 
 func (response CreateTransaction500JSONResponse) VisitCreateTransactionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BulkImportTransactionsRequestObject struct {
+	Body *BulkImportTransactionsJSONRequestBody
+}
+
+type BulkImportTransactionsResponseObject interface {
+	VisitBulkImportTransactionsResponse(w http.ResponseWriter) error
+}
+
+type BulkImportTransactions201JSONResponse SuccessBaseRes
+
+func (response BulkImportTransactions201JSONResponse) VisitBulkImportTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BulkImportTransactions400JSONResponse N400BaseRes
+
+func (response BulkImportTransactions400JSONResponse) VisitBulkImportTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BulkImportTransactions401JSONResponse N400BaseRes
+
+func (response BulkImportTransactions401JSONResponse) VisitBulkImportTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BulkImportTransactions500JSONResponse N500BaseRes
+
+func (response BulkImportTransactions500JSONResponse) VisitBulkImportTransactionsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -3543,6 +3650,9 @@ type StrictServerInterface interface {
 	// Create Transaction
 	// (POST /transactions)
 	CreateTransaction(ctx context.Context, request CreateTransactionRequestObject) (CreateTransactionResponseObject, error)
+	// Import Bulk Transactions with Auto-Category
+	// (POST /transactions/bulk)
+	BulkImportTransactions(ctx context.Context, request BulkImportTransactionsRequestObject) (BulkImportTransactionsResponseObject, error)
 	// Delete Transaction By ID (soft)
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx context.Context, request DeleteTransactionRequestObject) (DeleteTransactionResponseObject, error)
@@ -4227,6 +4337,39 @@ func (sh *strictHandler) CreateTransaction(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(CreateTransactionResponseObject); ok {
 		if err := validResponse.VisitCreateTransactionResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// BulkImportTransactions operation middleware
+func (sh *strictHandler) BulkImportTransactions(ctx *gin.Context) {
+	var request BulkImportTransactionsRequestObject
+
+	var body BulkImportTransactionsJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.BulkImportTransactions(ctx, request.(BulkImportTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BulkImportTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(BulkImportTransactionsResponseObject); ok {
+		if err := validResponse.VisitBulkImportTransactionsResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {

@@ -437,6 +437,34 @@ components:
           type: string
           format: date-time
           example: "2023-01-01T00:00:00Z"
+
+    BulkTransactionItemReq:
+      type: object
+      required:
+        - wallet_id
+        - category_name
+        - category_type
+        - title
+        - amount
+        - date
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          description: Nama kategori (misal "Makan"). Jika tidak ada, akan dibuat otomatis.
+        category_type:
+          type: string
+          enum: [ INCOME, EXPENSE, INVESTMENT ]
+          description: MUTLAK DIBUTUHKAN untuk membuat kategori baru jika belum ada.
+        title:
+          type: string
+        amount:
+          type: number
+        date:
+          type: string
+          format: date-time
     #--------------- TRANSACTION END -------------
     #--------------- CATEGORY BEGIN -------------
     CategoryRes:
@@ -1286,7 +1314,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/500BaseRes"
-
     put:
       tags:
         - Transactions
@@ -1356,6 +1383,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TransactionBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
+
+  /transactions/bulk:
+    post:
+      tags:
+        - Transactions
+      description: Endpoint untuk soft-detele transaksi
+      operationId: BulkImportTransactions
+      summary: Import Bulk Transactions with Auto-Category
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/BulkTransactionItemReq'
+      responses:
+        '201':
+          description: Bulk import success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBaseRes'
         "400":
           description: Bad Request
           content:

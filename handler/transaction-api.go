@@ -281,3 +281,38 @@ func (c *TransactionAPI) DeleteTransaction(ctx context.Context, request api.Dele
 		Message: utils.StringPtr("Success Delete Transaction"),
 	}, nil
 }
+
+func (a *TransactionAPI) BulkImportTransactions(ctx context.Context, request api.BulkImportTransactionsRequestObject) (api.BulkImportTransactionsResponseObject, error) {
+	// 1. Tarik User ID dari JWT Context (Pastikan utils lu jalan!)
+	userIDStr, err := utils.GetStringFromContext(ctx, "user_id")
+	if err != nil {
+		return api.BulkImportTransactions401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Unauthorized"),
+		}, nil
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return api.BulkImportTransactions400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Invalid User ID format"),
+		}, nil
+	}
+
+	// 2. Lempar ke Service layer
+	err = a.Service.BulkImportTransactions(ctx, userID, request.Body)
+	if err != nil {
+		return api.BulkImportTransactions400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Gagal memproses bulk import"),
+			Errors:  utils.StringPtr(err.Error()),
+		}, nil
+	}
+
+	// 3. Kembalikan 201 Created
+	return api.BulkImportTransactions201JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Berhasil mengimpor seluruh transaksi"),
+	}, nil
+}

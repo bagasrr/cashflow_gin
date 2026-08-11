@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"cashflow_gin/utils"
 	"context"
 
 	"github.com/google/uuid"
@@ -24,7 +25,7 @@ type CategoryRepository interface {
 	Delete(ctx context.Context, category *models.Category) error
 	// FindByIDAndUserID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Category, error)
 	GetCategoriesByNames(ctx context.Context, userID uuid.UUID, names []string) ([]models.Category, error)
-	CreateCategoriesBatch(tx *gorm.DB, categories []models.Category) error
+	CreateCategoriesBatch(ctx context.Context, categories []models.Category) error
 }
 
 type categoryRepository struct {
@@ -192,9 +193,14 @@ func (r *categoryRepository) GetCategoriesByNames(ctx context.Context, userID uu
 		Find(&categories).Error
 	return categories, err
 }
-func (r *categoryRepository) CreateCategoriesBatch(tx *gorm.DB, categories []models.Category) error {
+
+func (r *categoryRepository) CreateCategoriesBatch(ctx context.Context, categories []models.Category) error {
 	if len(categories) == 0 {
 		return nil
 	}
-	return tx.CreateInBatches(categories, 500).Error
+
+	// Tarik transaksi dari context
+	db := utils.ExtractTx(ctx, r.db)
+
+	return db.WithContext(ctx).CreateInBatches(categories, 500).Error
 }

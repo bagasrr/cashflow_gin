@@ -300,8 +300,15 @@ func (a *TransactionAPI) BulkImportTransactions(ctx context.Context, request api
 		}, nil
 	}
 
+	if request.Body == nil {
+		return api.BulkImportTransactions400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Request body tidak boleh kosong"),
+		}, nil
+	}
+	payload := []api.BulkTransactionItemReq(*request.Body)
 	// 2. Lempar ke Service layer
-	err = a.Service.BulkImportTransactions(ctx, userID, request.Body)
+	err = a.Service.BulkImportTransactions(ctx, userID, payload)
 	if err != nil {
 		return api.BulkImportTransactions400JSONResponse{
 			Status:  utils.BoolPtr(false),

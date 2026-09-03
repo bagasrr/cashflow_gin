@@ -336,16 +336,29 @@ func (s *transactionService) BulkImportTransactions(ctx context.Context, userID 
 	}
 
 	// 1. KUMPULKAN SEMUA NAMA KATEGORI UNIK (Hindari duplikasi memori)
-	uniqueCategoryMap := make(map[string]string) // key: Nama Kategori, value: Tipe Kategori
+	type CategoryKey struct {
+		Name string
+		Type string
+	}
+	uniqueCategoryMap := make(map[CategoryKey]string) // key: CategoryKey, value: Tipe Kategori
 	var categoryNames []string
+	uniqueNames := make(map[string]bool)
+
 	for _, item := range req {
 		name := strings.TrimSpace(item.CategoryName)
 		if name == "" {
 			return errors.New("terdapat baris dengan nama kategori kosong")
 		}
-		if _, exists := uniqueCategoryMap[name]; !exists {
-			uniqueCategoryMap[name] = string(item.CategoryType)
-			categoryNames = append(categoryNames, name)
+		
+		catType := string(item.CategoryType)
+		key := CategoryKey{Name: name, Type: catType}
+		
+		if _, exists := uniqueCategoryMap[key]; !exists {
+			uniqueCategoryMap[key] = catType
+			if !uniqueNames[name] {
+				categoryNames = append(categoryNames, name)
+				uniqueNames[name] = true
+			}
 		}
 	}
 
@@ -356,24 +369,25 @@ func (s *transactionService) BulkImportTransactions(ctx context.Context, userID 
 	}
 
 	// Pindahkan existing ke dalam Dictionary (Map) agar pencariannya instan O(1)
-	categoryDict := make(map[string]uuid.UUID)
+	categoryDict := make(map[CategoryKey]uuid.UUID)
 	for _, cat := range existingCategories {
-		categoryDict[cat.Name] = cat.ID
+		key := CategoryKey{Name: cat.Name, Type: string(cat.Type)}
+		categoryDict[key] = cat.ID
 	}
 
 	// 3. IDENTIFIKASI KATEGORI YANG BELUM ADA & RAKIT OBJEK BARU
 	var newCategories []models.Category
-	for name, catType := range uniqueCategoryMap {
-		if _, exists := categoryDict[name]; !exists {
+	for key, catType := range uniqueCategoryMap {
+		if _, exists := categoryDict[key]; !exists {
 			newCatID := uuid.New()
 			newCategories = append(newCategories, models.Category{
 				Base:   models.Base{ID: newCatID},
 				UserID: &userID,
-				Name:   name,
+				Name:   key.Name,
 				Type:   models.CategoryType(catType), // Pemasukan atau Pengeluaran dari Frontend
 			})
 			// Daftarkan langsung ke dictionary kita
-			categoryDict[name] = newCatID
+			categoryDict[key] = newCatID
 		}
 	}
 
@@ -384,26 +398,46 @@ func (s *transactionService) BulkImportTransactions(ctx context.Context, userID 
 			return err
 		}
 
-		// B. Rakit objek transaksi dengan UUID Kategori yang sudah akurat
+		// B. Rakit objek transaksi dan hitung impact saldo
 		var transactions []models.Transaction
-		for _, item := range req {
+		walletImpacts := make(map[uuid.UUID]int64)
 
-			categoryID := categoryDict[strings.TrimSpace(item.CategoryName)]
+		for _, item := range req {
+			key := CategoryKey{Name: strings.TrimSpace(item.CategoryName), Type: string(item.CategoryType)}
+			categoryID := categoryDict[key]
+
+			absoluteAmount := absInt64(int64(item.Amount))
+			impactAmount := absoluteAmount
+			if key.Type == "EXPENSE" || key.Type == "INVESTMENT" {
+				impactAmount = -absoluteAmount
+			}
+			walletImpacts[item.WalletId] += impactAmount
+
+			var safeDescription string
+			if item.Description != nil {
+				safeDescription = *item.Description
+			}
 
 			transactions = append(transactions, models.Transaction{
 				Base: models.Base{
 					ID: uuid.New(),
 				},
-				UserID:     userID,
-				WalletID:   item.WalletId,
-				CategoryID: categoryID,
-				Title:      item.Title,
-				Amount:     int64(item.Amount),
-				Date:       item.Date, // Asumsi ini udah format time.Time, parsing sesuai format FE lu
+				UserID:      userID,
+				WalletID:    item.WalletId,
+				CategoryID:  categoryID,
+				Title:       item.Title,
+				Description: safeDescription,
+				Amount:      int64(item.Amount), // Atau bisa menggunakan absoluteAmount
+				Date:        item.Date,
 			})
 		}
 
 		// C. Bulk Insert Transaksi
-		return s.transactionRepo.ExecuteBulkImport(txCtx, transactions)
+		if err := s.transactionRepo.ExecuteBulkImport(txCtx, transactions); err != nil {
+			return err
+		}
+
+		// D. Update Wallet Balances
+		return s.walletRepo.UpdateBalances(txCtx, walletImpacts)
 	})
 }

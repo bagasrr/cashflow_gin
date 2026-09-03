@@ -18,6 +18,8 @@ type CategoryRepository interface {
 	FindAll(ctx context.Context, limit, offset int) (*[]models.Category, int64, error)
 
 	FindByName(ctx context.Context, name string) (*models.Category, error)
+	FindTransferCategory(ctx context.Context, name string, catType models.CategoryType, userID uuid.UUID) (*models.Category, error)
+
 	FindByUserID(ctx context.Context, userID uuid.UUID, categoryType string) (*[]models.Category, error)
 	FindByGroupID(ctx context.Context, groupID uuid.UUID) (*[]models.Category, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Category, error)
@@ -142,6 +144,7 @@ func (r *categoryRepository) FindAll(ctx context.Context, limit int, offset int)
 }
 
 func (r *categoryRepository) FindByName(ctx context.Context, name string) (*models.Category, error) {
+
 	var category models.Category
 	err := r.db.WithContext(ctx).First(&category, "name = ?", name).Error
 	return &category, err
@@ -203,4 +206,12 @@ func (r *categoryRepository) CreateCategoriesBatch(ctx context.Context, categori
 	db := utils.ExtractTx(ctx, r.db)
 
 	return db.WithContext(ctx).CreateInBatches(categories, 500).Error
+}
+
+func (r *categoryRepository) FindTransferCategory(ctx context.Context, name string, catType models.CategoryType, userID uuid.UUID) (*models.Category, error) {
+	var category models.Category
+	err := r.db.WithContext(ctx).
+		Where("name = ? AND type = ? AND (user_id = ? OR user_id IS NULL)", name, catType, userID).
+		First(&category).Error
+	return &category, err
 }

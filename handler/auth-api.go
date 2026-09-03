@@ -97,7 +97,7 @@ func (a *AuthAPI) Login(ctx context.Context, req api.LoginRequestObject) (api.Lo
 			Message: utils.StringPtr("Login successfully"),
 		},
 		Headers: api.Login200ResponseHeaders{
-			SetCookie: cookieString, // Lempar cookie lewat pintu yang benar
+			SetCookie: utils.StringPtr(cookieString), // Lempar cookie lewat pintu yang benar
 		},
 	}, nil
 }
@@ -175,7 +175,7 @@ func (c *AuthAPI) Logout(ctx context.Context, request api.LogoutRequestObject) (
 			Message: utils.StringPtr("Logout berhasil, sesi telah dihancurkan"),
 		},
 		Headers: api.Logout200ResponseHeaders{
-			SetCookie: destroyCookieString,
+			SetCookie: utils.StringPtr(destroyCookieString),
 		},
 	}, nil
 }

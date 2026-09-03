@@ -72,7 +72,7 @@ func Run() {
 	userService := services.NewUserService(userRepo)
 	// Hati-hati: TransactionService lu biasanya butuh banyak repo
 	transactionService := services.NewTransactionService(transactionRepo, categoryRepo, userRepo, groupRepo, walletRepo, txManager)
-	walletService := services.NewWalletService(walletRepo, nil)
+	walletService := services.NewWalletService(walletRepo, groupRepo, categoryRepo)
 	groupService := services.NewGroupService(groupRepo)
 	dashboardService := services.NewDashboardService(dashboardRepo, transactionRepo)
 

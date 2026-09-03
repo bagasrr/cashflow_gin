@@ -429,3 +429,36 @@ func (h *WalletAPI) GetWalletTransactions(ctx context.Context, request api.GetWa
 		},
 	}, nil
 }
+
+func (c *WalletAPI) TransferWallet(ctx context.Context, request api.TransferWalletRequestObject) (api.TransferWalletResponseObject, error) {
+	userId, _, err := utils.GetUserInfo(ctx)
+	if err != nil {
+		return api.TransferWallet401JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Unauthorized"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+
+	fromWalletID := request.Body.FromWalletId
+	toWalletID := request.Body.ToWalletId
+	amount := int64(request.Body.Amount)
+	var safeNotes string
+	if request.Body.Notes != nil {
+		safeNotes = *request.Body.Notes
+	}
+
+
+	if err := c.Service.TransferBalance(ctx, userId, fromWalletID, toWalletID, amount, safeNotes); err != nil {
+		return api.TransferWallet400JSONResponse{
+			Status:  utils.BoolPtr(false),
+			Message: utils.StringPtr("Transfer failed"),
+			Errors:  utils.StringPtr("Err : " + err.Error()),
+		}, nil
+	}
+
+	return api.TransferWallet200JSONResponse{
+		Status:  utils.BoolPtr(true),
+		Message: utils.StringPtr("Transfer successful"),
+	}, nil
+}

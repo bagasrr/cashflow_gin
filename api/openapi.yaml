@@ -31,6 +31,27 @@ components:
 
   schemas:
     # --- BASE RESPONSES BEGIN ---
+    TransferWalletReq:
+      type: object
+      required:
+        - from_wallet_id
+        - to_wallet_id
+        - amount
+      properties:
+        from_wallet_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        to_wallet_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174001"
+        amount:
+          type: number
+          example: 50000
+        notes:
+          type: string
+          example: "Bayar utang"
     SuccessBaseRes:
       type: object
       properties:
@@ -462,6 +483,9 @@ components:
           type: string
         amount:
           type: number
+        description:
+          type: string
+          example: "Description of transaction"
         date:
           type: string
           format: date-time
@@ -1764,6 +1788,45 @@ paths:
   # ==========================================
   # WALLET DOMAIN
   # ==========================================
+  /wallets/transfer:
+    post:
+      tags:
+        - Wallets
+      summary: Transfer balance between wallets
+      operationId: transferWallet
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferWalletReq"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessBaseRes"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/400BaseRes"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/500BaseRes"
   /wallets/me:
     post:
       tags:

@@ -28,7 +28,7 @@ func SetupRoutes(db *gorm.DB, r *gin.Engine) {
 	// Perhatikan ini: TransactionService butuh catRepo & userRepo juga
 	// Karena kita udah init di atas, tinggal masukin variabelnya.
 	// transService := services.NewTransactionService(transRepo, catRepo, userRepo, groupRepo, walletRepo)
-	// walletService := services.NewWalletService(walletRepo, groupRepo) // Service untuk Wallet, kalau nanti butuh logic khusus selain repo langsung bisa ditambahin di sini
+	// walletService := services.NewWalletService(walletRepo, groupRepo, catRepo) // Service untuk Wallet, kalau nanti butuh logic khusus selain repo langsung bisa ditambahin di sini
 
 	// 3. INIT CONTROLLERS (Layer Atas)
 	// userController := controllers.NewUserController(userService)

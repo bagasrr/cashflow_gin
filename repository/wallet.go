@@ -2,6 +2,7 @@ package repository
 
 import (
 	"cashflow_gin/models"
+	"cashflow_gin/utils"
 	"context"
 	"time"
 
@@ -17,7 +18,10 @@ type WalletRepository interface {
 	SoftDeleteWallet(ctx context.Context, wallet uuid.UUID) error
 	GetWalletByID(ctx context.Context, walletID uuid.UUID) (*models.Wallet, error)
 	UpdateWallet(ctx context.Context, wallet *models.Wallet) (*models.Wallet, error)
+	TransferBalance(ctx context.Context, expenseTrx, incomeTrx *models.Transaction) error
+
 	GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time) ([]models.WalletChartPoint, error)
+	UpdateBalances(ctx context.Context, impacts map[uuid.UUID]int64) error
 }
 
 type walletRepository struct {
@@ -111,9 +115,28 @@ func (r *walletRepository) CreateWallet(ctx context.Context, wallet models.Walle
 	err := r.db.WithContext(ctx).Create(&wallet).Error
 	return &wallet, err
 }
-func (r *walletRepository) SoftDeleteWallet(ctx context.Context, walletId uuid.UUID) error {
-	err := r.db.WithContext(ctx).Delete(&models.Wallet{}, "id = ?", walletId).Error
-	return err
+func (r *walletRepository) SoftDeleteWallet(ctx context.Context, wallet uuid.UUID) error {
+	var wal models.Wallet
+	err := r.db.WithContext(ctx).Delete(&wal, wallet).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *walletRepository) UpdateBalances(ctx context.Context, impacts map[uuid.UUID]int64) error {
+	db := utils.ExtractTx(ctx, r.db)
+	for walletID, impact := range impacts {
+		if impact == 0 {
+			continue
+		}
+		if err := db.WithContext(ctx).Model(&models.Wallet{}).
+			Where("id = ?", walletID).
+			Update("balance", gorm.Expr("balance + ?", impact)).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // 1. Tarik data lama
@@ -131,6 +154,7 @@ func (r *walletRepository) UpdateWallet(ctx context.Context, wallet *models.Wall
 }
 
 func (r *walletRepository) GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, startDate, endDate time.Time) ([]models.WalletChartPoint, error) {
+
 	var chartPoints []models.WalletChartPoint
 
 	// Query untuk mengelompokkan pemasukan dan pengeluaran per hari
@@ -150,4 +174,26 @@ func (r *walletRepository) GetWalletChartData(ctx context.Context, userID, walle
 		Scan(&chartPoints).Error
 
 	return chartPoints, err
+}
+
+func (r *walletRepository) TransferBalance(ctx context.Context, expenseTrx, incomeTrx *models.Transaction) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Omit("Category", "User").Create(expenseTrx).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&models.Wallet{}).Where("id = ?", expenseTrx.WalletID).
+			Updates(map[string]interface{}{"balance": gorm.Expr("balance - ?", expenseTrx.Amount), "updated_at": time.Now()}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Omit("Category", "User").Create(incomeTrx).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&models.Wallet{}).Where("id = ?", incomeTrx.WalletID).
+			Updates(map[string]interface{}{"balance": gorm.Expr("balance + ?", incomeTrx.Amount), "updated_at": time.Now()}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }

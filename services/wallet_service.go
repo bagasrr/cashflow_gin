@@ -20,17 +20,22 @@ type WalletService interface {
 
 	UpdateWalletName(ctx context.Context, userID, walletID uuid.UUID, newName string) (*models.Wallet, error)
 	DeleteWallet(ctx context.Context, walletId, userId uuid.UUID) error
+	TransferBalance(ctx context.Context, userID, fromWalletID, toWalletID uuid.UUID, amount int64, notes string) error
+
 	GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletChartDataParams) ([]models.WalletChartPoint, error)
+
 }
 
 type walletService struct {
 	// Kita butuh WalletRepository untuk akses data wallet
 	walletRepo repository.WalletRepository
 	groupRepo  repository.GroupRepository
+	categoryRepo repository.CategoryRepository
+
 }
 
-func NewWalletService(wRepo repository.WalletRepository, gRepo repository.GroupRepository) WalletService {
-	return &walletService{walletRepo: wRepo, groupRepo: gRepo}
+func NewWalletService(wRepo repository.WalletRepository, gRepo repository.GroupRepository, cRepo repository.CategoryRepository) WalletService {
+	return &walletService{walletRepo: wRepo, groupRepo: gRepo, categoryRepo: cRepo}
 }
 
 func (s *walletService) CreatePersonalWallet(ctx context.Context, wallet models.Wallet) (*models.Wallet, error) {
@@ -176,6 +181,7 @@ func (s *walletService) UpdateWalletName(ctx context.Context, userID, walletID u
 
 func (s *walletService) GetWalletChartData(ctx context.Context, userID, walletID uuid.UUID, params api.GetWalletChartDataParams) ([]models.WalletChartPoint, error) {
 
+
 	// 1. DEFINISIKAN WAKTU DEFAULT FALLBACK (30 Hari Terakhir)
 	now := time.Now()
 
@@ -212,9 +218,103 @@ func (s *walletService) GetWalletChartData(ctx context.Context, userID, walletID
 	// 4. LEMPAR KE REPOSITORY
 	// Menggunakan fungsi Repo yang udah kita bedah di obrolan sebelumnya
 	chartPoints, err := s.walletRepo.GetWalletChartData(ctx, userID, walletID, startDate, endDate)
+
 	if err != nil {
 		return nil, err
 	}
 
 	return chartPoints, nil
+}
+
+func (s *walletService) getOrCreateTransferCategory(ctx context.Context, userID uuid.UUID, name string, catType models.CategoryType) (uuid.UUID, error) {
+	category, err := s.categoryRepo.FindTransferCategory(ctx, name, catType, userID)
+	if err == nil {
+		return category.ID, nil
+	}
+
+	newCategory := models.Category{
+		UserID: &userID,
+		Name:   name,
+		Type:   catType,
+	}
+	
+	created, err := s.categoryRepo.Create(ctx, &newCategory)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	
+	return created.ID, nil
+}
+
+func (s *walletService) TransferBalance(ctx context.Context, userID, fromWalletID, toWalletID uuid.UUID, amount int64, notes string) error {
+	if amount <= 0 {
+		return errors.New("amount must be greater than 0")
+	}
+	if fromWalletID == toWalletID {
+		return errors.New("cannot transfer to the same wallet")
+	}
+
+	fromWallet, err := s.walletRepo.FindByID(ctx, fromWalletID)
+	if err != nil {
+		return errors.New("from_wallet not found")
+	}
+
+	if fromWallet.GroupID != nil {
+		isGroupMember, err := s.groupRepo.IsGroupMember(ctx, *fromWallet.GroupID, userID)
+		if err != nil || !isGroupMember {
+			return errors.New("unauthorized: from_wallet")
+		}
+	} else if *fromWallet.UserID != userID {
+		return errors.New("unauthorized: from_wallet")
+	}
+
+	if fromWallet.Balance < amount {
+		return errors.New("insufficient balance")
+	}
+
+	toWallet, err := s.walletRepo.FindByID(ctx, toWalletID)
+	if err != nil {
+		return errors.New("to_wallet not found")
+	}
+
+	if toWallet.GroupID != nil {
+		isGroupMember, err := s.groupRepo.IsGroupMember(ctx, *toWallet.GroupID, userID)
+		if err != nil || !isGroupMember {
+			return errors.New("unauthorized: to_wallet")
+		}
+	} else if *toWallet.UserID != userID {
+		return errors.New("unauthorized: to_wallet")
+	}
+
+	fromCatID, err := s.getOrCreateTransferCategory(ctx, userID, "Transfer Out", models.CategoryExpense)
+	if err != nil {
+		return err
+	}
+	
+	toCatID, err := s.getOrCreateTransferCategory(ctx, userID, "Transfer In", models.CategoryIncome)
+	if err != nil {
+		return err
+	}
+
+	expenseTrx := &models.Transaction{
+		UserID:      userID,
+		WalletID:    fromWalletID,
+		CategoryID:  fromCatID,
+		Title:       "Transfer Out",
+		Amount:      amount,
+		Description: notes,
+		Date:        time.Now(),
+	}
+	
+	incomeTrx := &models.Transaction{
+		UserID:      userID,
+		WalletID:    toWalletID,
+		CategoryID:  toCatID,
+		Title:       "Transfer In",
+		Amount:      amount,
+		Description: notes,
+		Date:        time.Now(),
+	}
+
+	return s.walletRepo.TransferBalance(ctx, expenseTrx, incomeTrx)
 }
